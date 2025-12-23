@@ -199,6 +199,155 @@ router.get('/', (req, res) => {
             opacity: 0.6;
             pointer-events: none;
         }
+        .ai-parse-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 2px dashed #e0e0e0;
+        }
+        .ai-parse-section label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .ai-parse-section textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        .ai-parse-btn {
+            background: #fbbf24;
+            color: #1a1a1a;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .ai-parse-btn:hover:not(:disabled) {
+            background: #f59e0b;
+        }
+        .ai-parse-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .upload-area {
+            border: 4px dashed #e0e0e0;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+        }
+        .upload-area.dragging {
+            border-color: #fbbf24;
+            background: #fef3c7;
+        }
+        .upload-area:hover {
+            border-color: #d1d5db;
+        }
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e0e0e0;
+            cursor: pointer;
+        }
+        .gallery-item.cover {
+            border-color: #fbbf24;
+            border-width: 3px;
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .gallery-item .delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .gallery-item .cover-badge {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(251, 191, 36, 0.9);
+            color: #1a1a1a;
+            text-align: center;
+            padding: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .addon-services {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .addon-tag {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .addon-tag .remove-btn {
+            background: none;
+            border: none;
+            color: #92400e;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .addon-input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .addon-input-group input {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -251,20 +400,45 @@ router.get('/', (req, res) => {
 
     <!-- Profile 表單 Modal -->
     <div id="profileModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <h2 id="profileModalTitle">新增 Profile</h2>
+                <h2 id="profileModalTitle">⚡ 快速上架</h2>
                 <button class="close-btn" onclick="closeProfileModal()">&times;</button>
             </div>
             <form id="profileForm" onsubmit="saveProfile(event)">
                 <input type="hidden" id="profileId" />
+                
+                <!-- AI 智慧填單 (僅新增時顯示) -->
+                <div id="aiParseSection" class="ai-parse-section">
+                    <label>🤖 AI 智慧填單 (貼上 Line 文案)</label>
+                    <textarea id="aiParseText" placeholder="在此貼上廣告文案..."></textarea>
+                    <button type="button" class="ai-parse-btn" id="aiParseBtn" onclick="parseProfileWithAI()">
+                        <span id="aiParseBtnText">解析</span>
+                    </button>
+                </div>
+
+                <!-- 照片管理 -->
+                <div class="form-group">
+                    <label>📸 照片管理 (第一張為封面)</label>
+                    <div class="upload-area" id="uploadArea" 
+                         ondrop="handleDrop(event)" 
+                         ondragover="handleDragOver(event)" 
+                         ondragleave="handleDragLeave(event)"
+                         onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon" id="uploadIcon">📤</div>
+                        <p style="font-weight: 600; color: #666; margin: 0;">拖曳或點擊上傳</p>
+                    </div>
+                    <input type="file" id="fileInput" multiple accept="image/*" style="display: none;" onchange="handleFileSelect(event)" />
+                    <div class="gallery-grid" id="galleryGrid"></div>
+                </div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>姓名 *</label>
                         <input type="text" id="profileName" required />
                     </div>
                     <div class="form-group">
-                        <label>國籍 *</label>
+                        <label>國家/國籍 * (emoji 國旗)</label>
                         <input type="text" id="profileNationality" placeholder="🇹🇼" required />
                     </div>
                 </div>
@@ -312,10 +486,6 @@ router.get('/', (req, res) => {
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>封面圖片 URL *</label>
-                    <input type="text" id="profileImageUrl" required />
-                </div>
-                <div class="form-group">
                     <label>標籤 (用逗號分隔)</label>
                     <input type="text" id="profileTags" placeholder="氣質高雅, 鄰家清新" />
                 </div>
@@ -323,6 +493,19 @@ router.get('/', (req, res) => {
                     <label>基本服務 (用逗號分隔)</label>
                     <input type="text" id="profileBasicServices" placeholder="聊天, 按摩" />
                 </div>
+                
+                <!-- 加值服務 -->
+                <div class="form-group">
+                    <label>💎 加值服務 (AI 自動提取)</label>
+                    <div class="addon-services" id="addonServicesList"></div>
+                    <div class="addon-input-group">
+                        <input type="text" id="newAddonService" placeholder="手動新增，如: 毒龍+5000" />
+                        <button type="button" class="btn" onclick="addAddonService()">新增</button>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="profileImageUrl" />
+                <input type="hidden" id="profileGallery" />
                 <div class="form-group">
                     <label>可用狀態</label>
                     <select id="profileIsAvailable">
@@ -394,6 +577,10 @@ router.get('/', (req, res) => {
         const API_BASE = window.location.origin;
         let currentEditingProfileId = null;
         let currentEditingArticleId = null;
+        let profileGallery = [];
+        let profileAddonServices = [];
+        let isDragging = false;
+        let isParsing = false;
 
         // 載入統計資訊
         async function loadStats() {
@@ -504,15 +691,21 @@ router.get('/', (req, res) => {
             currentEditingProfileId = id;
             const modal = document.getElementById('profileModal');
             const form = document.getElementById('profileForm');
+            const aiSection = document.getElementById('aiParseSection');
             
             if (id) {
-                document.getElementById('profileModalTitle').textContent = '編輯 Profile';
-                // 載入現有資料
+                document.getElementById('profileModalTitle').textContent = '✏️ 編輯茶茶';
+                aiSection.style.display = 'none';
                 loadProfileData(id);
             } else {
-                document.getElementById('profileModalTitle').textContent = '新增 Profile';
+                document.getElementById('profileModalTitle').textContent = '⚡ 快速上架';
+                aiSection.style.display = 'block';
                 form.reset();
                 document.getElementById('profileId').value = '';
+                profileGallery = [];
+                profileAddonServices = [];
+                updateGalleryDisplay();
+                updateAddonServicesDisplay();
             }
             
             modal.classList.add('active');
@@ -535,18 +728,201 @@ router.get('/', (req, res) => {
                 document.getElementById('profileDistrict').value = profile.district || '';
                 document.getElementById('profileType').value = profile.type || 'outcall';
                 document.getElementById('profilePrice').value = profile.price || '';
-                document.getElementById('profileImageUrl').value = profile.imageUrl || '';
                 document.getElementById('profileTags').value = (profile.tags || []).join(', ');
                 document.getElementById('profileBasicServices').value = (profile.basicServices || []).join(', ');
                 document.getElementById('profileIsAvailable').value = profile.isAvailable !== false ? 'true' : 'false';
+                
+                // 載入圖片
+                profileGallery = profile.gallery || [profile.imageUrl || ''].filter(Boolean);
+                profileAddonServices = profile.addonServices || [];
+                updateGalleryDisplay();
+                updateAddonServicesDisplay();
             } catch (error) {
                 alert('載入資料失敗: ' + error.message);
             }
+        }
+        
+        // AI 解析 Profile
+        async function parseProfileWithAI() {
+            const text = document.getElementById('aiParseText').value.trim();
+            if (!text) {
+                alert('請先貼上廣告文案');
+                return;
+            }
+            
+            const btn = document.getElementById('aiParseBtn');
+            const btnText = document.getElementById('aiParseBtnText');
+            btn.disabled = true;
+            btnText.textContent = '解析中...';
+            isParsing = true;
+            
+            try {
+                const res = await fetch(API_BASE + '/api/gemini/parse-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || '解析失敗');
+                }
+                
+                const data = await res.json();
+                
+                // 填充表單
+                if (data.name) document.getElementById('profileName').value = data.name;
+                if (data.nationality) document.getElementById('profileNationality').value = data.nationality;
+                if (data.age) document.getElementById('profileAge').value = data.age;
+                if (data.height) document.getElementById('profileHeight').value = data.height;
+                if (data.weight) document.getElementById('profileWeight').value = data.weight;
+                if (data.cup) document.getElementById('profileCup').value = data.cup;
+                if (data.location) document.getElementById('profileLocation').value = data.location;
+                if (data.district) document.getElementById('profileDistrict').value = data.district;
+                if (data.type) document.getElementById('profileType').value = data.type;
+                if (data.price) document.getElementById('profilePrice').value = data.price;
+                if (data.tags) document.getElementById('profileTags').value = (data.tags || []).join(', ');
+                if (data.basicServices) document.getElementById('profileBasicServices').value = (data.basicServices || []).join(', ');
+                if (data.addonServices) {
+                    profileAddonServices = data.addonServices || [];
+                    updateAddonServicesDisplay();
+                }
+                
+                alert('解析成功！請檢查並確認資料');
+            } catch (error) {
+                alert('解析失敗: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = '解析';
+                isParsing = false;
+            }
+        }
+        
+        // 圖片處理
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    };
+                };
+            });
+        }
+        
+        async function processFiles(files) {
+            const uploadIcon = document.getElementById('uploadIcon');
+            uploadIcon.textContent = '⏳';
+            
+            try {
+                const compressed = await Promise.all(Array.from(files).map(compressImage));
+                profileGallery = [...profileGallery, ...compressed];
+                updateGalleryDisplay();
+            } catch (error) {
+                alert('圖片處理失敗: ' + error.message);
+            } finally {
+                uploadIcon.textContent = '📤';
+            }
+        }
+        
+        function handleFileSelect(event) {
+            processFiles(event.target.files);
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            handleDragLeave(event);
+            processFiles(event.dataTransfer.files);
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.add('dragging');
+        }
+        
+        function handleDragLeave(event) {
+            event.preventDefault();
+            document.getElementById('uploadArea').classList.remove('dragging');
+        }
+        
+        function updateGalleryDisplay() {
+            const grid = document.getElementById('galleryGrid');
+            const coverImage = profileGallery[0] || '';
+            document.getElementById('profileImageUrl').value = coverImage;
+            document.getElementById('profileGallery').value = JSON.stringify(profileGallery);
+            
+            grid.innerHTML = profileGallery.map((img, index) => \`
+                <div class="gallery-item \${index === 0 ? 'cover' : ''}" onclick="setCoverImage(\${index})">
+                    <img src="\${img}" alt="圖片 \${index + 1}" />
+                    <button type="button" class="delete-btn" onclick="deleteImage(\${index}); event.stopPropagation();">✕</button>
+                    \${index === 0 ? '<div class="cover-badge">當前封面</div>' : ''}
+                </div>
+            \`).join('');
+        }
+        
+        function setCoverImage(index) {
+            const img = profileGallery[index];
+            profileGallery.splice(index, 1);
+            profileGallery.unshift(img);
+            updateGalleryDisplay();
+        }
+        
+        function deleteImage(index) {
+            if (confirm('確定要刪除此圖片嗎？')) {
+                profileGallery.splice(index, 1);
+                updateGalleryDisplay();
+            }
+        }
+        
+        function addAddonService() {
+            const input = document.getElementById('newAddonService');
+            const value = input.value.trim();
+            if (value) {
+                profileAddonServices.push(value);
+                input.value = '';
+                updateAddonServicesDisplay();
+            }
+        }
+        
+        function removeAddonService(index) {
+            profileAddonServices.splice(index, 1);
+            updateAddonServicesDisplay();
+        }
+        
+        function updateAddonServicesDisplay() {
+            const list = document.getElementById('addonServicesList');
+            list.innerHTML = profileAddonServices.map((service, index) => \`
+                <div class="addon-tag">
+                    <span>\${service}</span>
+                    <button type="button" class="remove-btn" onclick="removeAddonService(\${index})">✕</button>
+                </div>
+            \`).join('');
         }
 
         // 保存 Profile
         async function saveProfile(event) {
             event.preventDefault();
+            
+            const coverImage = profileGallery[0] || document.getElementById('profileImageUrl').value;
+            if (!coverImage) {
+                alert('請至少上傳一張封面圖片');
+                return;
+            }
             
             const formData = {
                 name: document.getElementById('profileName').value,
@@ -559,11 +935,12 @@ router.get('/', (req, res) => {
                 district: document.getElementById('profileDistrict').value || undefined,
                 type: document.getElementById('profileType').value,
                 price: parseInt(document.getElementById('profilePrice').value),
-                imageUrl: document.getElementById('profileImageUrl').value,
+                imageUrl: coverImage,
                 tags: document.getElementById('profileTags').value.split(',').map(s => s.trim()).filter(s => s),
                 basicServices: document.getElementById('profileBasicServices').value.split(',').map(s => s.trim()).filter(s => s),
+                addonServices: profileAddonServices,
                 isAvailable: document.getElementById('profileIsAvailable').value === 'true',
-                gallery: [document.getElementById('profileImageUrl').value],
+                gallery: profileGallery.length > 0 ? profileGallery : [coverImage],
                 albums: [],
                 prices: {
                     oneShot: { price: parseInt(document.getElementById('profilePrice').value), desc: '一節/50min/1S' },
