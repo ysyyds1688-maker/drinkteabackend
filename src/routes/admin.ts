@@ -111,13 +111,15 @@ router.post('/profiles', async (req, res) => {
 // PUT /api/admin/profiles/:id - 更新 profile（編輯茶茶）
 router.put('/profiles/:id', async (req, res) => {
   try {
+    console.log('PUT /api/admin/profiles/:id', req.params.id, 'Body:', JSON.stringify(req.body, null, 2));
     const profile = await profileModel.update(req.params.id, req.body);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
     res.json(profile);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('PUT /api/admin/profiles/:id error:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

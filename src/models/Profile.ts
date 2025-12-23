@@ -77,40 +77,71 @@ export const profileModel = {
     const existing = await profileModel.getById(id);
     if (!existing) return null;
 
-    const updated = { ...existing, ...profile };
-    await query(`
-      UPDATE profiles SET
-        name = $1, nationality = $2, age = $3, height = $4, weight = $5, cup = $6,
-        location = $7, district = $8, type = $9, "imageUrl" = $10, gallery = $11,
-        albums = $12, price = $13, prices = $14, tags = $15, "basicServices" = $16,
-        "addonServices" = $17, "isNew" = $18, "isAvailable" = $19, "availableTimes" = $20,
-        "updatedAt" = CURRENT_TIMESTAMP
-      WHERE id = $21
-    `, [
-      updated.name,
-      updated.nationality,
-      updated.age,
-      updated.height,
-      updated.weight,
-      updated.cup,
-      updated.location,
-      updated.district || null,
-      updated.type,
-      updated.imageUrl,
-      JSON.stringify(updated.gallery || []),
-      JSON.stringify(updated.albums || []),
-      updated.price,
-      JSON.stringify(updated.prices || {}),
-      JSON.stringify(updated.tags || []),
-      JSON.stringify(updated.basicServices || []),
-      JSON.stringify(updated.addonServices || []),
-      updated.isNew ? 1 : 0,
-      updated.isAvailable !== false ? 1 : 0,
-      JSON.stringify(updated.availableTimes || {}),
-      id
-    ]);
+    // 確保所有必要欄位都有值，使用現有資料作為預設值
+    const updated: Profile = {
+      ...existing,
+      ...profile,
+      // 確保這些欄位不會是 undefined
+      name: profile.name ?? existing.name,
+      nationality: profile.nationality ?? existing.nationality,
+      age: profile.age ?? existing.age,
+      height: profile.height ?? existing.height,
+      weight: profile.weight ?? existing.weight,
+      cup: profile.cup ?? existing.cup,
+      location: profile.location ?? existing.location,
+      type: profile.type ?? existing.type,
+      imageUrl: profile.imageUrl ?? existing.imageUrl,
+      price: profile.price ?? existing.price,
+      gallery: profile.gallery ?? existing.gallery ?? [],
+      albums: profile.albums ?? existing.albums ?? [],
+      prices: profile.prices ?? existing.prices ?? { oneShot: { price: existing.price, desc: '一節/50min/1S' }, twoShot: { price: existing.price * 2 - 500, desc: '兩節/100min/2S' } },
+      tags: profile.tags ?? existing.tags ?? [],
+      basicServices: profile.basicServices ?? existing.basicServices ?? [],
+      addonServices: profile.addonServices ?? existing.addonServices ?? [],
+      availableTimes: profile.availableTimes ?? existing.availableTimes ?? { today: '12:00~02:00', tomorrow: '12:00~02:00' },
+      isNew: profile.isNew ?? existing.isNew ?? false,
+      isAvailable: profile.isAvailable ?? existing.isAvailable ?? true,
+    };
 
-    return await profileModel.getById(id);
+    try {
+      await query(`
+        UPDATE profiles SET
+          name = $1, nationality = $2, age = $3, height = $4, weight = $5, cup = $6,
+          location = $7, district = $8, type = $9, "imageUrl" = $10, gallery = $11,
+          albums = $12, price = $13, prices = $14, tags = $15, "basicServices" = $16,
+          "addonServices" = $17, "isNew" = $18, "isAvailable" = $19, "availableTimes" = $20,
+          "updatedAt" = CURRENT_TIMESTAMP
+        WHERE id = $21
+      `, [
+        updated.name,
+        updated.nationality,
+        updated.age,
+        updated.height,
+        updated.weight,
+        updated.cup,
+        updated.location,
+        updated.district || null,
+        updated.type,
+        updated.imageUrl,
+        JSON.stringify(updated.gallery || []),
+        JSON.stringify(updated.albums || []),
+        updated.price,
+        JSON.stringify(updated.prices || {}),
+        JSON.stringify(updated.tags || []),
+        JSON.stringify(updated.basicServices || []),
+        JSON.stringify(updated.addonServices || []),
+        updated.isNew ? 1 : 0,
+        updated.isAvailable !== false ? 1 : 0,
+        JSON.stringify(updated.availableTimes || {}),
+        id
+      ]);
+
+      return await profileModel.getById(id);
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      console.error('Update data:', JSON.stringify(updated, null, 2));
+      throw new Error(`更新失敗: ${error.message || '資料庫錯誤'}`);
+    }
   },
 
   delete: async (id: string): Promise<boolean> => {
