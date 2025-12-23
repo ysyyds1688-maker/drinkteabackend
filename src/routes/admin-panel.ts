@@ -815,45 +815,116 @@ router.get('/', (req, res) => {
             }
         }
         
-        // 圖片處理
+        // 圖片處理 - 自動壓縮
         function compressImage(file) {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                // 檢查檔案大小，如果已經很小就不需要壓縮
+                if (file.size < 100 * 1024) { // 小於 100KB
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = (event) => resolve(event.target.result);
+                    reader.onerror = reject;
+                    return;
+                }
+
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = (event) => {
                     const img = new Image();
                     img.src = event.target.result;
+                    img.onerror = reject;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 800;
+                        const MAX_WIDTH = 1200; // 增加最大寬度到 1200px，保持較好品質
+                        const MAX_HEIGHT = 1600; // 最大高度限制
+                        const QUALITY = 0.75; // 壓縮品質 75%
+                        
                         let width = img.width;
                         let height = img.height;
+                        
+                        // 計算縮放比例
+                        let scale = 1;
                         if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
+                            scale = Math.min(scale, MAX_WIDTH / width);
                         }
+                        if (height > MAX_HEIGHT) {
+                            scale = Math.min(scale, MAX_HEIGHT / height);
+                        }
+                        
+                        width = Math.round(width * scale);
+                        height = Math.round(height * scale);
+                        
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
+                        
+                        // 使用更好的圖片渲染品質
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        
                         ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                        
+                        // 壓縮為 JPEG 格式
+                        const compressed = canvas.toDataURL('image/jpeg', QUALITY);
+                        
+                        // 如果壓縮後還是太大，進一步降低品質
+                        if (compressed.length > 2 * 1024 * 1024) { // 如果超過 2MB
+                            const lowerQuality = canvas.toDataURL('image/jpeg', 0.6);
+                            resolve(lowerQuality);
+                        } else {
+                            resolve(compressed);
+                        }
                     };
                 };
+                reader.onerror = reject;
             });
         }
         
         async function processFiles(files) {
             const uploadIcon = document.getElementById('uploadIcon');
+            const uploadArea = document.getElementById('uploadArea');
+            const originalText = uploadArea.querySelector('p').textContent;
+            
             uploadIcon.textContent = '⏳';
+            uploadArea.querySelector('p').textContent = '正在壓縮圖片...';
+            uploadArea.style.pointerEvents = 'none';
             
             try {
-                const compressed = await Promise.all(Array.from(files).map(compressImage));
+                const fileArray = Array.from(files);
+                let processedCount = 0;
+                
+                // 逐個處理圖片，顯示進度
+                const compressed = [];
+                for (const file of fileArray) {
+                    uploadArea.querySelector('p').textContent = \`正在壓縮圖片 (\${processedCount + 1}/\${fileArray.length})...\`;
+                    const compressedImg = await compressImage(file);
+                    compressed.push(compressedImg);
+                    processedCount++;
+                }
+                
                 profileGallery = [...profileGallery, ...compressed];
                 updateGalleryDisplay();
+                
+                // 顯示成功訊息
+                const originalSize = fileArray.reduce((sum, f) => sum + f.size, 0);
+                const compressedSize = compressed.reduce((sum, img) => sum + (img.length * 0.75), 0); // base64 約為實際大小的 75%
+                const savedPercent = Math.round((1 - compressedSize / originalSize) * 100);
+                
+                if (savedPercent > 0) {
+                    uploadArea.querySelector('p').textContent = \`✅ 已壓縮，節省約 \${savedPercent}% 空間\`;
+                    setTimeout(() => {
+                        uploadArea.querySelector('p').textContent = originalText;
+                    }, 2000);
+                } else {
+                    uploadArea.querySelector('p').textContent = originalText;
+                }
             } catch (error) {
+                console.error('圖片處理失敗:', error);
                 alert('圖片處理失敗: ' + error.message);
+                uploadArea.querySelector('p').textContent = originalText;
             } finally {
                 uploadIcon.textContent = '📤';
+                uploadArea.style.pointerEvents = 'auto';
             }
         }
         
