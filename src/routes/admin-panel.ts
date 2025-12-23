@@ -798,7 +798,10 @@ router.get('/', (req, res) => {
                 if (data.tags) document.getElementById('profileTags').value = (data.tags || []).join(', ');
                 if (data.basicServices) document.getElementById('profileBasicServices').value = (data.basicServices || []).join(', ');
                 if (data.addonServices) {
-                    profileAddonServices = data.addonServices || [];
+                    // 清理加值服務：移除價格部分（後端已處理，但前端也做一次確保）
+                    profileAddonServices = (data.addonServices || []).map(service => {
+                        return service.replace(/\+\d+/g, '').trim();
+                    }).filter(service => service.length > 0);
                     updateAddonServicesDisplay();
                 }
                 

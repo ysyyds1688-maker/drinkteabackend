@@ -53,7 +53,7 @@ router.post('/parse-profile', async (req, res) => {
         responseMimeType: 'application/json',
         responseSchema: profileSchema as any,
       },
-      systemInstruction: '你是一個專業的資料分析員。請從廣告文案中提取女孩資訊。請識別並拆分地址為「location(城市)」與「district(行政區)」。所有文案中提到的額外技術（如：毒龍、69、自拍、雙飛等）且帶有金額標註的，請統一放入 addonServices。國籍請輸出 emoji 國旗。',
+      systemInstruction: '你是一個專業的資料分析員。請從廣告文案中提取女孩資訊。請識別並拆分地址為「location(城市)」與「district(行政區)」。所有文案中提到的額外技術（如：毒龍、69、自拍、雙飛等）且帶有金額標註的，請統一放入 addonServices，格式為「服務名稱+金額」（例如：毒龍+2000）。國籍請輸出 emoji 國旗。',
     });
 
     const response = await result.response;
@@ -65,9 +65,17 @@ router.post('/parse-profile', async (req, res) => {
       throw new Error('AI 回傳格式錯誤，請稍後再試');
     }
 
+    // 清理 addonServices：移除價格部分（如 "+2000", "+3000" 等）
+    const cleanedAddonServices = (raw.addonServices || []).map((service: string) => {
+      // 移除 "+數字" 格式的價格部分
+      // 例如："毒龍+2000" -> "毒龍", "口爆+2000" -> "口爆"
+      return service.replace(/\+\d+/g, '').trim();
+    }).filter((service: string) => service.length > 0); // 過濾空字串
+
     const profile: Partial<Profile> = {
       ...raw,
       type: (raw.type === 'incall' || raw.type === 'outcall') ? raw.type : 'outcall',
+      addonServices: cleanedAddonServices, // 使用清理後的加值服務
       prices: {
         oneShot: { price: raw.price || 3000, desc: '一節/50min/1S' },
         twoShot: { price: (raw.price || 3000) * 2 - 500, desc: '兩節/100min/2S' }
