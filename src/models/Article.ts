@@ -1,14 +1,14 @@
-import db from '../db/database.js';
+import { query } from '../db/database.js';
 import { Article } from '../types.js';
 
 export const articleModel = {
-  getAll: (): Article[] => {
-    const rows = db.prepare('SELECT * FROM articles ORDER BY date DESC, createdAt DESC').all() as any[];
-    return rows.map(row => ({
+  getAll: async (): Promise<Article[]> => {
+    const result = await query('SELECT * FROM articles ORDER BY date DESC, "createdAt" DESC');
+    return result.rows.map((row: any) => ({
       id: row.id,
       title: row.title,
       summary: row.summary,
-      imageUrl: row.imageUrl,
+      imageUrl: row.imageurl,
       tag: row.tag,
       date: row.date,
       views: row.views || 0,
@@ -16,15 +16,16 @@ export const articleModel = {
     }));
   },
 
-  getById: (id: string): Article | null => {
-    const row = db.prepare('SELECT * FROM articles WHERE id = ?').get(id) as any;
-    if (!row) return null;
+  getById: async (id: string): Promise<Article | null> => {
+    const result = await query('SELECT * FROM articles WHERE id = $1', [id]);
+    if (result.rows.length === 0) return null;
     
+    const row = result.rows[0];
     return {
       id: row.id,
       title: row.title,
       summary: row.summary,
-      imageUrl: row.imageUrl,
+      imageUrl: row.imageurl,
       tag: row.tag,
       date: row.date,
       views: row.views || 0,
@@ -32,13 +33,11 @@ export const articleModel = {
     };
   },
 
-  create: (article: Article): Article => {
-    const stmt = db.prepare(`
-      INSERT INTO articles (id, title, summary, imageUrl, tag, date, views, content)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+  create: async (article: Article): Promise<Article> => {
+    await query(`
+      INSERT INTO articles (id, title, summary, "imageUrl", tag, date, views, content)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [
       article.id,
       article.title,
       article.summary,
@@ -47,24 +46,24 @@ export const articleModel = {
       article.date,
       article.views || 0,
       article.content || null
-    );
+    ]);
 
-    return articleModel.getById(article.id)!;
+    const created = await articleModel.getById(article.id);
+    if (!created) throw new Error('Failed to create article');
+    return created;
   },
 
-  update: (id: string, article: Partial<Article>): Article | null => {
-    const existing = articleModel.getById(id);
+  update: async (id: string, article: Partial<Article>): Promise<Article | null> => {
+    const existing = await articleModel.getById(id);
     if (!existing) return null;
 
     const updated = { ...existing, ...article };
-    const stmt = db.prepare(`
+    await query(`
       UPDATE articles SET
-        title = ?, summary = ?, imageUrl = ?, tag = ?, date = ?,
-        views = ?, content = ?, updatedAt = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `);
-
-    stmt.run(
+        title = $1, summary = $2, "imageUrl" = $3, tag = $4, date = $5,
+        views = $6, content = $7, "updatedAt" = CURRENT_TIMESTAMP
+      WHERE id = $8
+    `, [
       updated.title,
       updated.summary,
       updated.imageUrl,
@@ -73,17 +72,17 @@ export const articleModel = {
       updated.views || 0,
       updated.content || null,
       id
-    );
+    ]);
 
-    return articleModel.getById(id);
+    return await articleModel.getById(id);
   },
 
-  incrementViews: (id: string): void => {
-    db.prepare('UPDATE articles SET views = views + 1 WHERE id = ?').run(id);
+  incrementViews: async (id: string): Promise<void> => {
+    await query('UPDATE articles SET views = views + 1 WHERE id = $1', [id]);
   },
 
-  delete: (id: string): boolean => {
-    const result = db.prepare('DELETE FROM articles WHERE id = ?').run(id);
-    return result.changes > 0;
+  delete: async (id: string): Promise<boolean> => {
+    const result = await query('DELETE FROM articles WHERE id = $1', [id]);
+    return (result.rowCount || 0) > 0;
   },
 };

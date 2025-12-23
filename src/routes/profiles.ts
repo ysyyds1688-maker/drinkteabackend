@@ -6,9 +6,9 @@ import { Profile } from '../types.js';
 const router = Router();
 
 // GET /api/profiles - Get all profiles
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const profiles = profileModel.getAll();
+    const profiles = await profileModel.getAll();
     res.json(profiles);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -16,9 +16,9 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/profiles/:id - Get profile by ID
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const profile = profileModel.getById(req.params.id);
+    const profile = await profileModel.getById(req.params.id);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
@@ -29,7 +29,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/profiles - Create new profile
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const profileData: Profile = {
       id: req.body.id || uuidv4(),
@@ -41,7 +41,7 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const profile = profileModel.create(profileData);
+    const profile = await profileModel.create(profileData);
     res.status(201).json(profile);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -49,9 +49,9 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/profiles/:id - Update profile
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const profile = profileModel.update(req.params.id, req.body);
+    const profile = await profileModel.update(req.params.id, req.body);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
@@ -62,9 +62,9 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/profiles/:id - Delete profile
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const deleted = profileModel.delete(req.params.id);
+    const deleted = await profileModel.delete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Profile not found' });
     }

@@ -6,7 +6,7 @@ import { Profile, Article } from '../types.js';
 const router = Router();
 
 // POST /api/sync/profiles - 從前端同步 Profiles
-router.post('/profiles', (req, res) => {
+router.post('/profiles', async (req, res) => {
   try {
     const profiles: Profile[] = req.body.profiles || [];
     
@@ -22,12 +22,12 @@ router.post('/profiles', (req, res) => {
         return res.status(400).json({ error: 'Profile must have an id' });
       }
 
-      const existing = profileModel.getById(profile.id);
+      const existing = await profileModel.getById(profile.id);
       if (existing) {
-        profileModel.update(profile.id, profile);
+        await profileModel.update(profile.id, profile);
         updated++;
       } else {
-        profileModel.create(profile);
+        await profileModel.create(profile);
         added++;
       }
     }
@@ -45,7 +45,7 @@ router.post('/profiles', (req, res) => {
 });
 
 // POST /api/sync/articles - 從前端同步 Articles
-router.post('/articles', (req, res) => {
+router.post('/articles', async (req, res) => {
   try {
     const articles: Article[] = req.body.articles || [];
     
@@ -61,12 +61,12 @@ router.post('/articles', (req, res) => {
         return res.status(400).json({ error: 'Article must have an id' });
       }
 
-      const existing = articleModel.getById(article.id);
+      const existing = await articleModel.getById(article.id);
       if (existing) {
-        articleModel.update(article.id, article);
+        await articleModel.update(article.id, article);
         updated++;
       } else {
-        articleModel.create(article);
+        await articleModel.create(article);
         added++;
       }
     }
@@ -84,7 +84,7 @@ router.post('/articles', (req, res) => {
 });
 
 // POST /api/sync/all - 同步所有資料
-router.post('/all', (req, res) => {
+router.post('/all', async (req, res) => {
   try {
     const { profiles = [], articles = [] } = req.body;
     
@@ -96,12 +96,12 @@ router.post('/all', (req, res) => {
     // 同步 Profiles
     for (const profile of profiles) {
       if (!profile.id) continue;
-      const existing = profileModel.getById(profile.id);
+      const existing = await profileModel.getById(profile.id);
       if (existing) {
-        profileModel.update(profile.id, profile);
+        await profileModel.update(profile.id, profile);
         profilesUpdated++;
       } else {
-        profileModel.create(profile);
+        await profileModel.create(profile);
         profilesAdded++;
       }
     }
@@ -109,12 +109,12 @@ router.post('/all', (req, res) => {
     // 同步 Articles
     for (const article of articles) {
       if (!article.id) continue;
-      const existing = articleModel.getById(article.id);
+      const existing = await articleModel.getById(article.id);
       if (existing) {
-        articleModel.update(article.id, article);
+        await articleModel.update(article.id, article);
         articlesUpdated++;
       } else {
-        articleModel.create(article);
+        await articleModel.create(article);
         articlesAdded++;
       }
     }
@@ -139,4 +139,3 @@ router.post('/all', (req, res) => {
 });
 
 export default router;
-

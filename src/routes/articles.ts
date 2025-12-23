@@ -6,9 +6,9 @@ import { Article } from '../types.js';
 const router = Router();
 
 // GET /api/articles - Get all articles
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const articles = articleModel.getAll();
+    const articles = await articleModel.getAll();
     res.json(articles);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -16,15 +16,15 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/articles/:id - Get article by ID
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const article = articleModel.getById(req.params.id);
+    const article = await articleModel.getById(req.params.id);
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }
     
     // Increment views when viewing article
-    articleModel.incrementViews(req.params.id);
+    await articleModel.incrementViews(req.params.id);
     article.views += 1;
     
     res.json(article);
@@ -34,7 +34,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/articles - Create new article
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const articleData: Article = {
       id: req.body.id || uuidv4(),
@@ -46,7 +46,7 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const article = articleModel.create(articleData);
+    const article = await articleModel.create(articleData);
     res.status(201).json(article);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -54,9 +54,9 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/articles/:id - Update article
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const article = articleModel.update(req.params.id, req.body);
+    const article = await articleModel.update(req.params.id, req.body);
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }
@@ -67,9 +67,9 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/articles/:id - Delete article
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const deleted = articleModel.delete(req.params.id);
+    const deleted = await articleModel.delete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Article not found' });
     }

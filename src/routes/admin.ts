@@ -8,10 +8,10 @@ const router = Router();
 
 // ==================== 統計資訊 ====================
 // GET /api/admin/stats - 取得後台統計資訊
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const profiles = profileModel.getAll();
-    const articles = articleModel.getAll();
+    const profiles = await profileModel.getAll();
+    const articles = await articleModel.getAll();
     
     const stats = {
       profiles: {
@@ -47,9 +47,9 @@ router.get('/stats', (req, res) => {
 
 // ==================== Profile 管理 ====================
 // GET /api/admin/profiles - 取得所有 profiles（管理用，包含更多資訊）
-router.get('/profiles', (req, res) => {
+router.get('/profiles', async (req, res) => {
   try {
-    const profiles = profileModel.getAll();
+    const profiles = await profileModel.getAll();
     res.json(profiles);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -57,9 +57,9 @@ router.get('/profiles', (req, res) => {
 });
 
 // GET /api/admin/profiles/:id - 取得單一 profile
-router.get('/profiles/:id', (req, res) => {
+router.get('/profiles/:id', async (req, res) => {
   try {
-    const profile = profileModel.getById(req.params.id);
+    const profile = await profileModel.getById(req.params.id);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
@@ -70,7 +70,7 @@ router.get('/profiles/:id', (req, res) => {
 });
 
 // POST /api/admin/profiles - 建立新 profile（上架新茶）
-router.post('/profiles', (req, res) => {
+router.post('/profiles', async (req, res) => {
   try {
     const profileData: Profile = {
       id: req.body.id || uuidv4(),
@@ -101,7 +101,7 @@ router.post('/profiles', (req, res) => {
       };
     }
 
-    const profile = profileModel.create(profileData);
+    const profile = await profileModel.create(profileData);
     res.status(201).json(profile);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -109,9 +109,9 @@ router.post('/profiles', (req, res) => {
 });
 
 // PUT /api/admin/profiles/:id - 更新 profile（編輯茶茶）
-router.put('/profiles/:id', (req, res) => {
+router.put('/profiles/:id', async (req, res) => {
   try {
-    const profile = profileModel.update(req.params.id, req.body);
+    const profile = await profileModel.update(req.params.id, req.body);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
@@ -122,15 +122,15 @@ router.put('/profiles/:id', (req, res) => {
 });
 
 // PATCH /api/admin/profiles/:id - 部分更新 profile（例如只更新可用狀態）
-router.patch('/profiles/:id', (req, res) => {
+router.patch('/profiles/:id', async (req, res) => {
   try {
-    const existing = profileModel.getById(req.params.id);
+    const existing = await profileModel.getById(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Profile not found' });
     }
     
     const updated = { ...existing, ...req.body };
-    const profile = profileModel.update(req.params.id, updated);
+    const profile = await profileModel.update(req.params.id, updated);
     res.json(profile);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -138,9 +138,9 @@ router.patch('/profiles/:id', (req, res) => {
 });
 
 // DELETE /api/admin/profiles/:id - 刪除 profile（下架）
-router.delete('/profiles/:id', (req, res) => {
+router.delete('/profiles/:id', async (req, res) => {
   try {
-    const deleted = profileModel.delete(req.params.id);
+    const deleted = await profileModel.delete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Profile not found' });
     }
@@ -151,7 +151,7 @@ router.delete('/profiles/:id', (req, res) => {
 });
 
 // POST /api/admin/profiles/batch - 批量操作 profiles
-router.post('/profiles/batch', (req, res) => {
+router.post('/profiles/batch', async (req, res) => {
   try {
     const { action, ids, data } = req.body;
     
@@ -163,32 +163,32 @@ router.post('/profiles/batch', (req, res) => {
     
     switch (action) {
       case 'delete':
-        ids.forEach((id: string) => {
-          const deleted = profileModel.delete(id);
+        for (const id of ids) {
+          const deleted = await profileModel.delete(id);
           results.push({ id, success: deleted });
-        });
+        }
         break;
         
       case 'update':
         if (!data) {
           return res.status(400).json({ error: 'Data required for update action' });
         }
-        ids.forEach((id: string) => {
-          const updated = profileModel.update(id, data);
+        for (const id of ids) {
+          const updated = await profileModel.update(id, data);
           results.push({ id, success: !!updated, data: updated });
-        });
+        }
         break;
         
       case 'toggle-availability':
-        ids.forEach((id: string) => {
-          const existing = profileModel.getById(id);
+        for (const id of ids) {
+          const existing = await profileModel.getById(id);
           if (existing) {
-            const updated = profileModel.update(id, { isAvailable: !existing.isAvailable });
+            const updated = await profileModel.update(id, { isAvailable: !existing.isAvailable });
             results.push({ id, success: !!updated, isAvailable: updated?.isAvailable });
           } else {
             results.push({ id, success: false });
           }
-        });
+        }
         break;
         
       default:
@@ -203,9 +203,9 @@ router.post('/profiles/batch', (req, res) => {
 
 // ==================== Article 管理 ====================
 // GET /api/admin/articles - 取得所有 articles（管理用）
-router.get('/articles', (req, res) => {
+router.get('/articles', async (req, res) => {
   try {
-    const articles = articleModel.getAll();
+    const articles = await articleModel.getAll();
     res.json(articles);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -213,9 +213,9 @@ router.get('/articles', (req, res) => {
 });
 
 // GET /api/admin/articles/:id - 取得單一 article
-router.get('/articles/:id', (req, res) => {
+router.get('/articles/:id', async (req, res) => {
   try {
-    const article = articleModel.getById(req.params.id);
+    const article = await articleModel.getById(req.params.id);
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }
@@ -226,7 +226,7 @@ router.get('/articles/:id', (req, res) => {
 });
 
 // POST /api/admin/articles - 建立新 article（發布新文章）
-router.post('/articles', (req, res) => {
+router.post('/articles', async (req, res) => {
   try {
     const articleData: Article = {
       id: req.body.id || uuidv4(),
@@ -249,7 +249,7 @@ router.post('/articles', (req, res) => {
       articleData.tag = '外送茶';
     }
 
-    const article = articleModel.create(articleData);
+    const article = await articleModel.create(articleData);
     res.status(201).json(article);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -257,9 +257,9 @@ router.post('/articles', (req, res) => {
 });
 
 // PUT /api/admin/articles/:id - 更新 article（編輯文章）
-router.put('/articles/:id', (req, res) => {
+router.put('/articles/:id', async (req, res) => {
   try {
-    const article = articleModel.update(req.params.id, req.body);
+    const article = await articleModel.update(req.params.id, req.body);
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }
@@ -270,9 +270,9 @@ router.put('/articles/:id', (req, res) => {
 });
 
 // DELETE /api/admin/articles/:id - 刪除 article
-router.delete('/articles/:id', (req, res) => {
+router.delete('/articles/:id', async (req, res) => {
   try {
-    const deleted = articleModel.delete(req.params.id);
+    const deleted = await articleModel.delete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Article not found' });
     }
@@ -283,7 +283,7 @@ router.delete('/articles/:id', (req, res) => {
 });
 
 // POST /api/admin/articles/batch - 批量操作 articles
-router.post('/articles/batch', (req, res) => {
+router.post('/articles/batch', async (req, res) => {
   try {
     const { action, ids, data } = req.body;
     
@@ -295,20 +295,20 @@ router.post('/articles/batch', (req, res) => {
     
     switch (action) {
       case 'delete':
-        ids.forEach((id: string) => {
-          const deleted = articleModel.delete(id);
+        for (const id of ids) {
+          const deleted = await articleModel.delete(id);
           results.push({ id, success: deleted });
-        });
+        }
         break;
         
       case 'update':
         if (!data) {
           return res.status(400).json({ error: 'Data required for update action' });
         }
-        ids.forEach((id: string) => {
-          const updated = articleModel.update(id, data);
+        for (const id of ids) {
+          const updated = await articleModel.update(id, data);
           results.push({ id, success: !!updated, data: updated });
-        });
+        }
         break;
         
       default:
@@ -322,4 +322,3 @@ router.post('/articles/batch', (req, res) => {
 });
 
 export default router;
-

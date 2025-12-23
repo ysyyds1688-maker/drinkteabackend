@@ -403,22 +403,22 @@ async function syncData() {
   console.log('🔄 開始同步前端資料到後端...\n');
 
   // 初始化資料庫
-  initDatabase();
+  await initDatabase();
 
   // 同步 Profiles
   console.log('📝 同步 Profiles...');
-  const existingProfiles = profileModel.getAll();
+  const existingProfiles = await profileModel.getAll();
   let profilesAdded = 0;
   let profilesUpdated = 0;
 
   for (const profile of FRONTEND_PROFILES) {
-    const existing = existingProfiles.find(p => p.id === profile.id);
+    const existing = existingProfiles.find((p: any) => p.id === profile.id);
     if (existing) {
-      profileModel.update(profile.id, profile);
+      await profileModel.update(profile.id, profile);
       profilesUpdated++;
       console.log(`  ✓ 更新 Profile: ${profile.name} (ID: ${profile.id})`);
     } else {
-      profileModel.create(profile);
+      await profileModel.create(profile);
       profilesAdded++;
       console.log(`  ✓ 新增 Profile: ${profile.name} (ID: ${profile.id})`);
     }
@@ -428,18 +428,18 @@ async function syncData() {
 
   // 同步 Articles
   console.log('📝 同步 Articles...');
-  const existingArticles = articleModel.getAll();
+  const existingArticles = await articleModel.getAll();
   let articlesAdded = 0;
   let articlesUpdated = 0;
 
   for (const article of FRONTEND_ARTICLES) {
-    const existing = existingArticles.find(a => a.id === article.id);
+    const existing = existingArticles.find((a: any) => a.id === article.id);
     if (existing) {
-      articleModel.update(article.id, article);
+      await articleModel.update(article.id, article);
       articlesUpdated++;
       console.log(`  ✓ 更新 Article: ${article.title} (ID: ${article.id})`);
     } else {
-      articleModel.create(article);
+      await articleModel.create(article);
       articlesAdded++;
       console.log(`  ✓ 新增 Article: ${article.title} (ID: ${article.id})`);
     }

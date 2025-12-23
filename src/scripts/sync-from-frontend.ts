@@ -75,7 +75,7 @@ async function syncAdditionalProfiles() {
   console.log('🔄 開始同步前端網站的額外 Profiles...\n');
 
   // 初始化資料庫
-  initDatabase();
+  await initDatabase();
 
   // 同步額外的 Profiles
   console.log('📝 同步額外 Profiles...');
@@ -83,13 +83,13 @@ async function syncAdditionalProfiles() {
   let profilesUpdated = 0;
 
   for (const profile of ADDITIONAL_PROFILES) {
-    const existing = profileModel.getById(profile.id);
+    const existing = await profileModel.getById(profile.id);
     if (existing) {
-      profileModel.update(profile.id, profile);
+      await profileModel.update(profile.id, profile);
       profilesUpdated++;
       console.log(`  ✓ 更新 Profile: ${profile.name} (ID: ${profile.id})`);
     } else {
-      profileModel.create(profile);
+      await profileModel.create(profile);
       profilesAdded++;
       console.log(`  ✓ 新增 Profile: ${profile.name} (ID: ${profile.id})`);
     }

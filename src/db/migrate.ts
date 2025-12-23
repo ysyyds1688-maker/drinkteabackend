@@ -63,41 +63,48 @@ const MOCK_ARTICLES = [
   }
 ];
 
-initDatabase();
+(async () => {
+  try {
+    await initDatabase();
 
-console.log('🌱 Seeding database with initial data...');
+    console.log('🌱 Seeding database with initial data...');
 
-// Seed profiles
-const existingProfiles = profileModel.getAll();
-if (existingProfiles.length === 0) {
-  console.log('📝 Adding mock profiles...');
-  MOCK_PROFILES.forEach(profile => {
-    try {
-      profileModel.create(profile);
-      console.log(`  ✓ Added profile: ${profile.name}`);
-    } catch (error: any) {
-      console.error(`  ✗ Failed to add profile ${profile.name}:`, error.message);
+    // Seed profiles
+    const existingProfiles = await profileModel.getAll();
+    if (existingProfiles.length === 0) {
+      console.log('📝 Adding mock profiles...');
+      for (const profile of MOCK_PROFILES) {
+        try {
+          await profileModel.create(profile);
+          console.log(`  ✓ Added profile: ${profile.name}`);
+        } catch (error: any) {
+          console.error(`  ✗ Failed to add profile ${profile.name}:`, error.message);
+        }
+      }
+    } else {
+      console.log(`ℹ️  ${existingProfiles.length} profiles already exist, skipping seed`);
     }
-  });
-} else {
-  console.log(`ℹ️  ${existingProfiles.length} profiles already exist, skipping seed`);
-}
 
-// Seed articles
-const existingArticles = articleModel.getAll();
-if (existingArticles.length === 0) {
-  console.log('📝 Adding mock articles...');
-  MOCK_ARTICLES.forEach(article => {
-    try {
-      articleModel.create(article);
-      console.log(`  ✓ Added article: ${article.title}`);
-    } catch (error: any) {
-      console.error(`  ✗ Failed to add article ${article.title}:`, error.message);
+    // Seed articles
+    const existingArticles = await articleModel.getAll();
+    if (existingArticles.length === 0) {
+      console.log('📝 Adding mock articles...');
+      for (const article of MOCK_ARTICLES) {
+        try {
+          await articleModel.create(article);
+          console.log(`  ✓ Added article: ${article.title}`);
+        } catch (error: any) {
+          console.error(`  ✗ Failed to add article ${article.title}:`, error.message);
+        }
+      }
+    } else {
+      console.log(`ℹ️  ${existingArticles.length} articles already exist, skipping seed`);
     }
-  });
-} else {
-  console.log(`ℹ️  ${existingArticles.length} articles already exist, skipping seed`);
-}
 
-console.log('✅ Database migration completed!');
-process.exit(0);
+    console.log('✅ Database migration completed!');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Migration failed:', error);
+    process.exit(1);
+  }
+})();
