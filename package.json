@@ -8,7 +8,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "sync:frontend": "tsx src/scripts/sync-frontend-data.ts"
   },
   "keywords": [],
   "author": "",
