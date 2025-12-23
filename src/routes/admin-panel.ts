@@ -348,6 +348,65 @@ router.get('/', (req, res) => {
         .addon-input-group input {
             flex: 1;
         }
+        .price-help {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .price-help-title {
+            font-weight: 600;
+            color: #0369a1;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .price-help-content {
+            color: #0c4a6e;
+            line-height: 1.6;
+        }
+        .price-help-list {
+            margin-top: 0.5rem;
+            padding-left: 1.5rem;
+        }
+        .price-help-list li {
+            margin-bottom: 0.25rem;
+        }
+        .price-range {
+            display: inline-block;
+            background: #dbeafe;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #1e40af;
+        }
+        .price-input-wrapper {
+            position: relative;
+        }
+        .price-suggestion-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #fbbf24;
+            color: #1a1a1a;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .price-suggestion-btn:hover {
+            background: #f59e0b;
+        }
+        .price-input-wrapper input {
+            padding-right: 100px;
+        }
     </style>
 </head>
 <body>
@@ -482,7 +541,43 @@ router.get('/', (req, res) => {
                     </div>
                     <div class="form-group">
                         <label>價格 (NT$) *</label>
-                        <input type="number" id="profilePrice" required />
+                        <div class="price-input-wrapper">
+                            <input type="number" id="profilePrice" placeholder="請輸入底價" required />
+                            <button type="button" class="price-suggestion-btn" onclick="showPriceGuide()" title="查看價格參考">💡 價格參考</button>
+                        </div>
+                        <div class="price-help" id="priceHelp" style="display: none;">
+                            <div class="price-help-title">
+                                💰 價格設定參考指南
+                            </div>
+                            <div class="price-help-content">
+                                <p><strong>此價格為「一節/50分鐘/1S」的底價</strong>，系統會自動計算兩節價格（底價 × 2 - 500）。</p>
+                                <p style="margin-top: 0.5rem;"><strong>常見價格範圍參考：</strong></p>
+                                <ul class="price-help-list">
+                                    <li><span class="price-range">3,000 - 4,500</span> 一般服務（基本條件）</li>
+                                    <li><span class="price-range">4,500 - 6,000</span> 中階服務（條件較好）</li>
+                                    <li><span class="price-range">6,000 - 8,000</span> 高階服務（優質條件）</li>
+                                    <li><span class="price-range">8,000 - 12,000</span> 頂級服務（極佳條件）</li>
+                                    <li><span class="price-range">12,000+</span> 超頂級服務（特殊條件）</li>
+                                </ul>
+                                <div id="priceStats" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #bae6fd;"></div>
+                                <p style="margin-top: 0.75rem; font-size: 0.8rem; color: #64748b;">
+                                    <strong>💡 定價建議：</strong><br>
+                                    • 外送通常比定點高 <span class="price-range">500-1,000</span><br>
+                                    • 考慮年齡、身材、服務項目等因素<br>
+                                    • 可參考同類型其他 Profile 的價格（見下方統計）<br>
+                                    • 加值服務會額外加價，不包含在底價內<br>
+                                    • <strong>建議：</strong>先參考市場價格，再根據實際條件調整
+                                </p>
+                                <div style="margin-top: 1rem; padding: 0.75rem; background: #fef3c7; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                                    <strong style="color: #92400e;">⚠️ 避免低估或高估：</strong>
+                                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem; color: #78350f; font-size: 0.85rem;">
+                                        <li>低估：可能吸引過多詢問但品質不符預期</li>
+                                        <li>高估：可能減少詢問量，影響曝光</li>
+                                        <li>建議：參考同類型 Profile 的價格範圍，設定在合理區間內</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -706,6 +801,8 @@ router.get('/', (req, res) => {
                 profileAddonServices = [];
                 updateGalleryDisplay();
                 updateAddonServicesDisplay();
+                // 載入價格統計作為參考
+                loadPriceStats();
             }
             
             modal.classList.add('active');
@@ -1189,6 +1286,136 @@ router.get('/', (req, res) => {
                 closeProfileModal();
                 closeArticleModal();
             }
+        });
+
+        // 顯示價格參考指南
+        function showPriceGuide() {
+            const helpDiv = document.getElementById('priceHelp');
+            helpDiv.style.display = helpDiv.style.display === 'none' ? 'block' : 'none';
+            if (helpDiv.style.display === 'block') {
+                loadPriceStats();
+            }
+        }
+
+        // 載入價格統計作為參考
+        async function loadPriceStats() {
+            try {
+                const res = await fetch(API_BASE + '/api/admin/profiles');
+                const profiles = await res.json();
+                
+                if (profiles.length === 0) {
+                    document.getElementById('priceStats').innerHTML = '<p style="color: #64748b; font-size: 0.85rem;">目前沒有其他 Profile 可供參考</p>';
+                    return;
+                }
+
+                const prices = profiles.map(p => p.price).filter(p => p > 0);
+                if (prices.length === 0) {
+                    document.getElementById('priceStats').innerHTML = '<p style="color: #64748b; font-size: 0.85rem;">目前沒有價格資料可供參考</p>';
+                    return;
+                }
+
+                const minPrice = Math.min(...prices);
+                const maxPrice = Math.max(...prices);
+                const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+                const medianPrice = prices.sort((a, b) => a - b)[Math.floor(prices.length / 2)];
+
+                // 根據類型分類統計
+                const outcallPrices = profiles.filter(p => p.type === 'outcall').map(p => p.price).filter(p => p > 0);
+                const incallPrices = profiles.filter(p => p.type === 'incall').map(p => p.price).filter(p => p > 0);
+
+                let statsHtml = '<div style="background: white; padding: 1rem; border-radius: 6px; border: 1px solid #bae6fd;">';
+                statsHtml += '<strong style="color: #0369a1; display: block; margin-bottom: 0.75rem;">📊 現有 Profiles 價格統計：</strong>';
+                statsHtml += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 0.75rem;">';
+                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">最低價：</span><span class="price-range">\${minPrice.toLocaleString()}</span></div>\`;
+                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">最高價：</span><span class="price-range">\${maxPrice.toLocaleString()}</span></div>\`;
+                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">平均價：</span><span class="price-range">\${avgPrice.toLocaleString()}</span></div>\`;
+                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">中位數：</span><span class="price-range">\${medianPrice.toLocaleString()}</span></div>\`;
+                statsHtml += '</div>';
+
+                if (outcallPrices.length > 0) {
+                    const outcallAvg = Math.round(outcallPrices.reduce((a, b) => a + b, 0) / outcallPrices.length);
+                    statsHtml += \`<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e0f2fe;"><span style="color: #64748b; font-size: 0.8rem;">🚗 外送平均：</span><span class="price-range">\${outcallAvg.toLocaleString()}</span> (共 \${outcallPrices.length} 筆)</div>\`;
+                }
+                if (incallPrices.length > 0) {
+                    const incallAvg = Math.round(incallPrices.reduce((a, b) => a + b, 0) / incallPrices.length);
+                    statsHtml += \`<div style="margin-top: 0.5rem;"><span style="color: #64748b; font-size: 0.8rem;">🏠 定點平均：</span><span class="price-range">\${incallAvg.toLocaleString()}</span> (共 \${incallPrices.length} 筆)</div>\`;
+                }
+
+                // 價格區間分布
+                const ranges = [
+                    { min: 0, max: 4500, label: '3,000-4,500' },
+                    { min: 4500, max: 6000, label: '4,500-6,000' },
+                    { min: 6000, max: 8000, label: '6,000-8,000' },
+                    { min: 8000, max: 12000, label: '8,000-12,000' },
+                    { min: 12000, max: Infinity, label: '12,000+' }
+                ];
+
+                statsHtml += '<div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e0f2fe;">';
+                statsHtml += '<strong style="color: #0369a1; font-size: 0.85rem; display: block; margin-bottom: 0.5rem;">價格分布：</strong>';
+                ranges.forEach(range => {
+                    const count = prices.filter(p => p >= range.min && p < range.max).length;
+                    const percent = Math.round((count / prices.length) * 100);
+                    if (count > 0) {
+                        statsHtml += \`<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; font-size: 0.8rem;"><span>\${range.label}</span><span style="color: #64748b;">\${count} 筆 (\${percent}%)</span></div>\`;
+                    }
+                });
+                statsHtml += '</div>';
+
+                statsHtml += '</div>';
+                document.getElementById('priceStats').innerHTML = statsHtml;
+            } catch (error) {
+                console.error('載入價格統計失敗:', error);
+                document.getElementById('priceStats').innerHTML = '<p style="color: #ef4444; font-size: 0.85rem;">無法載入價格統計</p>';
+            }
+        }
+
+        // 價格驗證和建議
+        function validatePrice() {
+            const priceInput = document.getElementById('profilePrice');
+            const price = parseInt(priceInput.value);
+            const type = document.getElementById('profileType').value;
+            
+            if (!price || price <= 0) return;
+
+            // 移除舊的警告
+            const existingWarning = priceInput.parentElement.querySelector('.price-warning');
+            if (existingWarning) {
+                existingWarning.remove();
+            }
+
+            // 基本價格範圍檢查
+            let warning = null;
+            if (price < 2000) {
+                warning = { type: 'low', message: '⚠️ 價格過低（低於 2,000），可能低估了服務價值' };
+            } else if (price > 20000) {
+                warning = { type: 'high', message: '⚠️ 價格過高（超過 20,000），可能影響詢問量' };
+            } else if (price < 3000 && type === 'outcall') {
+                warning = { type: 'low', message: '⚠️ 外送價格建議至少 3,000 以上' };
+            }
+
+            if (warning) {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'price-warning';
+                warningDiv.style.cssText = \`margin-top: 0.5rem; padding: 0.75rem; background: \${warning.type === 'low' ? '#fef3c7' : '#fee2e2'}; border: 1px solid \${warning.type === 'low' ? '#f59e0b' : '#ef4444'}; border-radius: 6px; color: \${warning.type === 'low' ? '#92400e' : '#991b1b'}; font-size: 0.85rem;\`;
+                warningDiv.textContent = warning.message;
+                priceInput.parentElement.appendChild(warningDiv);
+            }
+        }
+
+        // 綁定價格驗證
+        document.addEventListener('DOMContentLoaded', () => {
+            // 延遲綁定，確保元素已存在
+            setTimeout(() => {
+                const priceInput = document.getElementById('profilePrice');
+                const typeSelect = document.getElementById('profileType');
+                if (priceInput) {
+                    priceInput.addEventListener('input', validatePrice);
+                    priceInput.addEventListener('blur', validatePrice);
+                }
+                if (typeSelect) {
+                    typeSelect.addEventListener('change', validatePrice);
+                }
+            }, 500);
         });
 
         // 初始化
