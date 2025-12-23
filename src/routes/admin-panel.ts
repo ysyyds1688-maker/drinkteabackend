@@ -515,7 +515,20 @@ router.get('/', (req, res) => {
                     </div>
                     <div class="form-group">
                         <label>國家/國籍 * (emoji 國旗)</label>
-                        <input type="text" id="profileNationality" placeholder="🇹🇼" required />
+                        <select id="profileNationalitySelect" required onchange="handleNationalityChange()">
+                            <option value="">請選擇國家</option>
+                            <option value="🇹🇼">🇹🇼 台灣</option>
+                            <option value="🇯🇵">🇯🇵 日本</option>
+                            <option value="🇰🇷">🇰🇷 韓國</option>
+                            <option value="🇭🇰">🇭🇰 香港</option>
+                            <option value="🇨🇳">🇨🇳 中國</option>
+                            <option value="🇹🇭">🇹🇭 泰國</option>
+                            <option value="🇻🇳">🇻🇳 越南</option>
+                            <option value="🇲🇾">🇲🇾 馬來西亞</option>
+                            <option value="🇸🇬">🇸🇬 新加坡</option>
+                            <option value="custom">自訂 / 其他</option>
+                        </select>
+                        <input type="text" id="profileNationalityCustom" placeholder="🇹🇼 或其他 emoji／文字" style="margin-top: 0.5rem; display: none;" />
                     </div>
                 </div>
                 <div class="form-row">
@@ -600,6 +613,28 @@ router.get('/', (req, res) => {
                 <div class="form-group">
                     <label>標籤 (用逗號分隔)</label>
                     <input type="text" id="profileTags" placeholder="氣質高雅, 鄰家清新" />
+                    <div style="margin-top: 0.75rem; font-size: 0.8rem; color: #6b7280;">
+                        點選下列快速標籤可自動加入 / 移除：
+                    </div>
+                    <div class="addon-services" id="bodyTypeQuickTags" style="margin-top: 0.5rem;">
+                        <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">身材條件</div>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('纖細')">纖細</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('勻稱')">勻稱</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('肉感')">肉感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('豐滿')">豐滿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('模特兒')">模特兒</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('長腿')">長腿</button>
+                    </div>
+                    <div class="addon-services" id="personalityQuickTags" style="margin-top: 0.5rem;">
+                        <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">風格特質</div>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('氣質')">氣質</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('鄰家')">鄰家</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('性感')">性感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('溫柔')">溫柔</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('活潑')">活潑</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('御姐')">御姐</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('學生')">學生</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>基本服務 (用逗號分隔)</label>
@@ -833,6 +868,53 @@ router.get('/', (req, res) => {
             modal.classList.add('active');
         }
 
+        function setNationalityValue(value) {
+            const select = document.getElementById('profileNationalitySelect');
+            const custom = document.getElementById('profileNationalityCustom');
+            if (!select || !custom) return;
+
+            if (!value) {
+                select.value = '';
+                custom.value = '';
+                custom.style.display = 'none';
+                return;
+            }
+
+            const exists = Array.from(select.options).some(function (opt) { return opt.value === value; });
+            if (exists) {
+                select.value = value;
+                custom.value = '';
+                custom.style.display = 'none';
+            } else {
+                select.value = 'custom';
+                custom.value = value;
+                custom.style.display = 'block';
+            }
+        }
+
+        function handleNationalityChange() {
+            const select = document.getElementById('profileNationalitySelect');
+            const custom = document.getElementById('profileNationalityCustom');
+            if (!select || !custom) return;
+            if (select.value === 'custom') {
+                custom.style.display = 'block';
+                custom.focus();
+            } else {
+                custom.style.display = 'none';
+                custom.value = '';
+            }
+        }
+
+        function getNationalityValue() {
+            const select = document.getElementById('profileNationalitySelect');
+            const custom = document.getElementById('profileNationalityCustom');
+            if (!select || !custom) return '';
+            if (select.value === 'custom') {
+                return (custom.value || '').trim();
+            }
+            return select.value;
+        }
+
         // 載入 Profile 資料
         async function loadProfileData(id) {
             try {
@@ -841,7 +923,7 @@ router.get('/', (req, res) => {
                 
                 document.getElementById('profileId').value = profile.id;
                 document.getElementById('profileName').value = profile.name || '';
-                document.getElementById('profileNationality').value = profile.nationality || '';
+                setNationalityValue(profile.nationality || '');
                 document.getElementById('profileAge').value = profile.age || '';
                 document.getElementById('profileHeight').value = profile.height || '';
                 document.getElementById('profileWeight').value = profile.weight || '';
@@ -908,7 +990,7 @@ router.get('/', (req, res) => {
                 
                 // 填充表單
                 if (data.name) document.getElementById('profileName').value = data.name;
-                if (data.nationality) document.getElementById('profileNationality').value = data.nationality;
+                if (data.nationality) setNationalityValue(data.nationality);
                 if (data.age) document.getElementById('profileAge').value = data.age;
                 if (data.height) document.getElementById('profileHeight').value = data.height;
                 if (data.weight) document.getElementById('profileWeight').value = data.weight;
@@ -1126,6 +1208,33 @@ router.get('/', (req, res) => {
             \`).join('');
         }
 
+        function getCurrentTags() {
+            const input = document.getElementById('profileTags');
+            if (!input) return [];
+            return (input.value || '')
+                .split(',')
+                .map(function (s) { return s.trim(); })
+                .filter(function (s) { return s.length > 0; });
+        }
+
+        function setCurrentTags(tags) {
+            const input = document.getElementById('profileTags');
+            if (!input) return;
+            const unique = Array.from(new Set(tags));
+            input.value = unique.join(', ');
+        }
+
+        function toggleProfileTag(tag) {
+            const tags = getCurrentTags();
+            const index = tags.indexOf(tag);
+            if (index > -1) {
+                tags.splice(index, 1);
+            } else {
+                tags.push(tag);
+            }
+            setCurrentTags(tags);
+        }
+
         // 保存 Profile
         async function saveProfile(event) {
             event.preventDefault();
@@ -1136,9 +1245,9 @@ router.get('/', (req, res) => {
                 return;
             }
             
-            const formData = {
+                const formData = {
                 name: document.getElementById('profileName').value,
-                nationality: document.getElementById('profileNationality').value,
+                nationality: getNationalityValue(),
                 age: parseInt(document.getElementById('profileAge').value),
                 height: parseInt(document.getElementById('profileHeight').value),
                 weight: parseInt(document.getElementById('profileWeight').value),
