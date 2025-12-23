@@ -7,8 +7,8 @@ WORKDIR /app
 # 複製 package 檔案
 COPY package*.json ./
 
-# 安裝依賴
-RUN npm ci --only=production
+# 安裝所有依賴（包括 devDependencies，因為需要 TypeScript 來建置）
+RUN npm ci
 
 # 複製專案檔案
 COPY . .
