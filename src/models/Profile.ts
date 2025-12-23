@@ -3,7 +3,7 @@ import { Profile } from '../types.js';
 
 export const profileModel = {
   getAll: async (): Promise<Profile[]> => {
-    const result = await query('SELECT * FROM profiles ORDER BY createdAt DESC');
+    const result = await query('SELECT * FROM profiles ORDER BY "createdAt" DESC');
     return result.rows.map((row: any) => ({
       ...row,
       gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
@@ -13,8 +13,8 @@ export const profileModel = {
       basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
       addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
       availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
-      isNew: Boolean(row.isnew),
-      isAvailable: Boolean(row.isavailable),
+      isNew: Boolean(row.isNew),
+      isAvailable: Boolean(row.isAvailable),
     }));
   },
 
@@ -32,8 +32,8 @@ export const profileModel = {
       basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
       addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
       availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
-      isNew: Boolean(row.isnew),
-      isAvailable: Boolean(row.isavailable),
+      isNew: Boolean(row.isNew),
+      isAvailable: Boolean(row.isAvailable),
     };
   },
 

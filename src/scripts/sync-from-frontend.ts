@@ -1,6 +1,9 @@
 // 從前端網站同步資料到後端的腳本
 // 這個腳本需要手動執行，因為需要從前端網站的 localStorage 或實際資料中獲取
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { initDatabase } from '../db/database.js';
 import { profileModel } from '../models/Profile.js';
 import { articleModel } from '../models/Article.js';

@@ -37,32 +37,58 @@ pool.on('error', (err) => {
 // 初始化資料庫 schema
 export const initDatabase = async () => {
   try {
+    // 先檢查並刪除舊表（如果結構不對）
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'profiles'
+      )
+    `);
+    
+    if (tableCheck.rows[0].exists) {
+      // 檢查欄位名稱
+      const columnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'profiles' 
+        AND column_name IN ('imageUrl', 'imageurl')
+      `);
+      
+      // 如果欄位名稱是小寫（舊結構），刪除重建
+      if (columnCheck.rows.length > 0 && columnCheck.rows[0].column_name === 'imageurl') {
+        console.log('⚠️  發現舊表結構，正在重建...');
+        await pool.query('DROP TABLE IF EXISTS profiles CASCADE');
+        await pool.query('DROP TABLE IF EXISTS articles CASCADE');
+      }
+    }
+
     // Profiles table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS profiles (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        nationality TEXT NOT NULL,
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        nationality VARCHAR(50) NOT NULL,
         age INTEGER NOT NULL,
         height INTEGER NOT NULL,
         weight INTEGER NOT NULL,
-        cup TEXT NOT NULL,
-        location TEXT NOT NULL,
-        district TEXT,
-        type TEXT NOT NULL CHECK(type IN ('outcall', 'incall')),
-        imageUrl TEXT NOT NULL,
+        cup VARCHAR(10) NOT NULL,
+        location VARCHAR(255) NOT NULL,
+        district VARCHAR(255),
+        type VARCHAR(20) NOT NULL CHECK(type IN ('outcall', 'incall')),
+        "imageUrl" VARCHAR(500) NOT NULL,
         gallery TEXT, -- JSON array
         albums TEXT, -- JSON array
         price INTEGER NOT NULL,
         prices TEXT NOT NULL, -- JSON object
         tags TEXT, -- JSON array
-        basicServices TEXT, -- JSON array
-        addonServices TEXT, -- JSON array
-        isNew INTEGER DEFAULT 0,
-        isAvailable INTEGER DEFAULT 1,
-        availableTimes TEXT, -- JSON object
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        "basicServices" TEXT, -- JSON array
+        "addonServices" TEXT, -- JSON array
+        "isNew" INTEGER DEFAULT 0,
+        "isAvailable" INTEGER DEFAULT 1,
+        "availableTimes" TEXT, -- JSON object
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -90,7 +116,7 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(location)
     `);
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_profiles_available ON profiles(isAvailable)
+      CREATE INDEX IF NOT EXISTS idx_profiles_available ON profiles("isAvailable")
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(date)

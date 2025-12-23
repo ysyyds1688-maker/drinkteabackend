@@ -1,4 +1,7 @@
 // 同步前端資料到後端資料庫的腳本
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { initDatabase } from '../db/database.js';
 import { profileModel } from '../models/Profile.js';
 import { articleModel } from '../models/Article.js';
