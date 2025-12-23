@@ -90,7 +90,7 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(location)
     `);
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_profiles_available ON profiles("isAvailable")
+      CREATE INDEX IF NOT EXISTS idx_profiles_available ON profiles(isAvailable)
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(date)
