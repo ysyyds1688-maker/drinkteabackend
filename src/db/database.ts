@@ -63,7 +63,7 @@ export const initDatabase = async () => {
       }
     }
 
-    // Profiles table
+    // Profiles table（使用 TEXT 以支援 base64 圖片等長字串）
     await pool.query(`
       CREATE TABLE IF NOT EXISTS profiles (
         id VARCHAR(255) PRIMARY KEY,
@@ -76,7 +76,7 @@ export const initDatabase = async () => {
         location VARCHAR(255) NOT NULL,
         district VARCHAR(255),
         type VARCHAR(20) NOT NULL CHECK(type IN ('outcall', 'incall')),
-        "imageUrl" VARCHAR(500) NOT NULL,
+        "imageUrl" TEXT NOT NULL,
         gallery TEXT, -- JSON array
         albums TEXT, -- JSON array
         price INTEGER NOT NULL,
@@ -92,13 +92,13 @@ export const initDatabase = async () => {
       )
     `);
 
-    // Articles table
+    // Articles table（封面圖改用 TEXT，避免 URL 過長）
     await pool.query(`
       CREATE TABLE IF NOT EXISTS articles (
         id VARCHAR(255) PRIMARY KEY,
         title VARCHAR(500) NOT NULL,
         summary TEXT NOT NULL,
-        "imageUrl" VARCHAR(500) NOT NULL,
+        "imageUrl" TEXT NOT NULL,
         tag VARCHAR(100) NOT NULL,
         date VARCHAR(50) NOT NULL,
         views INTEGER DEFAULT 0,
@@ -107,6 +107,10 @@ export const initDatabase = async () => {
         "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // 確保既有資料庫的欄位型別也放寬為 TEXT（如果之前是 VARCHAR(500)）
+    await pool.query(`ALTER TABLE profiles ALTER COLUMN "imageUrl" TYPE TEXT`);
+    await pool.query(`ALTER TABLE articles ALTER COLUMN "imageUrl" TYPE TEXT`);
 
     // Create indexes
     await pool.query(`
