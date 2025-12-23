@@ -57,7 +57,13 @@ router.post('/parse-profile', async (req, res) => {
     });
 
     const response = await result.response;
-    const raw = JSON.parse(response.text());
+    let raw;
+    try {
+      raw = JSON.parse(response.text());
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', response.text());
+      throw new Error('AI 回傳格式錯誤，請稍後再試');
+    }
 
     const profile: Partial<Profile> = {
       ...raw,
@@ -71,7 +77,20 @@ router.post('/parse-profile', async (req, res) => {
     res.json(profile);
   } catch (error: any) {
     console.error('Gemini parse-profile error:', error);
-    res.status(500).json({ error: error.message || 'Failed to parse profile' });
+    
+    // 提供更友好的錯誤訊息
+    let errorMessage = '解析失敗';
+    if (error.message?.includes('GEMINI_API_KEY')) {
+      errorMessage = 'GEMINI_API_KEY 未設定，請檢查環境變數';
+    } else if (error.message?.includes('API key')) {
+      errorMessage = 'Gemini API Key 無效，請檢查環境變數設定';
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      errorMessage = '無法連接到 Gemini API，請檢查網絡連線';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(500).json({ error: errorMessage });
   }
 });
 

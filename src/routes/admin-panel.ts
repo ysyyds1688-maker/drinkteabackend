@@ -764,11 +764,25 @@ router.get('/', (req, res) => {
                 });
                 
                 if (!res.ok) {
-                    const error = await res.json();
-                    throw new Error(error.error || '解析失敗');
+                    let errorMessage = '解析失敗';
+                    try {
+                        const errorData = await res.json();
+                        errorMessage = errorData.error || '解析失敗';
+                    } catch (e) {
+                        // 如果響應不是 JSON，嘗試讀取文本
+                        const text = await res.text();
+                        errorMessage = text || \`HTTP \${res.status}: \${res.statusText}\`;
+                    }
+                    throw new Error(errorMessage);
                 }
                 
-                const data = await res.json();
+                let data;
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    const text = await res.text();
+                    throw new Error(\`後端返回格式錯誤: \${text.substring(0, 100)}\`);
+                }
                 
                 // 填充表單
                 if (data.name) document.getElementById('profileName').value = data.name;
