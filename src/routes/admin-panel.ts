@@ -431,6 +431,23 @@ router.get('/', (req, res) => {
                 <h3>總瀏覽次數</h3>
                 <div class="value" id="totalViews">-</div>
             </div>
+            <div class="stat-card">
+                <h3>國家 / 國籍篩選</h3>
+                <div>
+                    <select id="nationalityFilter" onchange="loadProfiles()" style="padding: 0.5rem 0.75rem; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 0.875rem;">
+                        <option value="">全部</option>
+                        <option value="🇹🇼">🇹🇼 台灣</option>
+                        <option value="🇯🇵">🇯🇵 日本</option>
+                        <option value="🇰🇷">🇰🇷 韓國</option>
+                        <option value="🇭🇰">🇭🇰 香港</option>
+                        <option value="🇨🇳">🇨🇳 中國</option>
+                        <option value="🇹🇭">🇹🇭 泰國</option>
+                        <option value="🇻🇳">🇻🇳 越南</option>
+                        <option value="🇲🇾">🇲🇾 馬來西亞</option>
+                        <option value="🇸🇬">🇸🇬 新加坡</option>
+                    </select>
+                </div>
+            </div>
         </div>
 
         <div class="tabs">
@@ -691,19 +708,27 @@ router.get('/', (req, res) => {
             }
         }
 
-        // 載入 Profiles
+        // 載入 Profiles（支援國家 / 國籍篩選）
         async function loadProfiles() {
             try {
                 const res = await fetch(API_BASE + '/api/admin/profiles');
-                const profiles = await res.json();
+                let profiles = await res.json();
+
+                // 依照國家 / 國籍篩選
+                const nationalitySelect = document.getElementById('nationalityFilter');
+                const selectedNationality = nationalitySelect ? nationalitySelect.value : '';
+                if (selectedNationality) {
+                    profiles = profiles.filter(p => p.nationality === selectedNationality);
+                }
+
                 const list = document.getElementById('profiles-list');
-                list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名</th><th>地區</th><th>價格</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
                     profiles.map(p => \`
                         <tr>
                             <td>\${p.id}</td>
-                            <td>\${p.name} \${p.nationality}</td>
+                            <td>\${p.name} \${p.nationality || ''}</td>
                             <td>\${p.location}\${p.district ? ' - ' + p.district : ''}</td>
-                            <td>NT$ \${p.price.toLocaleString()}</td>
+                            <td>NT$ \${(p.price || 0).toLocaleString()}</td>
                             <td>\${p.isAvailable ? '✅ 可用' : '❌ 不可用'}</td>
                             <td>
                                 <button class="btn" onclick="editProfile('\${p.id}')">編輯</button>
