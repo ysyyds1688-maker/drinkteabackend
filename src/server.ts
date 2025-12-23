@@ -16,29 +16,13 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-// CORS 設定：允許本機與 Zeabur 前端網域請求
-const allowedOrigins = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL,
-  'https://happynewyears.zeabur.app', // 部署在 Zeabur 的前端網址
-].filter(Boolean) as string[];
-
+// CORS 設定：全面開放，確保前端和後台管理系統都能正常運作
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // 若是同源（如後端自己呼叫自己）或未帶 Origin，直接允許
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      console.warn('🚫 Blocked CORS origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: false,
   })
 );
 // 增加請求體大小限制以支援圖片上傳（base64 編碼）
