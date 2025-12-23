@@ -10,6 +10,7 @@ const router = Router();
 // GET /api/admin/stats - 取得後台統計資訊
 router.get('/stats', async (req, res) => {
   try {
+    console.log('GET /api/admin/stats');
     const profiles = await profileModel.getAll();
     const articles = await articleModel.getAll();
     
@@ -41,7 +42,8 @@ router.get('/stats', async (req, res) => {
     
     res.json(stats);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('GET /api/admin/stats error:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -49,10 +51,12 @@ router.get('/stats', async (req, res) => {
 // GET /api/admin/profiles - 取得所有 profiles（管理用，包含更多資訊）
 router.get('/profiles', async (req, res) => {
   try {
+    console.log('GET /api/admin/profiles');
     const profiles = await profileModel.getAll();
     res.json(profiles);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('GET /api/admin/profiles error:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

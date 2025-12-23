@@ -3,38 +3,84 @@ import { Profile } from '../types.js';
 
 export const profileModel = {
   getAll: async (): Promise<Profile[]> => {
-    const result = await query('SELECT * FROM profiles ORDER BY "createdAt" DESC');
-    return result.rows.map((row: any) => ({
-      ...row,
-      gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
-      albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
-      prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
-      tags: typeof row.tags === 'string' ? JSON.parse(row.tags || '[]') : (row.tags || []),
-      basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
-      addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
-      availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
-      isNew: Boolean(row.isNew),
-      isAvailable: Boolean(row.isAvailable),
-    }));
+    try {
+      const result = await query('SELECT * FROM profiles ORDER BY "createdAt" DESC');
+      return result.rows.map((row: any) => {
+        try {
+          return {
+            ...row,
+            gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
+            albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
+            prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
+            tags: typeof row.tags === 'string' ? JSON.parse(row.tags || '[]') : (row.tags || []),
+            basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
+            addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
+            availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
+            isNew: Boolean(row.isNew),
+            isAvailable: Boolean(row.isAvailable),
+          };
+        } catch (parseError: any) {
+          console.error('Error parsing profile row:', row.id, parseError);
+          // 返回基本資料，避免整個查詢失敗
+          return {
+            ...row,
+            gallery: [],
+            albums: [],
+            prices: { oneShot: { price: row.price || 0, desc: '一節/50min/1S' }, twoShot: { price: (row.price || 0) * 2 - 500, desc: '兩節/100min/2S' } },
+            tags: [],
+            basicServices: [],
+            addonServices: [],
+            availableTimes: { today: '12:00~02:00', tomorrow: '12:00~02:00' },
+            isNew: Boolean(row.isNew),
+            isAvailable: Boolean(row.isAvailable),
+          };
+        }
+      });
+    } catch (error: any) {
+      console.error('Profile.getAll error:', error);
+      throw new Error(`取得 Profiles 失敗: ${error.message || '資料庫錯誤'}`);
+    }
   },
 
   getById: async (id: string): Promise<Profile | null> => {
-    const result = await query('SELECT * FROM profiles WHERE id = $1', [id]);
-    if (result.rows.length === 0) return null;
-    
-    const row = result.rows[0];
-    return {
-      ...row,
-      gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
-      albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
-      prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
-      tags: typeof row.tags === 'string' ? JSON.parse(row.tags || '[]') : (row.tags || []),
-      basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
-      addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
-      availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
-      isNew: Boolean(row.isNew),
-      isAvailable: Boolean(row.isAvailable),
-    };
+    try {
+      const result = await query('SELECT * FROM profiles WHERE id = $1', [id]);
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+      try {
+        return {
+          ...row,
+          gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
+          albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
+          prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
+          tags: typeof row.tags === 'string' ? JSON.parse(row.tags || '[]') : (row.tags || []),
+          basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
+          addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
+          availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
+          isNew: Boolean(row.isNew),
+          isAvailable: Boolean(row.isAvailable),
+        };
+      } catch (parseError: any) {
+        console.error('Error parsing profile:', id, parseError);
+        // 返回基本資料
+        return {
+          ...row,
+          gallery: [],
+          albums: [],
+          prices: { oneShot: { price: row.price || 0, desc: '一節/50min/1S' }, twoShot: { price: (row.price || 0) * 2 - 500, desc: '兩節/100min/2S' } },
+          tags: [],
+          basicServices: [],
+          addonServices: [],
+          availableTimes: { today: '12:00~02:00', tomorrow: '12:00~02:00' },
+          isNew: Boolean(row.isNew),
+          isAvailable: Boolean(row.isAvailable),
+        };
+      }
+    } catch (error: any) {
+      console.error('Profile.getById error:', id, error);
+      throw new Error(`取得 Profile 失敗: ${error.message || '資料庫錯誤'}`);
+    }
   },
 
   create: async (profile: Profile): Promise<Profile> => {
