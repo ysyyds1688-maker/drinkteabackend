@@ -1,10 +1,4 @@
 import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const router = express.Router();
 
@@ -128,6 +122,49 @@ router.get('/', (req, res) => {
             color: #666;
             font-size: 0.875rem;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .modal-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
         .form-group {
             margin-bottom: 1.5rem;
         }
@@ -150,8 +187,17 @@ router.get('/', (req, res) => {
             min-height: 100px;
             resize: vertical;
         }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
         .hidden {
             display: none;
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -203,8 +249,151 @@ router.get('/', (req, res) => {
         </div>
     </div>
 
+    <!-- Profile 表單 Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="profileModalTitle">新增 Profile</h2>
+                <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+            </div>
+            <form id="profileForm" onsubmit="saveProfile(event)">
+                <input type="hidden" id="profileId" />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>姓名 *</label>
+                        <input type="text" id="profileName" required />
+                    </div>
+                    <div class="form-group">
+                        <label>國籍 *</label>
+                        <input type="text" id="profileNationality" placeholder="🇹🇼" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>年齡 *</label>
+                        <input type="number" id="profileAge" required />
+                    </div>
+                    <div class="form-group">
+                        <label>身高 (cm) *</label>
+                        <input type="number" id="profileHeight" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>體重 (kg) *</label>
+                        <input type="number" id="profileWeight" required />
+                    </div>
+                    <div class="form-group">
+                        <label>罩杯 *</label>
+                        <input type="text" id="profileCup" placeholder="D" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>城市 *</label>
+                        <input type="text" id="profileLocation" placeholder="台北市" required />
+                    </div>
+                    <div class="form-group">
+                        <label>行政區</label>
+                        <input type="text" id="profileDistrict" placeholder="大安區" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>類型 *</label>
+                        <select id="profileType" required>
+                            <option value="outcall">外送</option>
+                            <option value="incall">定點</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>價格 (NT$) *</label>
+                        <input type="number" id="profilePrice" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>封面圖片 URL *</label>
+                    <input type="text" id="profileImageUrl" required />
+                </div>
+                <div class="form-group">
+                    <label>標籤 (用逗號分隔)</label>
+                    <input type="text" id="profileTags" placeholder="氣質高雅, 鄰家清新" />
+                </div>
+                <div class="form-group">
+                    <label>基本服務 (用逗號分隔)</label>
+                    <input type="text" id="profileBasicServices" placeholder="聊天, 按摩" />
+                </div>
+                <div class="form-group">
+                    <label>可用狀態</label>
+                    <select id="profileIsAvailable">
+                        <option value="true">可用</option>
+                        <option value="false">不可用</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn" onclick="closeProfileModal()">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Article 表單 Modal -->
+    <div id="articleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="articleModalTitle">新增 Article</h2>
+                <button class="close-btn" onclick="closeArticleModal()">&times;</button>
+            </div>
+            <form id="articleForm" onsubmit="saveArticle(event)">
+                <input type="hidden" id="articleId" />
+                <div class="form-group">
+                    <label>標題 *</label>
+                    <input type="text" id="articleTitle" required />
+                </div>
+                <div class="form-group">
+                    <label>摘要 *</label>
+                    <textarea id="articleSummary" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>標籤 *</label>
+                        <select id="articleTag" required>
+                            <option value="外送茶">外送茶</option>
+                            <option value="定點茶">定點茶</option>
+                            <option value="新手必看">新手必看</option>
+                            <option value="防雷專區">防雷專區</option>
+                            <option value="老司機心得">老司機心得</option>
+                            <option value="高端服務">高端服務</option>
+                            <option value="預約須知">預約須知</option>
+                            <option value="會員專屬">會員專屬</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>日期 *</label>
+                        <input type="date" id="articleDate" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>封面圖片 URL *</label>
+                    <input type="text" id="articleImageUrl" required />
+                </div>
+                <div class="form-group">
+                    <label>內容</label>
+                    <textarea id="articleContent" style="min-height: 200px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn" onclick="closeArticleModal()">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const API_BASE = window.location.origin;
+        let currentEditingProfileId = null;
+        let currentEditingArticleId = null;
 
         // 載入統計資訊
         async function loadStats() {
@@ -242,6 +431,7 @@ router.get('/', (req, res) => {
                     \`).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入 Profiles 失敗:', error);
+                alert('載入 Profiles 失敗: ' + error.message);
             }
         }
 
@@ -267,6 +457,7 @@ router.get('/', (req, res) => {
                     \`).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入 Articles 失敗:', error);
+                alert('載入 Articles 失敗: ' + error.message);
             }
         }
 
@@ -284,9 +475,11 @@ router.get('/', (req, res) => {
         async function deleteProfile(id) {
             if (!confirm('確定要刪除這個 Profile 嗎？')) return;
             try {
-                await fetch(API_BASE + \`/api/admin/profiles/\${id}\`, { method: 'DELETE' });
+                const res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('刪除失敗');
                 loadProfiles();
                 loadStats();
+                alert('刪除成功！');
             } catch (error) {
                 alert('刪除失敗: ' + error.message);
             }
@@ -296,29 +489,242 @@ router.get('/', (req, res) => {
         async function deleteArticle(id) {
             if (!confirm('確定要刪除這篇文章嗎？')) return;
             try {
-                await fetch(API_BASE + \`/api/admin/articles/\${id}\`, { method: 'DELETE' });
+                const res = await fetch(API_BASE + \`/api/admin/articles/\${id}\`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('刪除失敗');
                 loadArticles();
                 loadStats();
+                alert('刪除成功！');
             } catch (error) {
                 alert('刪除失敗: ' + error.message);
             }
         }
 
-        function showProfileForm() {
-            alert('請使用前端的管理介面或直接調用 API 來新增 Profile');
+        // 顯示 Profile 表單
+        function showProfileForm(id = null) {
+            currentEditingProfileId = id;
+            const modal = document.getElementById('profileModal');
+            const form = document.getElementById('profileForm');
+            
+            if (id) {
+                document.getElementById('profileModalTitle').textContent = '編輯 Profile';
+                // 載入現有資料
+                loadProfileData(id);
+            } else {
+                document.getElementById('profileModalTitle').textContent = '新增 Profile';
+                form.reset();
+                document.getElementById('profileId').value = '';
+            }
+            
+            modal.classList.add('active');
         }
 
-        function editProfile(id) {
-            alert('請使用前端的管理介面或直接調用 API 來編輯 Profile');
+        // 載入 Profile 資料
+        async function loadProfileData(id) {
+            try {
+                const res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`);
+                const profile = await res.json();
+                
+                document.getElementById('profileId').value = profile.id;
+                document.getElementById('profileName').value = profile.name || '';
+                document.getElementById('profileNationality').value = profile.nationality || '';
+                document.getElementById('profileAge').value = profile.age || '';
+                document.getElementById('profileHeight').value = profile.height || '';
+                document.getElementById('profileWeight').value = profile.weight || '';
+                document.getElementById('profileCup').value = profile.cup || '';
+                document.getElementById('profileLocation').value = profile.location || '';
+                document.getElementById('profileDistrict').value = profile.district || '';
+                document.getElementById('profileType').value = profile.type || 'outcall';
+                document.getElementById('profilePrice').value = profile.price || '';
+                document.getElementById('profileImageUrl').value = profile.imageUrl || '';
+                document.getElementById('profileTags').value = (profile.tags || []).join(', ');
+                document.getElementById('profileBasicServices').value = (profile.basicServices || []).join(', ');
+                document.getElementById('profileIsAvailable').value = profile.isAvailable !== false ? 'true' : 'false';
+            } catch (error) {
+                alert('載入資料失敗: ' + error.message);
+            }
         }
 
-        function showArticleForm() {
-            alert('請使用前端的管理介面或直接調用 API 來新增 Article');
+        // 保存 Profile
+        async function saveProfile(event) {
+            event.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('profileName').value,
+                nationality: document.getElementById('profileNationality').value,
+                age: parseInt(document.getElementById('profileAge').value),
+                height: parseInt(document.getElementById('profileHeight').value),
+                weight: parseInt(document.getElementById('profileWeight').value),
+                cup: document.getElementById('profileCup').value,
+                location: document.getElementById('profileLocation').value,
+                district: document.getElementById('profileDistrict').value || undefined,
+                type: document.getElementById('profileType').value,
+                price: parseInt(document.getElementById('profilePrice').value),
+                imageUrl: document.getElementById('profileImageUrl').value,
+                tags: document.getElementById('profileTags').value.split(',').map(s => s.trim()).filter(s => s),
+                basicServices: document.getElementById('profileBasicServices').value.split(',').map(s => s.trim()).filter(s => s),
+                isAvailable: document.getElementById('profileIsAvailable').value === 'true',
+                gallery: [document.getElementById('profileImageUrl').value],
+                albums: [],
+                prices: {
+                    oneShot: { price: parseInt(document.getElementById('profilePrice').value), desc: '一節/50min/1S' },
+                    twoShot: { price: parseInt(document.getElementById('profilePrice').value) * 2 - 500, desc: '兩節/100min/2S' }
+                },
+                availableTimes: {
+                    today: '12:00~02:00',
+                    tomorrow: '12:00~02:00'
+                }
+            };
+
+            try {
+                const id = currentEditingProfileId;
+                let res;
+                
+                if (id) {
+                    // 更新
+                    res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                } else {
+                    // 新增
+                    formData.id = Date.now().toString();
+                    res = await fetch(API_BASE + '/api/admin/profiles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                }
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || '保存失敗');
+                }
+                
+                alert('保存成功！');
+                closeProfileModal();
+                loadProfiles();
+                loadStats();
+            } catch (error) {
+                alert('保存失敗: ' + error.message);
+            }
         }
 
-        function editArticle(id) {
-            alert('請使用前端的管理介面或直接調用 API 來編輯 Article');
+        // 關閉 Profile Modal
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.remove('active');
+            currentEditingProfileId = null;
         }
+
+        // 編輯 Profile
+        async function editProfile(id) {
+            showProfileForm(id);
+        }
+
+        // 顯示 Article 表單
+        function showArticleForm(id = null) {
+            currentEditingArticleId = id;
+            const modal = document.getElementById('articleModal');
+            const form = document.getElementById('articleForm');
+            
+            if (id) {
+                document.getElementById('articleModalTitle').textContent = '編輯 Article';
+                loadArticleData(id);
+            } else {
+                document.getElementById('articleModalTitle').textContent = '新增 Article';
+                form.reset();
+                document.getElementById('articleId').value = '';
+                document.getElementById('articleDate').value = new Date().toISOString().split('T')[0];
+            }
+            
+            modal.classList.add('active');
+        }
+
+        // 載入 Article 資料
+        async function loadArticleData(id) {
+            try {
+                const res = await fetch(API_BASE + \`/api/admin/articles/\${id}\`);
+                const article = await res.json();
+                
+                document.getElementById('articleId').value = article.id;
+                document.getElementById('articleTitle').value = article.title || '';
+                document.getElementById('articleSummary').value = article.summary || '';
+                document.getElementById('articleTag').value = article.tag || '外送茶';
+                document.getElementById('articleDate').value = article.date || '';
+                document.getElementById('articleImageUrl').value = article.imageUrl || '';
+                document.getElementById('articleContent').value = article.content || '';
+            } catch (error) {
+                alert('載入資料失敗: ' + error.message);
+            }
+        }
+
+        // 保存 Article
+        async function saveArticle(event) {
+            event.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('articleTitle').value,
+                summary: document.getElementById('articleSummary').value,
+                tag: document.getElementById('articleTag').value,
+                date: document.getElementById('articleDate').value,
+                imageUrl: document.getElementById('articleImageUrl').value,
+                content: document.getElementById('articleContent').value || undefined,
+                views: 0
+            };
+
+            try {
+                const id = currentEditingArticleId;
+                let res;
+                
+                if (id) {
+                    // 更新
+                    res = await fetch(API_BASE + \`/api/admin/articles/\${id}\`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                } else {
+                    // 新增
+                    formData.id = Date.now().toString();
+                    res = await fetch(API_BASE + '/api/admin/articles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                }
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || '保存失敗');
+                }
+                
+                alert('保存成功！');
+                closeArticleModal();
+                loadArticles();
+                loadStats();
+            } catch (error) {
+                alert('保存失敗: ' + error.message);
+            }
+        }
+
+        // 關閉 Article Modal
+        function closeArticleModal() {
+            document.getElementById('articleModal').classList.remove('active');
+            currentEditingArticleId = null;
+        }
+
+        // 編輯 Article
+        async function editArticle(id) {
+            showArticleForm(id);
+        }
+
+        // 點擊 Modal 背景關閉
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                closeProfileModal();
+                closeArticleModal();
+            }
+        });
 
         // 初始化
         loadStats();
@@ -330,4 +736,3 @@ router.get('/', (req, res) => {
 });
 
 export default router;
-
