@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "buildCommand": "cd backend && npm install && npm run build",
+  "devCommand": "cd backend && npm run dev",
+  "installCommand": "cd backend && npm install",
+  "framework": null,
+  "outputDirectory": "backend/dist",
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+
