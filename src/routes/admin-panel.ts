@@ -897,8 +897,9 @@ router.get('/', (req, res) => {
                 if (data.addonServices) {
                     // 清理加值服務：移除價格部分（後端已處理，但前端也做一次確保）
                     profileAddonServices = (data.addonServices || []).map(service => {
-                        // 移除 "+數字" 格式的價格部分，例如："毒龍+2000" -> "毒龍"
-                        return service.replace(new RegExp('\\+\\d+', 'g'), '').trim();
+                    // 移除 "+數字" 格式的價格部分，例如："毒龍+2000" -> "毒龍"
+                    // 這裡是在 HTML 字串裡產生 JavaScript，所以要用四個反斜線，讓瀏覽器端真正看到的是 "\\+\\d+"
+                    return service.replace(new RegExp('\\\\+\\\\d+', 'g'), '').trim();
                     }).filter(service => service.length > 0);
                     updateAddonServicesDisplay();
                 }
