@@ -1,7 +1,7 @@
 {
   "name": "drinkstea-backend",
   "version": "1.0.0",
-  "description": "Backend API for 茶湯匯 (Tea Soup Club)",
+  "description": "Backend API for 茶王 (Tea King)",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {

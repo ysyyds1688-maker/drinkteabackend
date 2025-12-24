@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>茶湯匯 - 後台管理系統</title>
+    <title>茶王 - 後台管理系統</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -411,7 +411,7 @@ router.get('/', (req, res) => {
 </head>
 <body>
     <div class="header">
-        <h1>🍵 茶湯匯 - 後台管理系統</h1>
+        <h1>🍵 茶王 - 後台管理系統</h1>
     </div>
     <div class="container">
         <div class="stats" id="stats">
@@ -571,6 +571,12 @@ router.get('/', (req, res) => {
                     </div>
                     <div class="form-group">
                         <label>價格 (NT$) *</label>
+                        <div style="margin-bottom: 0.75rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500; color: #333;">
+                                <input type="checkbox" id="priceInquiryOnly" onchange="togglePriceInput()" style="width: 18px; height: 18px; cursor: pointer;" />
+                                <span>私訊詢問（勾選後將隱藏價格，改為顯示「私訊詢問」）</span>
+                            </label>
+                        </div>
                         <div class="price-input-wrapper">
                             <input type="number" id="profilePrice" placeholder="請輸入底價" required />
                             <button type="button" class="price-suggestion-btn" onclick="showPriceGuide()" title="查看價格參考">💡 價格參考</button>
@@ -857,6 +863,8 @@ router.get('/', (req, res) => {
                 aiSection.style.display = 'block';
                 form.reset();
                 document.getElementById('profileId').value = '';
+                document.getElementById('priceInquiryOnly').checked = false;
+                togglePriceInput(); // 重置價格輸入框狀態
                 profileGallery = [];
                 profileAddonServices = [];
                 updateGalleryDisplay();
@@ -931,7 +939,22 @@ router.get('/', (req, res) => {
                 document.getElementById('profileLocation').value = profile.location || '';
                 document.getElementById('profileDistrict').value = profile.district || '';
                 document.getElementById('profileType').value = profile.type || 'outcall';
-                document.getElementById('profilePrice').value = profile.price || '';
+                
+                // 檢查是否為「私訊詢問」（price 為 -1 或 prices.oneShot.price 為 -1）
+                const isInquiryOnly = profile.price === -1 || (profile.prices && profile.prices.oneShot && profile.prices.oneShot.price === -1);
+                const priceCheckbox = document.getElementById('priceInquiryOnly');
+                const priceInput = document.getElementById('profilePrice');
+                
+                if (isInquiryOnly) {
+                    priceCheckbox.checked = true;
+                    priceInput.value = '';
+                    togglePriceInput(); // 觸發狀態更新
+                } else {
+                    priceCheckbox.checked = false;
+                    document.getElementById('profilePrice').value = profile.price || '';
+                    togglePriceInput(); // 確保狀態正確
+                }
+                
                 document.getElementById('profileTags').value = (profile.tags || []).join(', ');
                 document.getElementById('profileBasicServices').value = (profile.basicServices || []).join(', ');
                 document.getElementById('profileIsAvailable').value = profile.isAvailable !== false ? 'true' : 'false';
@@ -1245,6 +1268,14 @@ router.get('/', (req, res) => {
                 return;
             }
             
+                const isInquiryOnly = document.getElementById('priceInquiryOnly').checked;
+                const priceValue = isInquiryOnly ? -1 : parseInt(document.getElementById('profilePrice').value);
+                
+                if (!isInquiryOnly && (!priceValue || priceValue <= 0)) {
+                    alert('請輸入有效的價格，或勾選「私訊詢問」');
+                    return;
+                }
+                
                 const formData = {
                 name: document.getElementById('profileName').value,
                 nationality: getNationalityValue(),
@@ -1255,7 +1286,7 @@ router.get('/', (req, res) => {
                 location: document.getElementById('profileLocation').value,
                 district: document.getElementById('profileDistrict').value || undefined,
                 type: document.getElementById('profileType').value,
-                price: parseInt(document.getElementById('profilePrice').value),
+                price: priceValue,
                 imageUrl: coverImage,
                 tags: document.getElementById('profileTags').value.split(',').map(s => s.trim()).filter(s => s),
                 basicServices: document.getElementById('profileBasicServices').value.split(',').map(s => s.trim()).filter(s => s),
@@ -1263,9 +1294,12 @@ router.get('/', (req, res) => {
                 isAvailable: document.getElementById('profileIsAvailable').value === 'true',
                 gallery: profileGallery.length > 0 ? profileGallery : [coverImage],
                 albums: [],
-                prices: {
-                    oneShot: { price: parseInt(document.getElementById('profilePrice').value), desc: '一節/50min/1S' },
-                    twoShot: { price: parseInt(document.getElementById('profilePrice').value) * 2 - 500, desc: '兩節/100min/2S' }
+                prices: isInquiryOnly ? {
+                    oneShot: { price: -1, desc: '私訊詢問' },
+                    twoShot: { price: -1, desc: '私訊詢問' }
+                } : {
+                    oneShot: { price: priceValue, desc: '一節/50min/1S' },
+                    twoShot: { price: priceValue * 2 - 500, desc: '兩節/100min/2S' }
                 },
                 availableTimes: {
                     today: '12:00~02:00',
@@ -1425,6 +1459,26 @@ router.get('/', (req, res) => {
         });
 
         // 顯示價格參考指南
+        // 切換價格輸入框狀態
+        function togglePriceInput() {
+            const checkbox = document.getElementById('priceInquiryOnly');
+            const priceInput = document.getElementById('profilePrice');
+            const priceWrapper = priceInput.closest('.price-input-wrapper');
+            
+            if (checkbox.checked) {
+                priceInput.disabled = true;
+                priceInput.value = '';
+                priceInput.removeAttribute('required');
+                priceWrapper.style.opacity = '0.5';
+                priceWrapper.style.pointerEvents = 'none';
+            } else {
+                priceInput.disabled = false;
+                priceInput.setAttribute('required', 'required');
+                priceWrapper.style.opacity = '1';
+                priceWrapper.style.pointerEvents = 'auto';
+            }
+        }
+
         function showPriceGuide() {
             const helpDiv = document.getElementById('priceHelp');
             helpDiv.style.display = helpDiv.style.display === 'none' ? 'block' : 'none';

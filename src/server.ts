@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
-    service: '茶湯匯 Backend API',
+    service: '茶王 Backend API',
     version: '1.0.0',
     endpoints: {
       health: '/health',
@@ -56,7 +56,7 @@ app.get('/', (req, res) => {
 // API info endpoint
 app.get('/api', (req, res) => {
   res.json({
-    message: '茶湯匯 Backend API',
+    message: '茶王 Backend API',
     version: '1.0.0',
     endpoints: {
       profiles: {
@@ -108,7 +108,7 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    service: '茶湯匯 Backend API'
+    service: '茶王 Backend API'
   });
 });
 

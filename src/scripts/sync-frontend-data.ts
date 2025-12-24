@@ -372,12 +372,12 @@ Q3：為什麼價格差異這麼大？
   {
     id: '1',
     tag: '高端服務',
-    title: '為什麼選擇 茶湯匯？重新定義高端社交',
-    summary: '在繁忙的都市生活中，尋求一處心靈的避風港。茶湯匯嚴格篩選，確保每一次的相遇都充滿質感...',
+    title: '為什麼選擇 茶王？重新定義高端社交',
+    summary: '在繁忙的都市生活中，尋求一處心靈的避風港。茶王嚴格篩選，確保每一次的相遇都充滿質感...',
     date: '2025-12-15',
     views: 1205,
     imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=600&auto=format&fit=crop',
-    content: '茶湯匯致力於提供最高品質的服務體驗...'
+    content: '茶王致力於提供最高品質的服務體驗...'
   },
   {
     id: '2',
@@ -393,7 +393,7 @@ Q3：為什麼價格差異這麼大？
     id: '3',
     tag: '會員專屬',
     title: '如何成為 VIP 會員？解鎖更多隱藏服務',
-    summary: '茶湯匯 VIP 會員制度旨在回饋長期支持我們的貴賓，享有優先預約權與專屬秘書服務...',
+    summary: '茶王 VIP 會員制度旨在回饋長期支持我們的貴賓，享有優先預約權與專屬秘書服務...',
     date: '2025-10-16',
     views: 3400,
     imageUrl: 'https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?q=80&w=600&auto=format&fit=crop',

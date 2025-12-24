@@ -54,12 +54,12 @@ const MOCK_ARTICLES = [
   {
     id: '1',
     tag: '高端服務',
-    title: '為什麼選擇 茶湯匯？重新定義高端社交',
-    summary: '在繁忙的都市生活中，尋求一處心靈的避風港。茶湯匯嚴格篩選，確保每一次的相遇都充滿質感...',
+    title: '為什麼選擇 茶王？重新定義高端社交',
+    summary: '在繁忙的都市生活中，尋求一處心靈的避風港。茶王嚴格篩選，確保每一次的相遇都充滿質感...',
     date: '2025-12-15',
     views: 1205,
     imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=600&auto=format&fit=crop',
-    content: '茶湯匯致力於提供最高品質的服務體驗...'
+    content: '茶王致力於提供最高品質的服務體驗...'
   }
 ];
 
@@ -67,42 +67,42 @@ const MOCK_ARTICLES = [
   try {
     await initDatabase();
 
-    console.log('🌱 Seeding database with initial data...');
+console.log('🌱 Seeding database with initial data...');
 
-    // Seed profiles
+// Seed profiles
     const existingProfiles = await profileModel.getAll();
-    if (existingProfiles.length === 0) {
-      console.log('📝 Adding mock profiles...');
+if (existingProfiles.length === 0) {
+  console.log('📝 Adding mock profiles...');
       for (const profile of MOCK_PROFILES) {
-        try {
+    try {
           await profileModel.create(profile);
-          console.log(`  ✓ Added profile: ${profile.name}`);
-        } catch (error: any) {
-          console.error(`  ✗ Failed to add profile ${profile.name}:`, error.message);
-        }
-      }
-    } else {
-      console.log(`ℹ️  ${existingProfiles.length} profiles already exist, skipping seed`);
+      console.log(`  ✓ Added profile: ${profile.name}`);
+    } catch (error: any) {
+      console.error(`  ✗ Failed to add profile ${profile.name}:`, error.message);
     }
+      }
+} else {
+  console.log(`ℹ️  ${existingProfiles.length} profiles already exist, skipping seed`);
+}
 
-    // Seed articles
+// Seed articles
     const existingArticles = await articleModel.getAll();
-    if (existingArticles.length === 0) {
-      console.log('📝 Adding mock articles...');
+if (existingArticles.length === 0) {
+  console.log('📝 Adding mock articles...');
       for (const article of MOCK_ARTICLES) {
-        try {
+    try {
           await articleModel.create(article);
-          console.log(`  ✓ Added article: ${article.title}`);
-        } catch (error: any) {
-          console.error(`  ✗ Failed to add article ${article.title}:`, error.message);
-        }
-      }
-    } else {
-      console.log(`ℹ️  ${existingArticles.length} articles already exist, skipping seed`);
+      console.log(`  ✓ Added article: ${article.title}`);
+    } catch (error: any) {
+      console.error(`  ✗ Failed to add article ${article.title}:`, error.message);
     }
+      }
+} else {
+  console.log(`ℹ️  ${existingArticles.length} articles already exist, skipping seed`);
+}
 
-    console.log('✅ Database migration completed!');
-    process.exit(0);
+console.log('✅ Database migration completed!');
+process.exit(0);
   } catch (error) {
     console.error('❌ Migration failed:', error);
     process.exit(1);
