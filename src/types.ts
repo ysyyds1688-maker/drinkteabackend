@@ -68,10 +68,28 @@ export interface Profile {
     phone?: string;
     email?: string;
     telegram?: string;
+    // 社群账号（动态对象，key为平台名称，value为账号/链接）
+    socialAccounts?: {
+      [platform: string]: string;
+    };
+    // 首选联系方式
+    preferredMethod?: 'line' | 'phone' | 'email' | 'telegram';
+    // 联系说明
+    contactInstructions?: string;
   };
   
   // 備註
   remarks?: string;
+  
+  // 作品影片（僅嚴選好茶）
+  videos?: Array<{
+    url: string;
+    code?: string;     // 番号
+    title?: string;    // 影片标题
+  }>;
+  
+  // 預約流程說明（僅特選鮮魚）
+  bookingProcess?: string;
   
   isNew?: boolean;
   isAvailable?: boolean;

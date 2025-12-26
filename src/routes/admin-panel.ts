@@ -817,6 +817,18 @@ router.get('/', (req, res) => {
                     </div>
                 </div>
                 
+                <!-- 作品影片（僅嚴選好茶） -->
+                <div class="form-group" id="videosSection">
+                    <label>🎬 作品影片（可添加多部，每部需包含連結和番號）</label>
+                    <div id="videosList" style="margin-bottom: 1rem;"></div>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <input type="text" id="newVideoUrl" placeholder="影片連結 URL" style="flex: 1;" />
+                        <input type="text" id="newVideoCode" placeholder="番號（如：SSIS-123）" style="flex: 1;" />
+                        <input type="text" id="newVideoTitle" placeholder="影片標題（選填）" style="flex: 1;" />
+                        <button type="button" class="btn" onclick="addVideo()">新增影片</button>
+                    </div>
+                </div>
+                
                 <input type="hidden" id="profileImageUrl" />
                 <input type="hidden" id="profileGallery" />
                 <div class="form-group">
@@ -1149,8 +1161,10 @@ router.get('/', (req, res) => {
                 togglePriceInput(); // 重置價格輸入框狀態
                 profileGallery = [];
                 profileAddonServices = [];
+                profileVideos = [];
                 updateGalleryDisplay();
                 updateAddonServicesDisplay();
+                updateVideosDisplay();
                 // 載入價格統計作為參考
                 loadPriceStats();
             }
@@ -1244,8 +1258,10 @@ router.get('/', (req, res) => {
                 // 載入圖片
                 profileGallery = profile.gallery || [profile.imageUrl || ''].filter(Boolean);
                 profileAddonServices = profile.addonServices || [];
+                profileVideos = profile.videos || [];
                 updateGalleryDisplay();
                 updateAddonServicesDisplay();
+                updateVideosDisplay();
             } catch (error) {
                 alert('載入資料失敗: ' + error.message);
             }
@@ -1512,6 +1528,56 @@ router.get('/', (req, res) => {
                 </div>
             \`).join('');
         }
+        
+        // 影片管理函數
+        function addVideo() {
+            const urlInput = document.getElementById('newVideoUrl');
+            const codeInput = document.getElementById('newVideoCode');
+            const titleInput = document.getElementById('newVideoTitle');
+            
+            const url = urlInput.value.trim();
+            const code = codeInput.value.trim();
+            const title = titleInput.value.trim();
+            
+            if (!url) {
+                alert('請輸入影片連結');
+                return;
+            }
+            
+            profileVideos.push({
+                url: url,
+                code: code || undefined,
+                title: title || undefined
+            });
+            
+            updateVideosDisplay();
+            urlInput.value = '';
+            codeInput.value = '';
+            titleInput.value = '';
+        }
+        
+        function removeVideo(index) {
+            if (confirm('確定要刪除此影片嗎？')) {
+                profileVideos.splice(index, 1);
+                updateVideosDisplay();
+            }
+        }
+        
+        function updateVideosDisplay() {
+            const list = document.getElementById('videosList');
+            if (!list) return;
+            
+            list.innerHTML = profileVideos.map((video, index) => \`
+                <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">\${video.title || '未命名影片'}</div>
+                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="\${video.url}" target="_blank" style="color: #3b82f6;">\${video.url}</a></div>
+                        \${video.code ? \`<div style="font-size: 0.875rem; color: #6b7280;">番號: <span style="font-weight: 600;">\${video.code}</span></div>\` : ''}
+                    </div>
+                    <button type="button" class="btn-small" onclick="removeVideo(\${index})" style="background: #ef4444; color: white;">刪除</button>
+                </div>
+            \`).join('');
+        }
 
         function getCurrentTags() {
             const input = document.getElementById('profileTags');
@@ -1573,6 +1639,7 @@ router.get('/', (req, res) => {
                 tags: document.getElementById('profileTags').value.split(',').map(s => s.trim()).filter(s => s),
                 basicServices: document.getElementById('profileBasicServices').value.split(',').map(s => s.trim()).filter(s => s),
                 addonServices: profileAddonServices,
+                videos: profileVideos,
                 isAvailable: document.getElementById('profileIsAvailable').value === 'true',
                 gallery: profileGallery.length > 0 ? profileGallery : [coverImage],
                 albums: [],

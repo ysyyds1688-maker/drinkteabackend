@@ -85,8 +85,10 @@ export const initDatabase = async () => {
         tags TEXT, -- JSON array
         "basicServices" TEXT, -- JSON array
         "addonServices" TEXT, -- JSON array
-        "contactInfo" TEXT, -- JSON object {line, phone, email, telegram}
+        "contactInfo" TEXT, -- JSON object {line, phone, email, telegram, socialAccounts, preferredMethod, contactInstructions}
         remarks TEXT, -- 備註
+        videos TEXT, -- JSON array [{url, code, title}]
+        "bookingProcess" TEXT, -- 預約流程說明
         "isNew" INTEGER DEFAULT 0,
         "isAvailable" INTEGER DEFAULT 1,
         "availableTimes" TEXT, -- JSON object
@@ -126,6 +128,28 @@ export const initDatabase = async () => {
     } catch (error: any) {
       if (!error.message.includes('already exists')) {
         console.warn('添加 remarks 欄位時出現警告:', error.message);
+      }
+    }
+    
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS videos TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 videos 欄位時出現警告:', error.message);
+      }
+    }
+    
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS "bookingProcess" TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 bookingProcess 欄位時出現警告:', error.message);
       }
     }
 

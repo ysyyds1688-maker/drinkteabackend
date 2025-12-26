@@ -7,7 +7,7 @@ export const profileModel = {
       // 明确指定所有列名，确保正确获取userId字段
       let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                  type, "imageUrl", gallery, albums, price, prices, tags, 
-                 "basicServices", "addonServices", "contactInfo", remarks, "isNew", "isAvailable", "availableTimes", 
+                 "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
                  "createdAt", "updatedAt" FROM profiles`;
       const params: any[] = [];
       
@@ -36,6 +36,8 @@ export const profileModel = {
             addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
             contactInfo: typeof row.contactInfo === 'string' ? JSON.parse(row.contactInfo || '{}') : (row.contactInfo || {}),
             remarks: row.remarks || undefined,
+            videos: typeof row.videos === 'string' ? JSON.parse(row.videos || '[]') : (row.videos || []),
+            bookingProcess: row.bookingProcess || undefined,
             availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
             isNew: Boolean(row.isNew),
             isAvailable: Boolean(row.isAvailable),
@@ -71,7 +73,7 @@ export const profileModel = {
       // 明确指定所有列名，确保正确获取userId字段
       const result = await query(`SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                                   type, "imageUrl", gallery, albums, price, prices, tags, 
-                                  "basicServices", "addonServices", "contactInfo", remarks, "isNew", "isAvailable", "availableTimes", 
+                                  "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
                                   "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
       if (result.rows.length === 0) return null;
       
@@ -91,6 +93,8 @@ export const profileModel = {
           addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
           contactInfo: typeof row.contactInfo === 'string' ? JSON.parse(row.contactInfo || '{}') : (row.contactInfo || {}),
           remarks: row.remarks || undefined,
+          videos: typeof row.videos === 'string' ? JSON.parse(row.videos || '[]') : (row.videos || []),
+          bookingProcess: row.bookingProcess || undefined,
           availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
@@ -111,6 +115,8 @@ export const profileModel = {
           addonServices: [],
           contactInfo: {},
           remarks: undefined,
+          videos: [],
+          bookingProcess: undefined,
           availableTimes: { today: '12:00~02:00', tomorrow: '12:00~02:00' },
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
@@ -127,8 +133,8 @@ export const profileModel = {
       INSERT INTO profiles (
         id, "userId", name, nationality, age, height, weight, cup, location, district,
         type, "imageUrl", gallery, albums, price, prices, tags,
-        "basicServices", "addonServices", "contactInfo", remarks, "isNew", "isAvailable", "availableTimes"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+        "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
     `, [
       profile.id,
       (profile.userId && profile.userId !== '' && profile.userId !== null) ? profile.userId : null, // Convert undefined to null for PostgreSQL
@@ -151,6 +157,8 @@ export const profileModel = {
       JSON.stringify(profile.addonServices || []),
       JSON.stringify(profile.contactInfo || {}),
       profile.remarks || null,
+      JSON.stringify(profile.videos || []),
+      profile.bookingProcess || null,
       profile.isNew ? 1 : 0,
       profile.isAvailable !== false ? 1 : 0,
       JSON.stringify(profile.availableTimes || {})
@@ -198,9 +206,9 @@ export const profileModel = {
           "userId" = $1, name = $2, nationality = $3, age = $4, height = $5, weight = $6, cup = $7,
           location = $8, district = $9, type = $10, "imageUrl" = $11, gallery = $12,
           albums = $13, price = $14, prices = $15, tags = $16, "basicServices" = $17,
-          "addonServices" = $18, "isNew" = $19, "isAvailable" = $20, "availableTimes" = $21,
+          "addonServices" = $18, "contactInfo" = $19, remarks = $20, videos = $21, "bookingProcess" = $22, "isNew" = $23, "isAvailable" = $24, "availableTimes" = $25,
           "updatedAt" = CURRENT_TIMESTAMP
-        WHERE id = $22
+        WHERE id = $26
       `, [
         updated.userId || null,
         updated.name,
@@ -222,6 +230,8 @@ export const profileModel = {
         JSON.stringify(updated.addonServices || []),
         JSON.stringify(updated.contactInfo || {}),
         updated.remarks || null,
+        JSON.stringify(updated.videos || []),
+        updated.bookingProcess || null,
         updated.isNew ? 1 : 0,
         updated.isAvailable !== false ? 1 : 0,
         JSON.stringify(updated.availableTimes || {}),
