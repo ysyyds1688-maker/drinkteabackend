@@ -50,6 +50,7 @@ router.post('/register', async (req, res) => {
         avatarUrl: user.avatarUrl,
         role: user.role,
         membershipLevel: user.membershipLevel,
+        nicknameChangedAt: user.nicknameChangedAt,
       },
       ...tokens,
     });
@@ -99,9 +100,12 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        userName: user.userName,
+        avatarUrl: user.avatarUrl,
         role: user.role,
         membershipLevel: user.membershipLevel,
         membershipExpiresAt: user.membershipExpiresAt,
+        nicknameChangedAt: user.nicknameChangedAt,
       },
       ...tokens,
     });
@@ -140,6 +144,7 @@ router.get('/me', async (req, res) => {
       role: user.role,
       membershipLevel: user.membershipLevel,
       membershipExpiresAt: user.membershipExpiresAt,
+      nicknameChangedAt: user.nicknameChangedAt,
     });
   } catch (error: any) {
     console.error('Get me error:', error);

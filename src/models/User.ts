@@ -16,6 +16,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
+  nicknameChangedAt?: string; // 昵称最后修改时间
 }
 
 export interface CreateUserData {
@@ -64,6 +65,7 @@ export const userModel = {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
+      nicknameChangedAt: row.nickname_changed_at || undefined,
     };
   },
 
@@ -88,6 +90,7 @@ export const userModel = {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
+      nicknameChangedAt: row.nickname_changed_at || undefined,
     };
   },
 
@@ -162,7 +165,24 @@ export const userModel = {
     const values: any[] = [];
     let paramIndex = 1;
 
+    // 检查是否需要更新昵称，如果需要则检查是否在1个月内修改过
     if (userData.userName !== undefined) {
+      // 先获取当前用户信息
+      const currentUser = await userModel.findById(id);
+      if (currentUser && currentUser.userName && currentUser.userName !== userData.userName) {
+        // 昵称有变化，检查是否在1个月内修改过
+        if (currentUser.nicknameChangedAt) {
+          const lastChangeDate = new Date(currentUser.nicknameChangedAt);
+          const oneMonthAgo = new Date();
+          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+          
+          if (lastChangeDate > oneMonthAgo) {
+            throw new Error('昵称1个月内只能修改一次，请稍后再试');
+          }
+        }
+        // 更新昵称修改时间
+        fields.push(`nickname_changed_at = CURRENT_TIMESTAMP`);
+      }
       fields.push(`user_name = $${paramIndex++}`);
       values.push(userData.userName || null);
     }
@@ -202,6 +222,7 @@ export const userModel = {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
+      nicknameChangedAt: row.nickname_changed_at || undefined,
     };
   },
 };

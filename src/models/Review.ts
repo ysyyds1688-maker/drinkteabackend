@@ -6,6 +6,7 @@ export interface Review {
   profileId: string;
   clientId: string;
   clientName?: string;
+  clientAvatarUrl?: string; // 评论者头像
   rating: number;
   comment: string;
   serviceType?: string;
@@ -41,15 +42,17 @@ export const reviewModel = {
   getByProfileId: async (profileId: string, userId?: string): Promise<Review[]> => {
     const result = await query(`
       SELECT r.*, 
+        u.avatar_url as client_avatar_url,
         COUNT(rl.id) as likes_count,
         CASE WHEN EXISTS (
           SELECT 1 FROM review_likes rl2 
           WHERE rl2.review_id = r.id AND rl2.user_id = $2
         ) THEN TRUE ELSE FALSE END as user_liked
       FROM reviews r
+      LEFT JOIN users u ON r.client_id = u.id
       LEFT JOIN review_likes rl ON r.id = rl.review_id
       WHERE r.profile_id = $1 AND r.is_visible = TRUE
-      GROUP BY r.id
+      GROUP BY r.id, u.avatar_url
       ORDER BY r.created_at DESC
     `, [profileId, userId || null]);
     
@@ -67,6 +70,7 @@ export const reviewModel = {
         profileId: row.profile_id,
         clientId: row.client_id,
         clientName: row.client_name || undefined,
+        clientAvatarUrl: row.client_avatar_url || undefined,
         rating: row.rating,
         comment: row.comment,
         serviceType: row.service_type || undefined,
@@ -116,15 +120,17 @@ export const reviewModel = {
   getById: async (id: string, userId?: string): Promise<Review | null> => {
     const result = await query(`
       SELECT r.*,
+        u.avatar_url as client_avatar_url,
         COUNT(rl.id) as likes_count,
         CASE WHEN EXISTS (
           SELECT 1 FROM review_likes rl2 
           WHERE rl2.review_id = r.id AND rl2.user_id = $2
         ) THEN TRUE ELSE FALSE END as user_liked
       FROM reviews r
+      LEFT JOIN users u ON r.client_id = u.id
       LEFT JOIN review_likes rl ON r.id = rl.review_id
       WHERE r.id = $1
-      GROUP BY r.id
+      GROUP BY r.id, u.avatar_url
     `, [id, userId || null]);
     
     if (result.rows.length === 0) return null;
@@ -143,6 +149,7 @@ export const reviewModel = {
       profileId: row.profile_id,
       clientId: row.client_id,
       clientName: row.client_name || undefined,
+      clientAvatarUrl: row.client_avatar_url || undefined,
       rating: row.rating,
       comment: row.comment,
       serviceType: row.service_type || undefined,

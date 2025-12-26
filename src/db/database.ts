@@ -140,6 +140,7 @@ export const initDatabase = async () => {
         password VARCHAR(255) NOT NULL,
         user_name VARCHAR(100),
         avatar_url TEXT,
+        nickname_changed_at TIMESTAMP,
         role VARCHAR(20) DEFAULT 'client' CHECK(role IN ('provider', 'client', 'admin')),
         membership_level VARCHAR(20) DEFAULT 'free' CHECK(membership_level IN ('free', 'subscribed')),
         membership_expires_at TIMESTAMP,
@@ -172,6 +173,17 @@ export const initDatabase = async () => {
     } catch (error: any) {
       if (!error.message.includes('already exists')) {
         console.warn('添加 avatar_url 欄位時出現警告:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS nickname_changed_at TIMESTAMP
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 nickname_changed_at 欄位時出現警告:', error.message);
       }
     }
 
