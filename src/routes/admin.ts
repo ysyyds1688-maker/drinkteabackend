@@ -133,17 +133,62 @@ router.post('/profiles', async (req, res) => {
 
     // 後台管理系統上架時，確保userId為undefined（高級茶）
     // 只有在明確指定req.body.userId時才設置userId（用於Provider上架）
+    // 如果req.body.userId為undefined、null或空字符串，則不設置userId（高級茶）
+    const finalUserId = (req.body.userId && req.body.userId !== '' && req.body.userId !== null) 
+      ? req.body.userId 
+      : undefined;
+    
     const profileData: Profile = {
       id: req.body.id || uuidv4(),
       ...req.body,
-      // 如果req.body.userId為undefined，則不設置userId（高級茶）
-      // 如果req.body.userId有值，則使用該值（Provider上架）
-      userId: req.body.userId !== undefined ? req.body.userId : undefined,
+      userId: finalUserId,
     };
+    
+    console.log('POST /api/admin/profiles - Creating profile:', {
+      id: profileData.id,
+      name: profileData.name,
+      userId: profileData.userId,
+      userIdType: typeof profileData.userId,
+      reqBodyUserId: req.body.userId,
+      reqBodyUserIdType: typeof req.body.userId
+    });
 
     // Validate required fields
     if (!profileData.name || !profileData.nationality || !profileData.location) {
       return res.status(400).json({ error: 'Missing required fields: name, nationality, location' });
+    }
+
+    // 检查是否有 force 参数
+    const force = req.query.force === 'true' || req.body.force === true;
+
+    // 重复检测（除非强制上架）
+    if (!force) {
+      const similarProfiles = await profileModel.findSimilar(profileData);
+      
+      if (similarProfiles.length > 0) {
+        // 计算相似度
+        const similarities = similarProfiles.map(existing => ({
+          profile: existing,
+          similarity: profileModel.calculateSimilarity(profileData, existing)
+        })).filter(s => s.similarity >= 70); // 70% 阈值
+
+        if (similarities.length > 0) {
+          return res.status(409).json({
+            error: '检测到可能重复的 Profile',
+            similarProfiles: similarities.map(s => ({
+              id: s.profile.id,
+              name: s.profile.name,
+              nationality: s.profile.nationality,
+              age: s.profile.age,
+              location: s.profile.location,
+              similarity: s.similarity,
+              createdAt: (s.profile as any).createdAt || new Date().toISOString()
+            })),
+            message: `发现 ${similarities.length} 个相似的 Profile，相似度最高 ${similarities[0].similarity}%`,
+            canForce: true // 允许强制上架
+          });
+        }
+      }
     }
 
     // Set defaults

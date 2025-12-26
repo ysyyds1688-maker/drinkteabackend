@@ -15,6 +15,10 @@ import subscriptionsRouter from './routes/subscriptions.js';
 import bookingsRouter from './routes/bookings.js';
 import adminUsersRouter from './routes/admin-users.js';
 import favoritesRouter from './routes/favorites.js';
+import importRouter from './routes/import.js';
+import webhooksRouter from './routes/webhooks.js';
+import schedulerRouter from './routes/scheduler.js';
+import { schedulerService } from './services/schedulerService.js';
 
 // Load environment variables
 dotenv.config();
@@ -137,6 +141,9 @@ app.use('/api/reviews', reviewsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/favorites', favoritesRouter);
+app.use('/api/import', importRouter);
+app.use('/api/webhooks', webhooksRouter);
+app.use('/api/scheduler', schedulerRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);
@@ -159,14 +166,33 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 initDatabase()
   .then(() => initTestUsers())
   .then(() => {
+    // 启动定时任务
+    schedulerService.startAllTasks();
+    
     app.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
       console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
       console.log(`💚 Health check: http://localhost:${PORT}/health`);
       console.log(`⚙️ Admin panel: http://localhost:${PORT}/admin`);
+      console.log(`📥 Import API: http://localhost:${PORT}/api/import`);
+      console.log(`🔗 Webhooks API: http://localhost:${PORT}/api/webhooks`);
+      console.log(`⏰ Scheduler API: http://localhost:${PORT}/api/scheduler`);
     });
   })
   .catch((error) => {
     console.error('❌ Failed to initialize database:', error);
     process.exit(1);
   });
+
+// 优雅关闭
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  schedulerService.stopAllTasks();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  schedulerService.stopAllTasks();
+  process.exit(0);
+});

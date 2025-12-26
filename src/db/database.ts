@@ -314,6 +314,72 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_favorites_profile ON favorites(profile_id)
     `);
 
+    // Import history table (导入历史表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS import_history (
+        id VARCHAR(255) PRIMARY KEY,
+        source_type VARCHAR(50) NOT NULL,
+        source_data TEXT,
+        profiles_count INTEGER DEFAULT 0,
+        success_count INTEGER DEFAULT 0,
+        duplicate_count INTEGER DEFAULT 0,
+        error_count INTEGER DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'pending',
+        error_message TEXT,
+        created_by VARCHAR(255),
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Webhooks table (Webhook 配置表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        url TEXT NOT NULL,
+        secret VARCHAR(255),
+        source_type VARCHAR(50) NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        last_triggered TIMESTAMP,
+        trigger_count INTEGER DEFAULT 0,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Scheduled tasks table (定时任务表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scheduled_tasks (
+        id VARCHAR(255) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        task_type VARCHAR(50) NOT NULL,
+        cron_expression VARCHAR(100) NOT NULL,
+        config TEXT,
+        is_active INTEGER DEFAULT 1,
+        last_run TIMESTAMP,
+        next_run TIMESTAMP,
+        run_count INTEGER DEFAULT 0,
+        error_message TEXT,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for new tables
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_import_history_source ON import_history(source_type)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_import_history_created ON import_history("createdAt" DESC)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(is_active)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_active ON scheduled_tasks(is_active)
+    `);
+
     console.log('✅ Database initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

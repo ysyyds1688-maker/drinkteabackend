@@ -125,7 +125,7 @@ export const profileModel = {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
     `, [
       profile.id,
-      profile.userId || null,
+      (profile.userId && profile.userId !== '' && profile.userId !== null) ? profile.userId : null, // Convert undefined to null for PostgreSQL
       profile.name,
       profile.nationality,
       profile.age,
@@ -229,5 +229,119 @@ export const profileModel = {
   delete: async (id: string): Promise<boolean> => {
     const result = await query('DELETE FROM profiles WHERE id = $1', [id]);
     return (result.rowCount || 0) > 0;
+  },
+
+  // 查找相似的 Profile
+  findSimilar: async (profile: Partial<Profile>): Promise<Profile[]> => {
+    try {
+      if (!profile.name || !profile.nationality) {
+        return [];
+      }
+
+      const sql = `
+        SELECT id, "userId", name, nationality, age, height, weight, cup, location, district,
+               type, "imageUrl", price, "createdAt"
+        FROM profiles
+        WHERE 
+          -- 精确匹配：姓名 + 国籍
+          (LOWER(name) = LOWER($1) AND nationality = $2)
+          OR
+          -- 相似匹配：姓名相似 + 关键信息匹配
+          (
+            LOWER(name) LIKE LOWER($3) AND
+            nationality = $2 AND
+            ABS(age - $4) <= 2 AND
+            ABS(height - $5) <= 5 AND
+            ABS(weight - $6) <= 5
+          )
+        ORDER BY "createdAt" DESC
+        LIMIT 10
+      `;
+      
+      const namePattern = `%${profile.name}%`;
+      const result = await query(sql, [
+        profile.name,
+        profile.nationality,
+        namePattern,
+        profile.age || 0,
+        profile.height || 0,
+        profile.weight || 0
+      ]);
+      
+      return result.rows.map((row: any) => ({
+        ...row,
+        userId: row["userId"] || undefined,
+      })) as Profile[];
+    } catch (error: any) {
+      console.error('查找相似 Profile 失敗:', error);
+      return [];
+    }
+  },
+
+  // 计算相似度分数（0-100）
+  calculateSimilarity: (profile1: Partial<Profile>, profile2: Partial<Profile>): number => {
+    let score = 0;
+    let totalWeight = 0;
+
+    // 姓名相似度（权重：40%）
+    if (profile1.name && profile2.name) {
+      const name1 = profile1.name.toLowerCase().trim();
+      const name2 = profile2.name.toLowerCase().trim();
+      if (name1 === name2) {
+        score += 40;
+      } else if (name1.includes(name2) || name2.includes(name1)) {
+        score += 30;
+      }
+      totalWeight += 40;
+    }
+
+    // 国籍匹配（权重：20%）
+    if (profile1.nationality && profile2.nationality) {
+      if (profile1.nationality === profile2.nationality) {
+        score += 20;
+      }
+      totalWeight += 20;
+    }
+
+    // 年龄相似度（权重：15%）
+    if (profile1.age && profile2.age) {
+      const ageDiff = Math.abs(profile1.age - profile2.age);
+      if (ageDiff === 0) {
+        score += 15;
+      } else if (ageDiff <= 2) {
+        score += 10;
+      } else if (ageDiff <= 5) {
+        score += 5;
+      }
+      totalWeight += 15;
+    }
+
+    // 身高相似度（权重：15%）
+    if (profile1.height && profile2.height) {
+      const heightDiff = Math.abs(profile1.height - profile2.height);
+      if (heightDiff === 0) {
+        score += 15;
+      } else if (heightDiff <= 3) {
+        score += 10;
+      } else if (heightDiff <= 5) {
+        score += 5;
+      }
+      totalWeight += 15;
+    }
+
+    // 体重相似度（权重：10%）
+    if (profile1.weight && profile2.weight) {
+      const weightDiff = Math.abs(profile1.weight - profile2.weight);
+      if (weightDiff === 0) {
+        score += 10;
+      } else if (weightDiff <= 3) {
+        score += 7;
+      } else if (weightDiff <= 5) {
+        score += 4;
+      }
+      totalWeight += 10;
+    }
+
+    return totalWeight > 0 ? Math.round((score / totalWeight) * 100) : 0;
   },
 };

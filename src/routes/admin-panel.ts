@@ -1594,14 +1594,14 @@ router.get('/', (req, res) => {
                 let res;
                 
                 if (id) {
-                    // 更新
+                    // 更新（不需要重复检测）
                     res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formData)
                     });
                 } else {
-                    // 新增
+                    // 新增（带重复检测）
                     formData.id = Date.now().toString();
                     res = await fetch(API_BASE + '/api/admin/profiles', {
                         method: 'POST',
@@ -1612,6 +1612,39 @@ router.get('/', (req, res) => {
                 
                 if (!res.ok) {
                     const error = await res.json();
+                    
+                    // 处理重复检测（409 状态码）
+                    if (res.status === 409 && error.similarProfiles && error.similarProfiles.length > 0) {
+                        const message = \`⚠️ 检测到可能重复的 Profile！\\n\\n相似度：\${error.similarProfiles[0].similarity}%\\n\\n相似 Profile：\\n\` +
+                            error.similarProfiles.map(p => 
+                                \`• \${p.name} \${p.nationality} (\${p.age}歲, \${p.location}) - 创建于 \${new Date(p.createdAt).toLocaleDateString('zh-TW')}\`
+                            ).join('\\n') +
+                            \`\\n\\n是否仍要继续上架？\`;
+                        
+                        if (confirm(message)) {
+                            // 强制上架
+                            formData.force = true;
+                            const forceRes = await fetch(API_BASE + '/api/admin/profiles?force=true', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(formData)
+                            });
+                            
+                            if (!forceRes.ok) {
+                                const forceError = await forceRes.json();
+                                throw new Error(forceError.error || '强制上架失败');
+                            }
+                            
+                            alert('已强制上架！');
+                            closeProfileModal();
+                            loadProfiles();
+                            loadStats();
+                            return;
+                        } else {
+                            return; // 用户取消
+                        }
+                    }
+                    
                     throw new Error(error.error || '保存失敗');
                 }
                 
