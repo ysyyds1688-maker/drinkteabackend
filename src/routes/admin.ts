@@ -196,23 +196,26 @@ router.post('/profiles', async (req, res) => {
       profileData.imageUrl = profileData.gallery[0];
     }
 
+    const basePrice = profileData.price || 3000;
+    
     if (!profileData.prices) {
-      const basePrice = profileData.price || 3000;
-      // 優先使用提供的兩節價格，如果沒有則套用公式
-      const twoShotPrice = profileData.prices?.twoShot?.price && profileData.prices.twoShot.price > 0
-        ? profileData.prices.twoShot.price
-        : basePrice * 2 - 500;
-      
+      // 如果沒有 prices，創建新的 prices 對象
       profileData.prices = {
         oneShot: { price: basePrice, desc: '一節/50min/1S' },
-        twoShot: { price: twoShotPrice, desc: '兩節/100min/2S' }
+        twoShot: { price: basePrice * 2 - 500, desc: '兩節/100min/2S' }
       };
     } else {
-      // 如果已有 prices 但 twoShot 價格為空或無效，則套用公式
-      const basePrice = profileData.prices.oneShot?.price || profileData.price || 3000;
-      if (!profileData.prices.twoShot || !profileData.prices.twoShot.price || profileData.prices.twoShot.price <= 0) {
+      // 如果已有 prices，確保 oneShot 存在
+      if (!profileData.prices.oneShot) {
+        profileData.prices.oneShot = { price: basePrice, desc: '一節/50min/1S' };
+      }
+      
+      // 優先使用提供的兩節價格，如果沒有或無效則套用公式
+      const existingTwoShotPrice = profileData.prices.twoShot?.price;
+      if (!existingTwoShotPrice || existingTwoShotPrice <= 0) {
+        const oneShotPrice = profileData.prices.oneShot.price || basePrice;
         profileData.prices.twoShot = {
-          price: basePrice * 2 - 500,
+          price: oneShotPrice * 2 - 500,
           desc: '兩節/100min/2S'
         };
       }
