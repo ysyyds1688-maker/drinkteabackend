@@ -197,10 +197,25 @@ router.post('/profiles', async (req, res) => {
     }
 
     if (!profileData.prices) {
+      const basePrice = profileData.price || 3000;
+      // 優先使用提供的兩節價格，如果沒有則套用公式
+      const twoShotPrice = profileData.prices?.twoShot?.price && profileData.prices.twoShot.price > 0
+        ? profileData.prices.twoShot.price
+        : basePrice * 2 - 500;
+      
       profileData.prices = {
-        oneShot: { price: profileData.price || 3000, desc: '一節/50min/1S' },
-        twoShot: { price: (profileData.price || 3000) * 2 - 500, desc: '兩節/100min/2S' }
+        oneShot: { price: basePrice, desc: '一節/50min/1S' },
+        twoShot: { price: twoShotPrice, desc: '兩節/100min/2S' }
       };
+    } else {
+      // 如果已有 prices 但 twoShot 價格為空或無效，則套用公式
+      const basePrice = profileData.prices.oneShot?.price || profileData.price || 3000;
+      if (!profileData.prices.twoShot || !profileData.prices.twoShot.price || profileData.prices.twoShot.price <= 0) {
+        profileData.prices.twoShot = {
+          price: basePrice * 2 - 500,
+          desc: '兩節/100min/2S'
+        };
+      }
     }
 
     if (!profileData.availableTimes) {

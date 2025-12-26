@@ -36,6 +36,7 @@ router.post('/parse-profile', async (req, res) => {
         weight: { type: 'integer' },
         cup: { type: 'string' },
         price: { type: 'integer' },
+        twoShotPrice: { type: 'integer', description: '兩節價格（選填，如果文案中有明確列出兩節價格則填入）' },
         nationality: { type: 'string' },
         location: { type: 'string', description: '城市，如：台北市' },
         district: { type: 'string', description: '行政區，如：大安區、中正區、西屯區' },
@@ -53,7 +54,7 @@ router.post('/parse-profile', async (req, res) => {
         responseMimeType: 'application/json',
         responseSchema: profileSchema as any,
       },
-      systemInstruction: '你是一個專業的資料分析員。請從廣告文案中提取女孩資訊。請識別並拆分地址為「location(城市)」與「district(行政區)」。所有文案中提到的額外技術（如：毒龍、69、自拍、雙飛等）且帶有金額標註的，請統一放入 addonServices，格式為「服務名稱+金額」（例如：毒龍+2000）。國籍請輸出 emoji 國旗。',
+      systemInstruction: '你是一個專業的資料分析員。請從廣告文案中提取女孩資訊。請識別並拆分地址為「location(城市)」與「district(行政區)」。所有文案中提到的額外技術（如：毒龍、69、自拍、雙飛等）且帶有金額標註的，請統一放入 addonServices，格式為「服務名稱+金額」（例如：毒龍+2000）。國籍請輸出 emoji 國旗。如果文案中有明確列出「兩節」或「兩節/100min/2S」的價格，請填入 twoShotPrice 欄位；如果沒有明確列出兩節價格，則不要填入 twoShotPrice（留空即可）。',
     });
 
     const response = await result.response;
@@ -72,13 +73,19 @@ router.post('/parse-profile', async (req, res) => {
       return service.replace(/\+\d+/g, '').trim();
     }).filter((service: string) => service.length > 0); // 過濾空字串
 
+    // 優先使用解析出的兩節價格，如果沒有則套用公式
+    const basePrice = raw.price || 3000;
+    const twoShotPrice = raw.twoShotPrice && raw.twoShotPrice > 0 
+      ? raw.twoShotPrice  // 優先使用解析出的兩節價格
+      : basePrice * 2 - 500;  // 如果沒有則套用公式
+
     const profile: Partial<Profile> = {
       ...raw,
       type: (raw.type === 'incall' || raw.type === 'outcall') ? raw.type : 'outcall',
       addonServices: cleanedAddonServices, // 使用清理後的加值服務
       prices: {
-        oneShot: { price: raw.price || 3000, desc: '一節/50min/1S' },
-        twoShot: { price: (raw.price || 3000) * 2 - 500, desc: '兩節/100min/2S' }
+        oneShot: { price: basePrice, desc: '一節/50min/1S' },
+        twoShot: { price: twoShotPrice, desc: '兩節/100min/2S' }
       }
     };
 

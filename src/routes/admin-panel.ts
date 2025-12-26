@@ -909,6 +909,7 @@ router.get('/', (req, res) => {
         let currentEditingArticleId = null;
         let profileGallery = [];
         let profileAddonServices = [];
+        let parsedPrices = null; // 儲存 AI 解析出的 prices（包含兩節價格）
         let isDragging = false;
         let isParsing = false;
 
@@ -1122,7 +1123,7 @@ router.get('/', (req, res) => {
         async function deleteProfile(id) {
             if (!confirm('確定要刪除這個 Profile 嗎？')) return;
             try {
-                const res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`, { method: 'DELETE' });
+                const res = await fetch(API_BASE + '/api/admin/profiles/' + id, { method: 'DELETE' });
                 if (!res.ok) throw new Error('刪除失敗');
                 loadProfiles();
                 loadStats();
@@ -1136,7 +1137,7 @@ router.get('/', (req, res) => {
         async function deleteArticle(id) {
             if (!confirm('確定要刪除這篇文章嗎？')) return;
             try {
-                const res = await fetch(API_BASE + \`/api/admin/articles/\${id}\`, { method: 'DELETE' });
+                const res = await fetch(API_BASE + '/api/admin/articles/' + id, { method: 'DELETE' });
                 if (!res.ok) throw new Error('刪除失敗');
                 loadArticles();
                 loadStats();
@@ -1167,6 +1168,7 @@ router.get('/', (req, res) => {
                 profileGallery = [];
                 profileAddonServices = [];
                 profileVideos = [];
+                parsedPrices = null; // 清除解析出的 prices
                 updateGalleryDisplay();
                 updateAddonServicesDisplay();
                 updateVideosDisplay();
@@ -1227,7 +1229,7 @@ router.get('/', (req, res) => {
         // 載入 Profile 資料
         async function loadProfileData(id) {
             try {
-                const res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`);
+                const res = await fetch(API_BASE + '/api/admin/profiles/' + id);
                 const profile = await res.json();
                 
                 document.getElementById('profileId').value = profile.id;
@@ -1335,6 +1337,13 @@ router.get('/', (req, res) => {
                     return service.replace(new RegExp('\\\\+\\\\d+', 'g'), '').trim();
                     }).filter(service => service.length > 0);
                     updateAddonServicesDisplay();
+                }
+                
+                // 保存解析出的 prices（包含兩節價格）
+                if (data.prices && data.prices.twoShot && data.prices.twoShot.price > 0) {
+                    parsedPrices = data.prices;
+                } else {
+                    parsedPrices = null; // 如果沒有明確的兩節價格，清除緩存
                 }
                 
                 alert('解析成功！請檢查並確認資料');
@@ -1770,15 +1779,52 @@ router.get('/', (req, res) => {
                 return;
             }
             
-                const isInquiryOnly = document.getElementById('priceInquiryOnly').checked;
-                const priceValue = isInquiryOnly ? -1 : parseInt(document.getElementById('profilePrice').value);
-                
-                if (!isInquiryOnly && (!priceValue || priceValue <= 0)) {
-                    alert('請輸入有效的價格，或勾選「私訊詢問」');
-                    return;
+            const isInquiryOnly = document.getElementById('priceInquiryOnly').checked;
+            const priceValue = isInquiryOnly ? -1 : parseInt(document.getElementById('profilePrice').value);
+            
+            if (!isInquiryOnly && (!priceValue || priceValue <= 0)) {
+                alert('請輸入有效的價格，或勾選「私訊詢問」');
+                return;
+            }
+            
+            // 檢查是否已有兩節價格（優先順序：1. AI 解析結果 2. 現有資料 3. 套用公式）
+            let existingTwoShotPrice = null;
+            
+            // 優先使用 AI 解析出的兩節價格
+            if (parsedPrices && parsedPrices.twoShot && parsedPrices.twoShot.price > 0) {
+                existingTwoShotPrice = parsedPrices.twoShot.price;
+            } else if (currentEditingProfileId) {
+                // 如果沒有解析結果，則檢查現有資料
+                try {
+                    const existingRes = await fetch(API_BASE + '/api/admin/profiles/' + currentEditingProfileId);
+                    if (existingRes.ok) {
+                        const existingProfile = await existingRes.json();
+                        existingTwoShotPrice = existingProfile?.prices?.twoShot?.price;
+                    }
+                } catch (e) {
+                    console.warn('無法載入現有資料:', e);
                 }
+            }
+            
+            // 構建 prices 對象：優先使用解析/現有的兩節價格，如果沒有則套用公式
+            let prices;
+            if (isInquiryOnly) {
+                prices = {
+                    oneShot: { price: -1, desc: '私訊詢問' },
+                    twoShot: { price: -1, desc: '私訊詢問' }
+                };
+            } else {
+                const twoShotPrice = (existingTwoShotPrice && existingTwoShotPrice > 0 && existingTwoShotPrice !== -1)
+                    ? existingTwoShotPrice  // 優先使用解析/現有的兩節價格
+                    : priceValue * 2 - 500;  // 如果沒有則套用公式
                 
-                const formData = {
+                prices = {
+                    oneShot: { price: priceValue, desc: '一節/50min/1S' },
+                    twoShot: { price: twoShotPrice, desc: '兩節/100min/2S' }
+                };
+            }
+            
+            const formData = {
                 name: document.getElementById('profileName').value,
                 nationality: getNationalityValue(),
                 age: parseInt(document.getElementById('profileAge').value),
@@ -1797,13 +1843,7 @@ router.get('/', (req, res) => {
                 isAvailable: document.getElementById('profileIsAvailable').value === 'true',
                 gallery: profileGallery.length > 0 ? profileGallery : [coverImage],
                 albums: [],
-                prices: isInquiryOnly ? {
-                    oneShot: { price: -1, desc: '私訊詢問' },
-                    twoShot: { price: -1, desc: '私訊詢問' }
-                } : {
-                    oneShot: { price: priceValue, desc: '一節/50min/1S' },
-                    twoShot: { price: priceValue * 2 - 500, desc: '兩節/100min/2S' }
-                },
+                prices: prices,
                 availableTimes: {
                     today: '12:00~02:00',
                     tomorrow: '12:00~02:00'
@@ -1816,7 +1856,7 @@ router.get('/', (req, res) => {
                 
                 if (id) {
                     // 更新（不需要重复检测）
-                    res = await fetch(API_BASE + \`/api/admin/profiles/\${id}\`, {
+                    res = await fetch(API_BASE + '/api/admin/profiles/' + id, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formData)
@@ -1911,7 +1951,7 @@ router.get('/', (req, res) => {
         // 載入 Article 資料
         async function loadArticleData(id) {
             try {
-                const res = await fetch(API_BASE + \`/api/admin/articles/\${id}\`);
+                const res = await fetch(API_BASE + '/api/admin/articles/' + id);
                 const article = await res.json();
                 
                 document.getElementById('articleId').value = article.id;
@@ -1946,7 +1986,7 @@ router.get('/', (req, res) => {
                 
                 if (id) {
                     // 更新
-                    res = await fetch(API_BASE + \`/api/admin/articles/\${id}\`, {
+                    res = await fetch(API_BASE + '/api/admin/articles/' + id, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(formData)
