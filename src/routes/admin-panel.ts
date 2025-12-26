@@ -1602,7 +1602,14 @@ router.get('/', (req, res) => {
                     const lastPart = pathParts[pathParts.length - 1];
                     // 如果最后一部分包含番号，尝试提取标题部分
                     if (result.code && lastPart.includes(result.code.toLowerCase())) {
-                        const titlePart = lastPart.replace(new RegExp(result.code.toLowerCase(), 'gi'), '').replace(/[-_]/g, ' ').trim();
+                        const codeLower = result.code.toLowerCase();
+                        // 转义正则表达式特殊字符（使用字符串拼接避免模板字符串插值问题）
+                        const specialChars = '[.*+?^\\\\' + '$' + '{' + '}' + '()|[\\]\\\\]';
+                        const regex = new RegExp(specialChars, 'g');
+                        const escapedCode = codeLower.replace(regex, function(match) {
+                            return '\\\\\\\\' + match;
+                        });
+                        const titlePart = lastPart.replace(new RegExp(escapedCode, 'gi'), '').replace(/[-_]/g, ' ').trim();
                         if (titlePart.length > 3) {
                             result.title = titlePart;
                         }
