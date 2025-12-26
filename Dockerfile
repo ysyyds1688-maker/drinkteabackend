@@ -1,24 +1,23 @@
-# 使用 Node.js 官方映像
 FROM node:20-alpine
+LABEL "language"="nodejs"
+LABEL "framework"="express"
 
-# 設定工作目錄
 WORKDIR /app
 
-# 複製 package 檔案
 COPY package*.json ./
 
-# 安裝所有依賴（包括 devDependencies，因為需要 TypeScript 來建置）
-RUN npm ci
+RUN npm ci --include=dev
 
-# 複製專案檔案
 COPY . .
 
-# 建置 TypeScript
 RUN npm run build
 
-# 暴露端口
-EXPOSE 3001
+RUN mkdir -p /app/data && chmod 777 /app/data
 
-# 啟動應用程式
+EXPOSE 8080
+
+# 添加健康檢查
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
 CMD ["npm", "start"]
-

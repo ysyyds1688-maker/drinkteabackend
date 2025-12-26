@@ -24,7 +24,7 @@ import { schedulerService } from './services/schedulerService.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 // Middleware
 // CORS 設定：全面開放，確保前端和後台管理系統都能正常運作
