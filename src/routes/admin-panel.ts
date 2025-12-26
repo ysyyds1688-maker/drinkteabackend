@@ -821,11 +821,16 @@ router.get('/', (req, res) => {
                 <div class="form-group" id="videosSection">
                     <label>🎬 作品影片（可添加多部，每部需包含連結和番號）</label>
                     <div id="videosList" style="margin-bottom: 1rem;"></div>
-                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <input type="text" id="newVideoUrl" placeholder="影片連結 URL" style="flex: 1;" />
-                        <input type="text" id="newVideoCode" placeholder="番號（如：SSIS-123）" style="flex: 1;" />
-                        <input type="text" id="newVideoTitle" placeholder="影片標題（選填）" style="flex: 1;" />
-                        <button type="button" class="btn" onclick="addVideo()">新增影片</button>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                            <input type="text" id="newVideoUrl" placeholder="影片連結 URL（輸入後點擊「自動解析」）" style="flex: 2;" />
+                            <button type="button" id="autoParseVideoBtn" class="btn" onclick="autoParseVideo()" style="background: #10b981; color: white; white-space: nowrap;">自動解析</button>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="newVideoCode" placeholder="番號（如：SSIS-123，可自動填入）" style="flex: 1;" />
+                            <input type="text" id="newVideoTitle" placeholder="影片標題（選填，可自動填入）" style="flex: 1;" />
+                            <button type="button" class="btn" onclick="addVideo()">新增影片</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -1527,6 +1532,155 @@ router.get('/', (req, res) => {
                     <button type="button" class="remove-btn" onclick="removeAddonService(\${index})">✕</button>
                 </div>
             \`).join('');
+        }
+        
+        // 影片 URL 解析函數
+        function parseVideoUrl(url) {
+            const result = { code: '', title: '' };
+            
+            try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.toLowerCase();
+                const pathname = urlObj.pathname;
+                
+                // FANZA (dmm.co.jp) - 例如: https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=ssis123/
+                if (hostname.includes('dmm.co.jp') || hostname.includes('dmm.com')) {
+                    const cidMatch = pathname.match(/cid=([a-z0-9-]+)/i);
+                    if (cidMatch) {
+                        result.code = cidMatch[1].toUpperCase();
+                    }
+                }
+                
+                // JAVLibrary - 例如: https://www.javlibrary.com/cn/?v=javli5abc123
+                if (hostname.includes('javlibrary.com')) {
+                    const vMatch = urlObj.searchParams.get('v');
+                    if (vMatch) {
+                        result.code = vMatch.toUpperCase();
+                    }
+                }
+                
+                // JAVDB - 例如: https://javdb.com/v/abc123
+                if (hostname.includes('javdb.com')) {
+                    const pathMatch = pathname.match(/\/v\/([a-z0-9-]+)/i);
+                    if (pathMatch) {
+                        result.code = pathMatch[1].toUpperCase();
+                    }
+                }
+                
+                // 通用番号格式提取 (SSIS-123, SSIS123, ABC-123, ABC123 等)
+                // 从 URL 路径或查询参数中提取
+                const codePatterns = [
+                    /([A-Z]{2,6}[-_]?[0-9]{2,6})/gi,  // SSIS-123, SSIS123
+                    /([A-Z]{3,6}[0-9]{3,6})/gi,        // SSIS123
+                ];
+                
+                for (const pattern of codePatterns) {
+                    const matches = url.match(pattern);
+                    if (matches && matches.length > 0) {
+                        // 选择最长的匹配（通常是完整的番号）
+                        const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
+                        if (bestMatch.length >= 5) { // 至少5个字符才认为是番号
+                            result.code = bestMatch.toUpperCase().replace(/[-_]/g, '-');
+                            break;
+                        }
+                    }
+                }
+                
+                // 尝试从 URL 路径中提取标题（如果 URL 包含标题）
+                // 例如: https://example.com/video-title-ssis123
+                const pathParts = pathname.split('/').filter(p => p);
+                if (pathParts.length > 0) {
+                    const lastPart = pathParts[pathParts.length - 1];
+                    // 如果最后一部分包含番号，尝试提取标题部分
+                    if (result.code && lastPart.includes(result.code.toLowerCase())) {
+                        const titlePart = lastPart.replace(new RegExp(result.code.toLowerCase(), 'gi'), '').replace(/[-_]/g, ' ').trim();
+                        if (titlePart.length > 3) {
+                            result.title = titlePart;
+                        }
+                    }
+                }
+                
+            } catch (e) {
+                console.warn('URL 解析失敗:', e);
+            }
+            
+            return result;
+        }
+        
+        // 自動解析影片資訊
+        async function autoParseVideo() {
+            const urlInput = document.getElementById('newVideoUrl');
+            const codeInput = document.getElementById('newVideoCode');
+            const titleInput = document.getElementById('newVideoTitle');
+            
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('請先輸入影片連結');
+                return;
+            }
+            
+            // 顯示解析中狀態
+            const parseBtn = document.getElementById('autoParseVideoBtn');
+            if (parseBtn) {
+                parseBtn.disabled = true;
+                parseBtn.textContent = '解析中...';
+            }
+            
+            try {
+                // 從 URL 解析番號
+                const parsed = parseVideoUrl(url);
+                
+                if (parsed.code) {
+                    codeInput.value = parsed.code;
+                }
+                
+                if (parsed.title) {
+                    titleInput.value = parsed.title;
+                }
+                
+                // 如果沒有解析到番號，嘗試從頁面獲取（需要後端 API）
+                if (!parsed.code || !parsed.title) {
+                    try {
+                        const response = await fetch(API_BASE + '/api/admin/parse-video-info', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: url })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.code && !codeInput.value) {
+                                codeInput.value = data.code;
+                            }
+                            if (data.title && !titleInput.value) {
+                                titleInput.value = data.title;
+                            }
+                        }
+                    } catch (apiError) {
+                        // API 失敗不影響基本解析
+                        console.warn('API 解析失敗:', apiError);
+                    }
+                }
+                
+                if (parsed.code || parsed.title) {
+                    // 顯示成功提示
+                    const successMsg = document.createElement('div');
+                    successMsg.textContent = parsed.code ? \`已自動填入番號: \${parsed.code}\` : '已解析部分資訊';
+                    successMsg.style.cssText = 'color: #10b981; font-size: 0.875rem; margin-top: 0.5rem;';
+                    urlInput.parentElement.appendChild(successMsg);
+                    setTimeout(() => successMsg.remove(), 3000);
+                } else {
+                    alert('無法自動解析番號，請手動輸入');
+                }
+            } catch (error) {
+                console.error('解析失敗:', error);
+                alert('解析失敗: ' + error.message);
+            } finally {
+                if (parseBtn) {
+                    parseBtn.disabled = false;
+                    parseBtn.textContent = '自動解析';
+                }
+            }
         }
         
         // 影片管理函數

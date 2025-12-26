@@ -449,4 +449,103 @@ router.post('/articles/batch', async (req, res) => {
   }
 });
 
+// ==================== 影片資訊解析 ====================
+// POST /api/admin/parse-video-info - 解析影片 URL 獲取番號和標題
+router.post('/parse-video-info', async (req, res) => {
+  try {
+    const { url } = req.body;
+    
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    const result: { code?: string; title?: string } = {};
+    
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      const pathname = urlObj.pathname;
+      
+      // FANZA (dmm.co.jp) - 例如: https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=ssis123/
+      if (hostname.includes('dmm.co.jp') || hostname.includes('dmm.com')) {
+        const cidMatch = pathname.match(/cid=([a-z0-9-]+)/i);
+        if (cidMatch) {
+          result.code = cidMatch[1].toUpperCase();
+        }
+      }
+      
+      // JAVLibrary - 例如: https://www.javlibrary.com/cn/?v=javli5abc123
+      if (hostname.includes('javlibrary.com')) {
+        const vMatch = urlObj.searchParams.get('v');
+        if (vMatch) {
+          result.code = vMatch.toUpperCase();
+        }
+      }
+      
+      // JAVDB - 例如: https://javdb.com/v/abc123
+      if (hostname.includes('javdb.com')) {
+        const pathMatch = pathname.match(/\/v\/([a-z0-9-]+)/i);
+        if (pathMatch) {
+          result.code = pathMatch[1].toUpperCase();
+        }
+      }
+      
+      // 通用番号格式提取
+      const codePatterns = [
+        /([A-Z]{2,6}[-_]?[0-9]{2,6})/gi,
+        /([A-Z]{3,6}[0-9]{3,6})/gi,
+      ];
+      
+      for (const pattern of codePatterns) {
+        const matches = url.match(pattern);
+        if (matches && matches.length > 0) {
+          const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
+          if (bestMatch.length >= 5) {
+            result.code = bestMatch.toUpperCase().replace(/[-_]/g, '-');
+            break;
+          }
+        }
+      }
+      
+      // 嘗試獲取頁面標題（需要 fetch，但可能遇到 CORS）
+      // 注意：這可能需要使用 puppeteer 或其他工具來處理需要 JavaScript 渲染的頁面
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          },
+          signal: AbortSignal.timeout(5000) // 5秒超時
+        });
+        
+        if (response.ok) {
+          const html = await response.text();
+          // 簡單提取 <title> 標籤
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch && titleMatch[1]) {
+            let title = titleMatch[1].trim();
+            // 清理標題（移除常見的後綴）
+            title = title.replace(/\s*[-|]\s*(FANZA|DMM|JAVLibrary|JAVDB).*$/i, '');
+            title = title.replace(/\s*[-|]\s*.*$/i, ''); // 移除最後的 "- 網站名稱"
+            if (title.length > 3 && title.length < 200) {
+              result.title = title;
+            }
+          }
+        }
+      } catch (fetchError: any) {
+        // Fetch 失敗不影響番號解析
+        console.warn('無法獲取頁面標題:', fetchError.message);
+      }
+      
+    } catch (parseError: any) {
+      console.error('URL 解析錯誤:', parseError);
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('Parse video info error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
