@@ -586,11 +586,11 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('profiles')">高級茶管理</button>
-            <button class="tab" onclick="showTab('provider-profiles')">Provider 管理</button>
-            <button class="tab" onclick="showTab('articles')">Articles 管理</button>
-            <button class="tab" onclick="showTab('users')">用戶管理</button>
-            <button class="tab" onclick="showTab('bookings')">預約管理</button>
+            <button class="tab active" onclick="showTab('profiles', event)">高級茶管理</button>
+            <button class="tab" onclick="showTab('provider-profiles', event)">Provider 管理</button>
+            <button class="tab" onclick="showTab('articles', event)">Articles 管理</button>
+            <button class="tab" onclick="showTab('users', event)">用戶管理</button>
+            <button class="tab" onclick="showTab('bookings', event)">預約管理</button>
         </div>
 
         <div class="content">
@@ -912,6 +912,15 @@ router.get('/', (req, res) => {
         let parsedPrices = null; // 儲存 AI 解析出的 prices（包含兩節價格）
         let isDragging = false;
         let isParsing = false;
+        
+        // 獲取 Authorization header
+        function getAuthHeaders() {
+            const token = localStorage.getItem('auth_token');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? 'Bearer ' + token : ''
+            };
+        }
 
         // 檢查登入狀態
         function checkAuth() {
@@ -998,7 +1007,9 @@ router.get('/', (req, res) => {
         // 載入統計資訊
         async function loadStats() {
             try {
-                const res = await fetch(API_BASE + '/api/admin/stats');
+                const res = await fetch(API_BASE + '/api/admin/stats', {
+                    headers: getAuthHeaders()
+                });
                 const stats = await res.json();
                 document.getElementById('totalProfiles').textContent = stats.profiles.total;
                 document.getElementById('availableProfiles').textContent = stats.profiles.available;
@@ -1012,7 +1023,9 @@ router.get('/', (req, res) => {
         // 載入高級茶 Profiles（只顯示後台管理員上架的，userId為空）
         async function loadProfiles() {
             try {
-                const res = await fetch(API_BASE + '/api/admin/profiles');
+                const res = await fetch(API_BASE + '/api/admin/profiles', {
+                    headers: getAuthHeaders()
+                });
                 let profiles = await res.json();
 
                 // 只顯示高級茶（userId為空或null）
@@ -1051,7 +1064,9 @@ router.get('/', (req, res) => {
         // 載入 Provider Profiles（只顯示Provider上架的，userId不為空）
         async function loadProviderProfiles() {
             try {
-                const res = await fetch(API_BASE + '/api/admin/profiles');
+                const res = await fetch(API_BASE + '/api/admin/profiles', {
+                    headers: getAuthHeaders()
+                });
                 let profiles = await res.json();
 
                 // 只顯示Provider上架的（userId不為空）
@@ -1084,7 +1099,9 @@ router.get('/', (req, res) => {
         // 載入 Articles
         async function loadArticles() {
             try {
-                const res = await fetch(API_BASE + '/api/admin/articles');
+                const res = await fetch(API_BASE + '/api/admin/articles', {
+                    headers: getAuthHeaders()
+                });
                 const articles = await res.json();
                 const list = document.getElementById('articles-list');
                 list.innerHTML = '<table><thead><tr><th>ID</th><th>標題</th><th>標籤</th><th>日期</th><th>瀏覽次數</th><th>操作</th></tr></thead><tbody>' +
@@ -1108,9 +1125,21 @@ router.get('/', (req, res) => {
         }
 
         // 切換標籤
-        function showTab(tab) {
+        function showTab(tab, evt) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+            } else {
+                // 如果沒有 event，根據 tab 名稱找到對應按鈕
+                const buttons = document.querySelectorAll('.tab');
+                buttons.forEach(btn => {
+                    if (btn.textContent.trim() === '高級茶管理' && tab === 'profiles') btn.classList.add('active');
+                    else if (btn.textContent.trim() === 'Provider 管理' && tab === 'provider-profiles') btn.classList.add('active');
+                    else if (btn.textContent.trim() === 'Articles 管理' && tab === 'articles') btn.classList.add('active');
+                    else if (btn.textContent.trim() === '用戶管理' && tab === 'users') btn.classList.add('active');
+                    else if (btn.textContent.trim() === '預約管理' && tab === 'bookings') btn.classList.add('active');
+                });
+            }
             document.getElementById('profiles-tab').classList.toggle('hidden', tab !== 'profiles');
             document.getElementById('provider-profiles-tab').classList.toggle('hidden', tab !== 'provider-profiles');
             document.getElementById('articles-tab').classList.toggle('hidden', tab !== 'articles');
@@ -1127,7 +1156,10 @@ router.get('/', (req, res) => {
         async function deleteProfile(id) {
             if (!confirm('確定要刪除這個 Profile 嗎？')) return;
             try {
-                const res = await fetch(API_BASE + '/api/admin/profiles/' + id, { method: 'DELETE' });
+                const res = await fetch(API_BASE + '/api/admin/profiles/' + id, { 
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
                 if (!res.ok) throw new Error('刪除失敗');
                 loadProfiles();
                 loadStats();
@@ -1141,7 +1173,10 @@ router.get('/', (req, res) => {
         async function deleteArticle(id) {
             if (!confirm('確定要刪除這篇文章嗎？')) return;
             try {
-                const res = await fetch(API_BASE + '/api/admin/articles/' + id, { method: 'DELETE' });
+                const res = await fetch(API_BASE + '/api/admin/articles/' + id, { 
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
                 if (!res.ok) throw new Error('刪除失敗');
                 loadArticles();
                 loadStats();
@@ -1233,7 +1268,9 @@ router.get('/', (req, res) => {
         // 載入 Profile 資料
         async function loadProfileData(id) {
             try {
-                const res = await fetch(API_BASE + '/api/admin/profiles/' + id);
+                const res = await fetch(API_BASE + '/api/admin/profiles/' + id, {
+                    headers: getAuthHeaders()
+                });
                 const profile = await res.json();
                 
                 document.getElementById('profileId').value = profile.id;
@@ -1690,7 +1727,7 @@ router.get('/', (req, res) => {
                     try {
                         const response = await fetch(API_BASE + '/api/admin/parse-video-info', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: getAuthHeaders(),
                             body: JSON.stringify({ url: url })
                         });
                         
@@ -1836,7 +1873,9 @@ router.get('/', (req, res) => {
             } else if (currentEditingProfileId) {
                 // 如果沒有解析結果，則檢查現有資料
                 try {
-                    const existingRes = await fetch(API_BASE + '/api/admin/profiles/' + currentEditingProfileId);
+                    const existingRes = await fetch(API_BASE + '/api/admin/profiles/' + currentEditingProfileId, {
+                        headers: getAuthHeaders()
+                    });
                     if (existingRes.ok) {
                         const existingProfile = await existingRes.json();
                         existingTwoShotPrice = existingProfile?.prices?.twoShot?.price;
@@ -1898,7 +1937,7 @@ router.get('/', (req, res) => {
                     // 更新（不需要重复检测）
                     res = await fetch(API_BASE + '/api/admin/profiles/' + id, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(formData)
                     });
                 } else {
@@ -1906,7 +1945,7 @@ router.get('/', (req, res) => {
                     formData.id = Date.now().toString();
                     res = await fetch(API_BASE + '/api/admin/profiles', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(formData)
                     });
                 }
@@ -1927,7 +1966,7 @@ router.get('/', (req, res) => {
                             formData.force = true;
                             const forceRes = await fetch(API_BASE + '/api/admin/profiles?force=true', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: getAuthHeaders(),
                                 body: JSON.stringify(formData)
                             });
                             
@@ -1991,7 +2030,9 @@ router.get('/', (req, res) => {
         // 載入 Article 資料
         async function loadArticleData(id) {
             try {
-                const res = await fetch(API_BASE + '/api/admin/articles/' + id);
+                const res = await fetch(API_BASE + '/api/admin/articles/' + id, {
+                    headers: getAuthHeaders()
+                });
                 const article = await res.json();
                 
                 document.getElementById('articleId').value = article.id;
@@ -2028,7 +2069,7 @@ router.get('/', (req, res) => {
                     // 更新
                     res = await fetch(API_BASE + '/api/admin/articles/' + id, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(formData)
                     });
                 } else {
@@ -2036,7 +2077,7 @@ router.get('/', (req, res) => {
                     formData.id = Date.now().toString();
                     res = await fetch(API_BASE + '/api/admin/articles', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify(formData)
                     });
                 }
@@ -2106,7 +2147,9 @@ router.get('/', (req, res) => {
         // 載入價格統計作為參考
         async function loadPriceStats() {
             try {
-                const res = await fetch(API_BASE + '/api/admin/profiles');
+                const res = await fetch(API_BASE + '/api/admin/profiles', {
+                    headers: getAuthHeaders()
+                });
                 const profiles = await res.json();
                 
                 if (profiles.length === 0) {
@@ -2233,9 +2276,7 @@ router.get('/', (req, res) => {
                     return;
                 }
                 const res = await fetch(API_BASE + '/api/admin/users', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                    headers: getAuthHeaders()
                 });
                 if (!res.ok) {
                     throw new Error('載入用戶失敗');
@@ -2275,9 +2316,7 @@ router.get('/', (req, res) => {
                     return;
                 }
                 const res = await fetch(API_BASE + '/api/admin/users/' + userId, {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                    headers: getAuthHeaders()
                 });
                 if (!res.ok) {
                     throw new Error('載入用戶詳情失敗');
@@ -2322,9 +2361,7 @@ router.get('/', (req, res) => {
                     return;
                 }
                 const res = await fetch(API_BASE + '/api/admin/users', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                    headers: getAuthHeaders()
                 });
                 if (!res.ok) {
                     throw new Error('載入用戶失敗');
@@ -2376,9 +2413,7 @@ router.get('/', (req, res) => {
                     return;
                 }
                 const res = await fetch(API_BASE + '/api/bookings/all', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                    headers: getAuthHeaders()
                 });
                 if (!res.ok) {
                     throw new Error('載入預約失敗');
@@ -2425,10 +2460,7 @@ router.get('/', (req, res) => {
                 }
                 const res = await fetch(API_BASE + '/api/bookings/' + bookingId + '/status', {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ status })
                 });
                 if (!res.ok) {
