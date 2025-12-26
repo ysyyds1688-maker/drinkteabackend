@@ -131,9 +131,6 @@ router.post('/profiles', async (req, res) => {
       }
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin.ts:134',message:'POST /profiles: creating profile',data:{bodyUserId:req.body.userId||'none',tokenUserId:userId||'none',finalUserId:req.body.userId||'undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     // 後台管理系統上架時，確保userId為undefined（高級茶）
     // 只有在明確指定req.body.userId時才設置userId（用於Provider上架）
     const profileData: Profile = {
