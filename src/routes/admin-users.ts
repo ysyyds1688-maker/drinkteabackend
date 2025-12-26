@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { userModel } from '../models/User.js';
-import { bookingModel } from '../models/Booking.js';
+import { bookingModel, Booking } from '../models/Booking.js';
 import { verifyToken } from '../services/authService.js';
 
 const router = Router();
@@ -68,7 +68,7 @@ router.get('/:userId', async (req, res) => {
     }
     
     // 获取用户的预约信息
-    let bookings = [];
+    let bookings: Booking[] = [];
     if (targetUser.role === 'provider') {
       bookings = await bookingModel.getByProviderId(userId);
     } else if (targetUser.role === 'client') {
