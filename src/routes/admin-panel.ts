@@ -1611,26 +1611,29 @@ router.get('/', (req, res) => {
                         // 转义正则表达式特殊字符（使用字符串拼接避免模板字符串插值问题）
                         // 构建正则表达式字符类，避免在模板字符串中出现特殊字符
                         const parts = [];
+                        const backslashChar = String.fromCharCode(92);
                         parts.push('[');
                         parts.push('.*+?^');
-                        parts.push('\\\\');
-                        parts.push('\\\\');
+                        parts.push(backslashChar);
+                        parts.push(backslashChar);
                         parts.push('$');
                         parts.push('{');
                         parts.push('}');
                         parts.push('()|');
                         parts.push('[');
-                        parts.push('\\\\');
+                        parts.push(backslashChar);
                         parts.push(']');
-                        parts.push('\\\\');
-                        parts.push('\\\\');
-                        parts.push('\\\\');
-                        parts.push('\\\\');
+                        parts.push(backslashChar);
+                        parts.push(backslashChar);
+                        parts.push(backslashChar);
+                        parts.push(backslashChar);
                         parts.push(']');
                         const specialChars = parts.join('');
                         const regex = new RegExp(specialChars, 'g');
                         const escapedCode = codeLower.replace(regex, function(match) {
-                            return '\\\\\\\\' + match;
+                            const bs1 = '\\\\';
+                            const bs2 = '\\\\';
+                            return bs1 + bs2 + match;
                         });
                         const titlePart = lastPart.replace(new RegExp(escapedCode, 'gi'), '').replace(/[-_]/g, ' ').trim();
                         if (titlePart.length > 3) {

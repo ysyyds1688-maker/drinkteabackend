@@ -162,43 +162,37 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// 立即啟動伺服器（不等待初始化完成）
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health`);
-  console.log(`⚙️ Admin panel: http://localhost:${PORT}/admin`);
-  console.log(`📥 Import API: http://localhost:${PORT}/api/import`);
-  console.log(`🔗 Webhooks API: http://localhost:${PORT}/api/webhooks`);
-  console.log(`⏰ Scheduler API: http://localhost:${PORT}/api/scheduler`);
-});
-
-// 在背景執行初始化（不阻塞啟動）
-(async () => {
-  try {
-    await initDatabase();
-    console.log('✅ Database initialized successfully');
-    
-    await initTestUsers();
-    console.log('✅ Test users initialized');
-    
+// Initialize database and start server
+initDatabase()
+  .then(() => initTestUsers())
+  .then(() => {
+    // 启动定时任务
     schedulerService.startAllTasks();
-    console.log('✅ Started 0 scheduled tasks');
-  } catch (error) {
-    console.error('❌ Failed to initialize:', error);
-    // 不要 exit，讓伺服器繼續運行
-  }
-})();
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
+      console.log(`💚 Health check: http://localhost:${PORT}/health`);
+      console.log(`⚙️ Admin panel: http://localhost:${PORT}/admin`);
+      console.log(`📥 Import API: http://localhost:${PORT}/api/import`);
+      console.log(`🔗 Webhooks API: http://localhost:${PORT}/api/webhooks`);
+      console.log(`⏰ Scheduler API: http://localhost:${PORT}/api/scheduler`);
+    });
+  })
+  .catch((error) => {
+    console.error('❌ Failed to initialize database:', error);
+    process.exit(1);
+  });
 
-// 優雅關閉
+// 优雅关闭
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
   schedulerService.stopAllTasks();
-  server.close(() => process.exit(0));
+  process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing HTTP server');
   schedulerService.stopAllTasks();
-  server.close(() => process.exit(0));
+  process.exit(0);
 });
