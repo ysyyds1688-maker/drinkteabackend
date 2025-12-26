@@ -24,7 +24,7 @@ import { schedulerService } from './services/schedulerService.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = parseInt(process.env.PORT || '8080', 10);
 
 // Middleware
 // CORS 設定：全面開放，確保前端和後台管理系統都能正常運作
@@ -169,14 +169,14 @@ initDatabase()
     // 启动定时任务
     schedulerService.startAllTasks();
     
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
-      console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-      console.log(`💚 Health check: http://localhost:${PORT}/health`);
-      console.log(`⚙️ Admin panel: http://localhost:${PORT}/admin`);
-      console.log(`📥 Import API: http://localhost:${PORT}/api/import`);
-      console.log(`🔗 Webhooks API: http://localhost:${PORT}/api/webhooks`);
-      console.log(`⏰ Scheduler API: http://localhost:${PORT}/api/scheduler`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server is running on http://0.0.0.0:${PORT}`);
+      console.log(`📡 API endpoints available at http://0.0.0.0:${PORT}/api`);
+      console.log(`💚 Health check: http://0.0.0.0:${PORT}/health`);
+      console.log(`⚙️ Admin panel: http://0.0.0.0:${PORT}/admin`);
+      console.log(`📥 Import API: http://0.0.0.0:${PORT}/api/import`);
+      console.log(`🔗 Webhooks API: http://0.0.0.0:${PORT}/api/webhooks`);
+      console.log(`⏰ Scheduler API: http://0.0.0.0:${PORT}/api/scheduler`);
     });
   })
   .catch((error) => {
