@@ -1609,7 +1609,10 @@ router.get('/', (req, res) => {
                     if (result.code && lastPart.includes(result.code.toLowerCase())) {
                         const codeLower = result.code.toLowerCase();
                         // 转义正则表达式特殊字符（使用字符串拼接避免模板字符串插值问题）
-                        const specialChars = '[.*+?^\\\\' + '$' + '{' + '}' + '()|[\\]\\\\]';
+                        const dollarSign = '$';
+                        const openBrace = '{';
+                        const closeBrace = '}';
+                        const specialChars = '[.*+?^\\\\' + dollarSign + openBrace + closeBrace + '()|[\\]\\\\]';
                         const regex = new RegExp(specialChars, 'g');
                         const escapedCode = codeLower.replace(regex, function(match) {
                             return '\\\\\\\\' + match;
