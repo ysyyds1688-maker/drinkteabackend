@@ -26,10 +26,16 @@ app.use(
   cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
     credentials: false,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
+
+// 明確處理 OPTIONS 請求（確保預檢請求通過）
+app.options('*', cors());
 // 增加請求體大小限制以支援圖片上傳（base64 編碼）
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
