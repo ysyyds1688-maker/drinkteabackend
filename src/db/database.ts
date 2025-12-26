@@ -204,6 +204,41 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_reviews_created ON reviews(created_at DESC)
     `);
 
+    // Bookings table (预约表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id VARCHAR(255) PRIMARY KEY,
+        provider_id VARCHAR(255) REFERENCES users(id),
+        client_id VARCHAR(255) NOT NULL REFERENCES users(id),
+        profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id),
+        service_type VARCHAR(50),
+        booking_date DATE NOT NULL,
+        booking_time TIME NOT NULL,
+        location VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected', 'completed', 'cancelled')),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for bookings
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_bookings_provider ON bookings(provider_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_bookings_client ON bookings(client_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_bookings_profile ON bookings(profile_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date)
+    `);
+
     console.log('✅ Database initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

@@ -432,6 +432,26 @@ router.get('/', (req, res) => {
                 <div class="value" id="totalViews">-</div>
             </div>
             <div class="stat-card">
+                <h3>總用戶數</h3>
+                <div class="value" id="totalUsers">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>小姐數</h3>
+                <div class="value" id="totalProviders">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>客戶數</h3>
+                <div class="value" id="totalClients">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>總預約數</h3>
+                <div class="value" id="totalBookings">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>待處理預約</h3>
+                <div class="value" id="pendingBookings">-</div>
+            </div>
+            <div class="stat-card">
                 <h3>國家 / 國籍篩選</h3>
                 <div>
                     <select id="nationalityFilter" onchange="loadProfiles()" style="padding: 0.5rem 0.75rem; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 0.875rem;">
@@ -453,6 +473,8 @@ router.get('/', (req, res) => {
         <div class="tabs">
             <button class="tab active" onclick="showTab('profiles')">Profiles 管理</button>
             <button class="tab" onclick="showTab('articles')">Articles 管理</button>
+            <button class="tab" onclick="showTab('users')">用戶管理</button>
+            <button class="tab" onclick="showTab('bookings')">預約管理</button>
         </div>
 
         <div class="content">
@@ -470,6 +492,20 @@ router.get('/', (req, res) => {
                     <button class="btn btn-success" onclick="showArticleForm()">+ 新增 Article</button>
                 </div>
                 <div id="articles-list"></div>
+            </div>
+
+            <div id="users-tab" class="hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>用戶管理</h2>
+                </div>
+                <div id="users-list"></div>
+            </div>
+
+            <div id="bookings-tab" class="hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>預約管理</h2>
+                </div>
+                <div id="bookings-list"></div>
             </div>
         </div>
     </div>

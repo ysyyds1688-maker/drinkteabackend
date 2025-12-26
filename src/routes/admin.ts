@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { profileModel } from '../models/Profile.js';
 import { articleModel } from '../models/Article.js';
+import { userModel } from '../models/User.js';
+import { bookingModel } from '../models/Booking.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile, Article } from '../types.js';
 
@@ -37,8 +39,44 @@ router.get('/stats', async (req, res) => {
           return acc;
         }, {} as Record<string, number>),
       },
+      users: {
+        total: 0,
+        providers: 0,
+        clients: 0,
+      },
+      bookings: {
+        total: 0,
+        pending: 0,
+        accepted: 0,
+        completed: 0,
+      },
       updatedAt: new Date().toISOString(),
     };
+    
+    // 获取用户统计
+    try {
+      const allUsers = await userModel.getAll?.() || [];
+      stats.users = {
+        total: allUsers.length,
+        providers: allUsers.filter((u: any) => u.role === 'provider').length,
+        clients: allUsers.filter((u: any) => u.role === 'client').length,
+      };
+    } catch (error) {
+      console.error('Failed to load user stats:', error);
+    }
+    
+    // 获取预约统计
+    try {
+      const allBookings = await bookingModel.getAll();
+      stats.bookings = {
+        total: allBookings.length,
+        pending: allBookings.filter(b => b.status === 'pending').length,
+        accepted: allBookings.filter(b => b.status === 'accepted').length,
+        completed: allBookings.filter(b => b.status === 'completed').length,
+      };
+    } catch (error) {
+      console.error('Failed to load booking stats:', error);
+    }
     
     res.json(stats);
   } catch (error: any) {

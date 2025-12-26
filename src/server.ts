@@ -11,6 +11,8 @@ import syncRouter from './routes/sync.js';
 import authRouter from './routes/auth.js';
 import reviewsRouter from './routes/reviews.js';
 import subscriptionsRouter from './routes/subscriptions.js';
+import bookingsRouter from './routes/bookings.js';
+import adminUsersRouter from './routes/admin-users.js';
 
 // Load environment variables
 dotenv.config();
@@ -120,10 +122,12 @@ app.use('/api/profiles', profilesRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/api/gemini', geminiRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/admin/users', adminUsersRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
+app.use('/api/bookings', bookingsRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);

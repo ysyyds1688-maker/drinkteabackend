@@ -127,5 +127,24 @@ export const userModel = {
       WHERE id = $3
     `, [level, expiresAt || null, userId]);
   },
+
+  // 获取所有用户（管理员）
+  getAll: async (): Promise<User[]> => {
+    const result = await query('SELECT * FROM users ORDER BY created_at DESC');
+    return result.rows.map(row => ({
+      id: row.id,
+      email: row.email || undefined,
+      phoneNumber: row.phone_number || undefined,
+      password: row.password,
+      role: row.role,
+      membershipLevel: row.membership_level,
+      membershipExpiresAt: row.membership_expires_at || undefined,
+      emailVerified: Boolean(row.email_verified),
+      phoneVerified: Boolean(row.phone_verified),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastLoginAt: row.last_login_at || undefined,
+    }));
+  },
 };
 
