@@ -1332,29 +1332,29 @@ router.get('/', (req, res) => {
             try {
                 const res = await fetch(API_BASE + '/api/gemini/parse-profile', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ text })
                 });
+                
+                // 先讀取 response 文本，避免重複讀取
+                const responseText = await res.text();
                 
                 if (!res.ok) {
                     let errorMessage = '解析失敗';
                     try {
-                        const errorData = await res.json();
+                        const errorData = JSON.parse(responseText);
                         errorMessage = errorData.error || '解析失敗';
                     } catch (e) {
-                        // 如果響應不是 JSON，嘗試讀取文本
-                        const text = await res.text();
-                        errorMessage = text || \`HTTP \${res.status}: \${res.statusText}\`;
+                        errorMessage = responseText || 'HTTP ' + res.status + ': ' + res.statusText;
                     }
                     throw new Error(errorMessage);
                 }
                 
                 let data;
                 try {
-                    data = await res.json();
+                    data = JSON.parse(responseText);
                 } catch (e) {
-                    const text = await res.text();
-                    throw new Error(\`後端返回格式錯誤: \${text.substring(0, 100)}\`);
+                    throw new Error('後端返回格式錯誤: ' + responseText.substring(0, 100));
                 }
                 
                 // 填充表單
@@ -1645,39 +1645,29 @@ router.get('/', (req, res) => {
                     // 如果最后一部分包含番号，尝试提取标题部分
                     if (result.code && lastPart.includes(result.code.toLowerCase())) {
                         const codeLower = result.code.toLowerCase();
-                        // 转义正则表达式特殊字符（使用字符串拼接避免模板字符串插值问题）
-                        // 构建正则表达式字符类，避免在模板字符串中出现特殊字符
-                        const parts = [];
-                        const backslashChar = String.fromCharCode(92);
-                        parts.push('[');
-                        parts.push('.*+?^');
-                        parts.push(backslashChar);
-                        parts.push(backslashChar);
-                        parts.push('$');
-                        parts.push('{');
-                        parts.push('}');
-                        parts.push('()|');
-                        parts.push('[');
-                        parts.push(backslashChar);
-                        parts.push(']');
-                        parts.push(backslashChar);
-                        parts.push(backslashChar);
-                        parts.push(backslashChar);
-                        parts.push(backslashChar);
-                        parts.push(']');
-                        const specialChars = parts.join('');
-                        const regex = new RegExp(specialChars, 'g');
-                        const escapedCode = codeLower.replace(regex, function(match) {
-                            const bs1 = '\\\\';
-                            const bs2 = '\\\\';
-                            return bs1 + bs2 + match;
+                        // 转义正则表达式特殊字符（使用字符串拼接避免插值问题）
+                        const dot = String.fromCharCode(46);
+                        const star = String.fromCharCode(42);
+                        const plus = String.fromCharCode(43);
+                        const qmark = String.fromCharCode(63);
+                        const caret = String.fromCharCode(94);
+                        const dollar = String.fromCharCode(36);
+                        const lbrace = String.fromCharCode(123);
+                        const rbrace = String.fromCharCode(125);
+                        const lparen = String.fromCharCode(40);
+                        const rparen = String.fromCharCode(41);
+                        const pipe = String.fromCharCode(124);
+                        const lbracket = String.fromCharCode(91);
+                        const rbracket = String.fromCharCode(93);
+                        const backslash = String.fromCharCode(92);
+                        const specialCharsPattern = '[' + dot + star + plus + qmark + caret + dollar + lbrace + rbrace + lparen + rparen + pipe + lbracket + rbracket + backslash + backslash + ']';
+                        const escapeRegex = new RegExp(specialCharsPattern, 'g');
+                        const escapedCode = codeLower.replace(escapeRegex, function(m) {
+                            return '\\\\' + m;
                         });
-                        const regexPattern = '[' + String.fromCharCode(46) + String.fromCharCode(42) + String.fromCharCode(43) + String.fromCharCode(63) + String.fromCharCode(94) + String.fromCharCode(36) + String.fromCharCode(123) + String.fromCharCode(125) + String.fromCharCode(40) + String.fromCharCode(41) + String.fromCharCode(124) + String.fromCharCode(91) + String.fromCharCode(93) + String.fromCharCode(92) + String.fromCharCode(92) + ']';
-                        const regexObj = new RegExp(regexPattern, 'g');
-                        const escapedCodeForRegex = escapedCode.replace(regexObj, function(m) {
-                            return String.fromCharCode(92) + String.fromCharCode(92) + m;
-                        });
-                        const titlePart = lastPart.replace(new RegExp(escapedCodeForRegex, 'gi'), '').replace(/[-_]/g, ' ').trim();
+                        const dash = String.fromCharCode(45);
+                        const underscore = String.fromCharCode(95);
+                        const titlePart = lastPart.replace(new RegExp(escapedCode, 'gi'), '').replace(new RegExp('[' + dash + underscore + ']', 'g'), ' ').trim();
                         if (titlePart.length > 3) {
                             result.title = titlePart;
                         }
@@ -1955,11 +1945,11 @@ router.get('/', (req, res) => {
                     
                     // 处理重复检测（409 状态码）
                     if (res.status === 409 && error.similarProfiles && error.similarProfiles.length > 0) {
-                        const message = \`⚠️ 检测到可能重复的 Profile！\\n\\n相似度：\${error.similarProfiles[0].similarity}%\\n\\n相似 Profile：\\n\` +
+                        const message = '⚠️ 检测到可能重复的 Profile！\\n\\n相似度：' + error.similarProfiles[0].similarity + '%\\n\\n相似 Profile：\\n' +
                             error.similarProfiles.map(p => 
-                                \`• \${p.name} \${p.nationality} (\${p.age}歲, \${p.location}) - 创建于 \${new Date(p.createdAt).toLocaleDateString('zh-TW')}\`
+                                '• ' + p.name + ' ' + p.nationality + ' (' + p.age + '歲, ' + p.location + ') - 创建于 ' + new Date(p.createdAt).toLocaleDateString('zh-TW')
                             ).join('\\n') +
-                            \`\\n\\n是否仍要继续上架？\`;
+                            '\\n\\n是否仍要继续上架？';
                         
                         if (confirm(message)) {
                             // 强制上架
@@ -2175,19 +2165,19 @@ router.get('/', (req, res) => {
                 let statsHtml = '<div style="background: white; padding: 1rem; border-radius: 6px; border: 1px solid #bae6fd;">';
                 statsHtml += '<strong style="color: #0369a1; display: block; margin-bottom: 0.75rem;">📊 現有 Profiles 價格統計：</strong>';
                 statsHtml += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 0.75rem;">';
-                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">最低價：</span><span class="price-range">\${minPrice.toLocaleString()}</span></div>\`;
-                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">最高價：</span><span class="price-range">\${maxPrice.toLocaleString()}</span></div>\`;
-                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">平均價：</span><span class="price-range">\${avgPrice.toLocaleString()}</span></div>\`;
-                statsHtml += \`<div><span style="color: #64748b; font-size: 0.8rem;">中位數：</span><span class="price-range">\${medianPrice.toLocaleString()}</span></div>\`;
+                statsHtml += '<div><span style="color: #64748b; font-size: 0.8rem;">最低價：</span><span class="price-range">' + minPrice.toLocaleString() + '</span></div>';
+                statsHtml += '<div><span style="color: #64748b; font-size: 0.8rem;">最高價：</span><span class="price-range">' + maxPrice.toLocaleString() + '</span></div>';
+                statsHtml += '<div><span style="color: #64748b; font-size: 0.8rem;">平均價：</span><span class="price-range">' + avgPrice.toLocaleString() + '</span></div>';
+                statsHtml += '<div><span style="color: #64748b; font-size: 0.8rem;">中位數：</span><span class="price-range">' + medianPrice.toLocaleString() + '</span></div>';
                 statsHtml += '</div>';
 
                 if (outcallPrices.length > 0) {
                     const outcallAvg = Math.round(outcallPrices.reduce((a, b) => a + b, 0) / outcallPrices.length);
-                    statsHtml += \`<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e0f2fe;"><span style="color: #64748b; font-size: 0.8rem;">🚗 外送平均：</span><span class="price-range">\${outcallAvg.toLocaleString()}</span> (共 \${outcallPrices.length} 筆)</div>\`;
+                    statsHtml += '<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e0f2fe;"><span style="color: #64748b; font-size: 0.8rem;">🚗 外送平均：</span><span class="price-range">' + outcallAvg.toLocaleString() + '</span> (共 ' + outcallPrices.length + ' 筆)</div>';
                 }
                 if (incallPrices.length > 0) {
                     const incallAvg = Math.round(incallPrices.reduce((a, b) => a + b, 0) / incallPrices.length);
-                    statsHtml += \`<div style="margin-top: 0.5rem;"><span style="color: #64748b; font-size: 0.8rem;">🏠 定點平均：</span><span class="price-range">\${incallAvg.toLocaleString()}</span> (共 \${incallPrices.length} 筆)</div>\`;
+                    statsHtml += '<div style="margin-top: 0.5rem;"><span style="color: #64748b; font-size: 0.8rem;">🏠 定點平均：</span><span class="price-range">' + incallAvg.toLocaleString() + '</span> (共 ' + incallPrices.length + ' 筆)</div>';
                 }
 
                 // 價格區間分布
@@ -2205,7 +2195,7 @@ router.get('/', (req, res) => {
                     const count = prices.filter(p => p >= range.min && p < range.max).length;
                     const percent = Math.round((count / prices.length) * 100);
                     if (count > 0) {
-                        statsHtml += \`<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; font-size: 0.8rem;"><span>\${range.label}</span><span style="color: #64748b;">\${count} 筆 (\${percent}%)</span></div>\`;
+                        statsHtml += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; font-size: 0.8rem;"><span>' + range.label + '</span><span style="color: #64748b;">' + count + ' 筆 (' + percent + '%)</span></div>';
                     }
                 });
                 statsHtml += '</div>';
@@ -2245,7 +2235,10 @@ router.get('/', (req, res) => {
             if (warning) {
                 const warningDiv = document.createElement('div');
                 warningDiv.className = 'price-warning';
-                warningDiv.style.cssText = \`margin-top: 0.5rem; padding: 0.75rem; background: \${warning.type === 'low' ? '#fef3c7' : '#fee2e2'}; border: 1px solid \${warning.type === 'low' ? '#f59e0b' : '#ef4444'}; border-radius: 6px; color: \${warning.type === 'low' ? '#92400e' : '#991b1b'}; font-size: 0.85rem;\`;
+                const bgColor = warning.type === 'low' ? '#fef3c7' : '#fee2e2';
+                const borderColor = warning.type === 'low' ? '#f59e0b' : '#ef4444';
+                const textColor = warning.type === 'low' ? '#92400e' : '#991b1b';
+                warningDiv.style.cssText = 'margin-top: 0.5rem; padding: 0.75rem; background: ' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 6px; color: ' + textColor + '; font-size: 0.85rem;';
                 warningDiv.textContent = warning.message;
                 priceInput.parentElement.appendChild(warningDiv);
             }
@@ -2391,7 +2384,7 @@ router.get('/', (req, res) => {
                 const link = document.createElement('a');
                 const url = URL.createObjectURL(blob);
                 link.setAttribute('href', url);
-                link.setAttribute('download', \`用戶資料_\${new Date().toISOString().split('T')[0]}.csv\`);
+                link.setAttribute('download', '用戶資料_' + new Date().toISOString().split('T')[0] + '.csv');
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
