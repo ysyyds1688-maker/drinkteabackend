@@ -7,7 +7,7 @@ export const profileModel = {
       // 明确指定所有列名，确保正确获取userId字段
       let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                  type, "imageUrl", gallery, albums, price, prices, tags, 
-                 "basicServices", "addonServices", "isNew", "isAvailable", "availableTimes", 
+                 "basicServices", "addonServices", "contactInfo", remarks, "isNew", "isAvailable", "availableTimes", 
                  "createdAt", "updatedAt" FROM profiles`;
       const params: any[] = [];
       
@@ -34,6 +34,8 @@ export const profileModel = {
             tags: typeof row.tags === 'string' ? JSON.parse(row.tags || '[]') : (row.tags || []),
             basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
             addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
+            contactInfo: typeof row.contactInfo === 'string' ? JSON.parse(row.contactInfo || '{}') : (row.contactInfo || {}),
+            remarks: row.remarks || undefined,
             availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
             isNew: Boolean(row.isNew),
             isAvailable: Boolean(row.isAvailable),
@@ -69,7 +71,7 @@ export const profileModel = {
       // 明确指定所有列名，确保正确获取userId字段
       const result = await query(`SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                                   type, "imageUrl", gallery, albums, price, prices, tags, 
-                                  "basicServices", "addonServices", "isNew", "isAvailable", "availableTimes", 
+                                  "basicServices", "addonServices", "contactInfo", remarks, "isNew", "isAvailable", "availableTimes", 
                                   "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
       if (result.rows.length === 0) return null;
       
@@ -87,6 +89,8 @@ export const profileModel = {
           tags: typeof row.tags === 'string' ? JSON.parse(row.tags || '[]') : (row.tags || []),
           basicServices: typeof row.basicServices === 'string' ? JSON.parse(row.basicServices || '[]') : (row.basicServices || []),
           addonServices: typeof row.addonServices === 'string' ? JSON.parse(row.addonServices || '[]') : (row.addonServices || []),
+          contactInfo: typeof row.contactInfo === 'string' ? JSON.parse(row.contactInfo || '{}') : (row.contactInfo || {}),
+          remarks: row.remarks || undefined,
           availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
@@ -105,6 +109,8 @@ export const profileModel = {
           tags: [],
           basicServices: [],
           addonServices: [],
+          contactInfo: {},
+          remarks: undefined,
           availableTimes: { today: '12:00~02:00', tomorrow: '12:00~02:00' },
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
@@ -121,8 +127,8 @@ export const profileModel = {
       INSERT INTO profiles (
         id, "userId", name, nationality, age, height, weight, cup, location, district,
         type, "imageUrl", gallery, albums, price, prices, tags,
-        "basicServices", "addonServices", "isNew", "isAvailable", "availableTimes"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        "basicServices", "addonServices", "contactInfo", remarks, "isNew", "isAvailable", "availableTimes"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
     `, [
       profile.id,
       (profile.userId && profile.userId !== '' && profile.userId !== null) ? profile.userId : null, // Convert undefined to null for PostgreSQL
@@ -143,6 +149,8 @@ export const profileModel = {
       JSON.stringify(profile.tags || []),
       JSON.stringify(profile.basicServices || []),
       JSON.stringify(profile.addonServices || []),
+      JSON.stringify(profile.contactInfo || {}),
+      profile.remarks || null,
       profile.isNew ? 1 : 0,
       profile.isAvailable !== false ? 1 : 0,
       JSON.stringify(profile.availableTimes || {})
@@ -212,6 +220,8 @@ export const profileModel = {
         JSON.stringify(updated.tags || []),
         JSON.stringify(updated.basicServices || []),
         JSON.stringify(updated.addonServices || []),
+        JSON.stringify(updated.contactInfo || {}),
+        updated.remarks || null,
         updated.isNew ? 1 : 0,
         updated.isAvailable !== false ? 1 : 0,
         JSON.stringify(updated.availableTimes || {}),

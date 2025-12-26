@@ -62,6 +62,17 @@ export interface Profile {
   basicServices: string[];
   addonServices: string[];
   
+  // 聯絡方式
+  contactInfo?: {
+    line?: string;
+    phone?: string;
+    email?: string;
+    telegram?: string;
+  };
+  
+  // 備註
+  remarks?: string;
+  
   isNew?: boolean;
   isAvailable?: boolean;
 

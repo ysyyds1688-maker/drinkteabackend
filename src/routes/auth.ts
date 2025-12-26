@@ -7,7 +7,7 @@ const router = Router();
 // 注册
 router.post('/register', async (req, res) => {
   try {
-    const { email, phoneNumber, password, userName, role } = req.body;
+    const { email, phoneNumber, password, userName, role, age } = req.body;
     
     if (!email && !phoneNumber) {
       return res.status(400).json({ error: '请提供 Email 或手机号' });
@@ -15,6 +15,11 @@ router.post('/register', async (req, res) => {
     
     if (!password || password.length < 6) {
       return res.status(400).json({ error: '密码至少需要6个字符' });
+    }
+    
+    // 年龄验证：必须年满18周岁
+    if (!age || age < 18) {
+      return res.status(400).json({ error: '未满18周岁禁止注册' });
     }
     
     // 检查用户是否已存在

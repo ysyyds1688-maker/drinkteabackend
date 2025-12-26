@@ -85,6 +85,8 @@ export const initDatabase = async () => {
         tags TEXT, -- JSON array
         "basicServices" TEXT, -- JSON array
         "addonServices" TEXT, -- JSON array
+        "contactInfo" TEXT, -- JSON object {line, phone, email, telegram}
+        remarks TEXT, -- 備註
         "isNew" INTEGER DEFAULT 0,
         "isAvailable" INTEGER DEFAULT 1,
         "availableTimes" TEXT, -- JSON object
@@ -93,16 +95,37 @@ export const initDatabase = async () => {
       )
     `);
 
-    // 如果表已存在，添加 userId 欄位（如果不存在）
+    // 如果表已存在，添加新欄位（如果不存在）
     try {
       await pool.query(`
         ALTER TABLE profiles 
         ADD COLUMN IF NOT EXISTS "userId" VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE
       `);
     } catch (error: any) {
-      // 如果欄位已存在，忽略錯誤
       if (!error.message.includes('already exists')) {
         console.warn('添加 userId 欄位時出現警告:', error.message);
+      }
+    }
+    
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS "contactInfo" TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 contactInfo 欄位時出現警告:', error.message);
+      }
+    }
+    
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS remarks TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 remarks 欄位時出現警告:', error.message);
       }
     }
 
