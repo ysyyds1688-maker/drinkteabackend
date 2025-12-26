@@ -4,7 +4,11 @@ import { Profile } from '../types.js';
 export const profileModel = {
   getAll: async (userId?: string): Promise<Profile[]> => {
     try {
-      let sql = 'SELECT * FROM profiles';
+      // 明确指定所有列名，确保正确获取userId字段
+      let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
+                 type, "imageUrl", gallery, albums, price, prices, tags, 
+                 "basicServices", "addonServices", "isNew", "isAvailable", "availableTimes", 
+                 "createdAt", "updatedAt" FROM profiles`;
       const params: any[] = [];
       
       if (userId) {
@@ -16,8 +20,8 @@ export const profileModel = {
       
       const result = await query(sql, params);
       return result.rows.map((row: any) => {
-        // PostgreSQL 列名大小写敏感，使用 row["userId"] 确保正确获取
-        const rawUserId = row["userId"] || row.userId;
+        // PostgreSQL 列名大小写敏感，明确使用 row["userId"] 获取
+        const rawUserId = row["userId"];
         // 将 null、空字符串转换为 undefined（高级茶）
         const finalUserId = (rawUserId === null || rawUserId === '' || rawUserId === undefined) ? undefined : rawUserId;
         try {
@@ -37,6 +41,8 @@ export const profileModel = {
         } catch (parseError: any) {
           console.error('Error parsing profile row:', row.id, parseError);
           // 返回基本資料，避免整個查詢失敗
+          const rawUserId = row["userId"];
+          const finalUserId = (rawUserId === null || rawUserId === '' || rawUserId === undefined) ? undefined : rawUserId;
           return {
             ...row,
             userId: finalUserId,
@@ -60,12 +66,16 @@ export const profileModel = {
 
   getById: async (id: string): Promise<Profile | null> => {
     try {
-      const result = await query('SELECT * FROM profiles WHERE id = $1', [id]);
+      // 明确指定所有列名，确保正确获取userId字段
+      const result = await query(`SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
+                                  type, "imageUrl", gallery, albums, price, prices, tags, 
+                                  "basicServices", "addonServices", "isNew", "isAvailable", "availableTimes", 
+                                  "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
       if (result.rows.length === 0) return null;
       
       const row = result.rows[0];
-      // PostgreSQL 列名大小写敏感，使用 row["userId"] 确保正确获取
-      const rawUserId = row["userId"] || row.userId;
+      // PostgreSQL 列名大小写敏感，明确使用 row["userId"] 获取
+      const rawUserId = row["userId"];
       const finalUserId = (rawUserId === null || rawUserId === '' || rawUserId === undefined) ? undefined : rawUserId;
       try {
         return {
