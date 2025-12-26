@@ -497,6 +497,7 @@ router.get('/', (req, res) => {
             <div id="users-tab" class="hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2>用戶管理</h2>
+                    <button class="btn btn-success" onclick="exportUsers()">📥 導出用戶資料</button>
                 </div>
                 <div id="users-list"></div>
             </div>
@@ -851,8 +852,12 @@ router.get('/', (req, res) => {
             event.target.classList.add('active');
             document.getElementById('profiles-tab').classList.toggle('hidden', tab !== 'profiles');
             document.getElementById('articles-tab').classList.toggle('hidden', tab !== 'articles');
+            document.getElementById('users-tab').classList.toggle('hidden', tab !== 'users');
+            document.getElementById('bookings-tab').classList.toggle('hidden', tab !== 'bookings');
             if (tab === 'profiles') loadProfiles();
             if (tab === 'articles') loadArticles();
+            if (tab === 'users') loadUsers();
+            if (tab === 'bookings') loadBookings();
         }
 
         // 刪除 Profile
@@ -1643,6 +1648,214 @@ router.get('/', (req, res) => {
                 }
             }, 500);
         });
+
+        // 載入用戶列表
+        async function loadUsers() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    alert('請先登入');
+                    return;
+                }
+                const res = await fetch(API_BASE + '/api/admin/users', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (!res.ok) {
+                    throw new Error('載入用戶失敗');
+                }
+                const users = await res.json();
+                const list = document.getElementById('users-list');
+                list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>訂閱狀態</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
+                    users.map(u => \`
+                        <tr>
+                            <td>\${u.email || '-'}</td>
+                            <td>\${u.phoneNumber || '-'}</td>
+                            <td>\${u.role === 'provider' ? '👩 小姐' : u.role === 'client' ? '👤 客戶' : '👑 管理員'}</td>
+                            <td>\${u.membershipLevel === 'subscribed' ? '✅ 已訂閱' : '❌ 未訂閱'}</td>
+                            <td>\${new Date(u.createdAt).toLocaleString('zh-TW')}</td>
+                            <td>\${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-'}</td>
+                            <td>
+                                <button class="btn" onclick="viewUserDetail('\${u.id}')">查看詳情</button>
+                            </td>
+                        </tr>
+                    \`).join('') + '</tbody></table>';
+            } catch (error) {
+                console.error('載入用戶失敗:', error);
+                document.getElementById('users-list').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">載入失敗: ' + error.message + '</div>';
+            }
+        }
+
+        // 查看用戶詳情
+        async function viewUserDetail(userId) {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    alert('請先登入');
+                    return;
+                }
+                const res = await fetch(API_BASE + '/api/admin/users/' + userId, {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (!res.ok) {
+                    throw new Error('載入用戶詳情失敗');
+                }
+                const data = await res.json();
+                const user = data.user;
+                const bookings = data.bookings || [];
+                
+                let bookingsHtml = '';
+                if (bookings.length === 0) {
+                    bookingsHtml = '<p>暫無預約記錄</p>';
+                } else {
+                    bookingsHtml = '<table style="margin-top: 1rem;"><thead><tr><th>預約ID</th><th>Profile</th><th>日期</th><th>時間</th><th>狀態</th></tr></thead><tbody>' +
+                        bookings.map(b => \`
+                            <tr>
+                                <td>\${b.id.substring(0, 8)}...</td>
+                                <td>\${b.profileId.substring(0, 8)}...</td>
+                                <td>\${b.bookingDate}</td>
+                                <td>\${b.bookingTime}</td>
+                                <td>\${b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕'}</td>
+                            </tr>
+                        \`).join('') + '</tbody></table>';
+                }
+                
+                alert(\`用戶詳情：\\n\\nID: \${user.id}\\nEmail: \${user.email || '-'}\\n手機號: \${user.phoneNumber || '-'}\\n身份: \${user.role === 'provider' ? '小姐' : user.role === 'client' ? '客戶' : '管理員'}\\n訂閱狀態: \${user.membershipLevel === 'subscribed' ? '已訂閱' : '未訂閱'}\\n註冊時間: \${new Date(user.createdAt).toLocaleString('zh-TW')}\\n\\n預約記錄：\${bookings.length} 筆\`);
+            } catch (error) {
+                console.error('載入用戶詳情失敗:', error);
+                alert('載入用戶詳情失敗: ' + error.message);
+            }
+        }
+
+        // 導出用戶資料
+        async function exportUsers() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    alert('請先登入');
+                    return;
+                }
+                const res = await fetch(API_BASE + '/api/admin/users', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (!res.ok) {
+                    throw new Error('載入用戶失敗');
+                }
+                const users = await res.json();
+                
+                // 轉換為 CSV 格式
+                const headers = ['Email', '手機號', '身份', '訂閱狀態', '註冊時間', '最後登入'];
+                const rows = users.map(u => [
+                    u.email || '',
+                    u.phoneNumber || '',
+                    u.role === 'provider' ? '小姐' : u.role === 'client' ? '客戶' : '管理員',
+                    u.membershipLevel === 'subscribed' ? '已訂閱' : '未訂閱',
+                    new Date(u.createdAt).toLocaleString('zh-TW'),
+                    u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : ''
+                ]);
+                
+                // 創建 CSV 內容
+                const csvContent = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => \`"\${cell}"\`).join(','))
+                ].join('\\n');
+                
+                // 添加 BOM 以支援中文
+                const BOM = '\\uFEFF';
+                const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', \`用戶資料_\${new Date().toISOString().split('T')[0]}.csv\`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                alert('導出成功！');
+            } catch (error) {
+                console.error('導出用戶資料失敗:', error);
+                alert('導出失敗: ' + error.message);
+            }
+        }
+
+        // 載入預約列表
+        async function loadBookings() {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    alert('請先登入');
+                    return;
+                }
+                const res = await fetch(API_BASE + '/api/bookings/all', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                if (!res.ok) {
+                    throw new Error('載入預約失敗');
+                }
+                const bookings = await res.json();
+                const list = document.getElementById('bookings-list');
+                
+                if (bookings.length === 0) {
+                    list.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">目前沒有預約記錄</div>';
+                    return;
+                }
+                
+                list.innerHTML = '<table><thead><tr><th>預約ID</th><th>客戶ID</th><th>小姐ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                    bookings.map(b => \`
+                        <tr>
+                            <td>\${b.id.substring(0, 8)}...</td>
+                            <td>\${b.clientId.substring(0, 8)}...</td>
+                            <td>\${b.providerId ? b.providerId.substring(0, 8) + '...' : '-'}</td>
+                            <td>\${b.profileId.substring(0, 8)}...</td>
+                            <td>\${b.bookingDate}</td>
+                            <td>\${b.bookingTime}</td>
+                            <td>\${b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕'}</td>
+                            <td>
+                                <button class="btn" onclick="updateBookingStatus('\${b.id}', 'accepted')">接受</button>
+                                <button class="btn btn-danger" onclick="updateBookingStatus('\${b.id}', 'rejected')">拒絕</button>
+                            </td>
+                        </tr>
+                    \`).join('') + '</tbody></table>';
+            } catch (error) {
+                console.error('載入預約失敗:', error);
+                document.getElementById('bookings-list').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">載入失敗: ' + error.message + '</div>';
+            }
+        }
+
+        // 更新預約狀態
+        async function updateBookingStatus(bookingId, status) {
+            try {
+                const token = localStorage.getItem('auth_token');
+                if (!token) {
+                    alert('請先登入');
+                    return;
+                }
+                const res = await fetch(API_BASE + '/api/bookings/' + bookingId + '/status', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status })
+                });
+                if (!res.ok) {
+                    throw new Error('更新預約狀態失敗');
+                }
+                alert('更新成功');
+                loadBookings();
+            } catch (error) {
+                console.error('更新預約狀態失敗:', error);
+                alert('更新預約狀態失敗: ' + error.message);
+            }
+        }
 
         // 初始化
         loadStats();

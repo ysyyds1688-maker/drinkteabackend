@@ -239,6 +239,25 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date)
     `);
 
+    // Favorites table (收藏表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS favorites (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, profile_id)
+      )
+    `);
+
+    // Create indexes for favorites
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_favorites_profile ON favorites(profile_id)
+    `);
+
     console.log('✅ Database initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

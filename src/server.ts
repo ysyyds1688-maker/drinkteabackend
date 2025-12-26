@@ -13,6 +13,7 @@ import reviewsRouter from './routes/reviews.js';
 import subscriptionsRouter from './routes/subscriptions.js';
 import bookingsRouter from './routes/bookings.js';
 import adminUsersRouter from './routes/admin-users.js';
+import favoritesRouter from './routes/favorites.js';
 
 // Load environment variables
 dotenv.config();
@@ -134,6 +135,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/favorites', favoritesRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);
