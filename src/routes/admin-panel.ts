@@ -1594,9 +1594,10 @@ router.get('/', (req, res) => {
                 const hostname = urlObj.hostname.toLowerCase();
                 const pathname = urlObj.pathname;
                 
-                // FANZA (dmm.co.jp) - 例如: https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=ssis123/
+                // FANZA (dmm.co.jp) - 例如: https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=ssis123
                 if (hostname.includes('dmm.co.jp') || hostname.includes('dmm.com')) {
-                    const cidMatch = pathname.match(/cid=([a-z0-9-]+)/i);
+                    const cidPattern = new RegExp('cid=([a-z0-9-]+)', 'i');
+                    const cidMatch = pathname.match(cidPattern);
                     if (cidMatch) {
                         result.code = cidMatch[1].toUpperCase();
                     }
@@ -1612,7 +1613,8 @@ router.get('/', (req, res) => {
                 
                 // JAVDB - 例如: https://javdb.com/v/abc123
                 if (hostname.includes('javdb.com')) {
-                    const pathMatch = pathname.match(/\/v\/([a-z0-9-]+)/i);
+                    const pathPattern = new RegExp('/v/([a-z0-9-]+)', 'i');
+                    const pathMatch = pathname.match(pathPattern);
                     if (pathMatch) {
                         result.code = pathMatch[1].toUpperCase();
                     }
@@ -1621,8 +1623,8 @@ router.get('/', (req, res) => {
                 // 通用番号格式提取 (SSIS-123, SSIS123, ABC-123, ABC123 等)
                 // 从 URL 路径或查询参数中提取
                 const codePatterns = [
-                    /([A-Z]{2,6}[-_]?[0-9]{2,6})/gi,  // SSIS-123, SSIS123
-                    /([A-Z]{3,6}[0-9]{3,6})/gi,        // SSIS123
+                    new RegExp('([A-Z]{2,6}[-_]?[0-9]{2,6})', 'gi'),  // SSIS-123, SSIS123
+                    new RegExp('([A-Z]{3,6}[0-9]{3,6})', 'gi')        // SSIS123
                 ];
                 
                 for (const pattern of codePatterns) {
@@ -1631,7 +1633,10 @@ router.get('/', (req, res) => {
                         // 选择最长的匹配（通常是完整的番号）
                         const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
                         if (bestMatch.length >= 5) { // 至少5个字符才认为是番号
-                            result.code = bestMatch.toUpperCase().replace(/[-_]/g, '-');
+                            const dash = String.fromCharCode(45);
+                            const underscore = String.fromCharCode(95);
+                            const replacePattern = new RegExp('[' + dash + underscore + ']', 'g');
+                            result.code = bestMatch.toUpperCase().replace(replacePattern, '-');
                             break;
                         }
                     }
