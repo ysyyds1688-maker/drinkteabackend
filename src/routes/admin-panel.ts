@@ -1495,13 +1495,14 @@ router.get('/', (req, res) => {
             document.getElementById('profileImageUrl').value = coverImage;
             document.getElementById('profileGallery').value = JSON.stringify(profileGallery);
             
-            grid.innerHTML = profileGallery.map((img, index) => \`
-                <div class="gallery-item \${index === 0 ? 'cover' : ''}" onclick="setCoverImage(\${index})">
-                    <img src="\${img}" alt="圖片 \${index + 1}" />
-                    <button type="button" class="delete-btn" onclick="deleteImage(\${index}); event.stopPropagation();">✕</button>
-                    \${index === 0 ? '<div class="cover-badge">當前封面</div>' : ''}
-                </div>
-            \`).join('');
+            grid.innerHTML = profileGallery.map((img, index) => {
+                const isCover = index === 0;
+                return '<div class="gallery-item ' + (isCover ? 'cover' : '') + '" onclick="setCoverImage(' + index + ')">' +
+                    '<img src="' + img + '" alt="圖片 ' + (index + 1) + '" />' +
+                    '<button type="button" class="delete-btn" onclick="deleteImage(' + index + '); event.stopPropagation();">✕</button>' +
+                    (isCover ? '<div class="cover-badge">當前封面</div>' : '') +
+                    '</div>';
+            }).join('');
         }
         
         function setCoverImage(index) {
@@ -1535,12 +1536,12 @@ router.get('/', (req, res) => {
         
         function updateAddonServicesDisplay() {
             const list = document.getElementById('addonServicesList');
-            list.innerHTML = profileAddonServices.map((service, index) => \`
-                <div class="addon-tag">
-                    <span>\${service}</span>
-                    <button type="button" class="remove-btn" onclick="removeAddonService(\${index})">✕</button>
-                </div>
-            \`).join('');
+            list.innerHTML = profileAddonServices.map((service, index) => {
+                return '<div class="addon-tag">' +
+                    '<span>' + service + '</span>' +
+                    '<button type="button" class="remove-btn" onclick="removeAddonService(' + index + ')">✕</button>' +
+                    '</div>';
+            }).join('');
         }
         
         // 影片 URL 解析函數
@@ -1739,16 +1740,15 @@ router.get('/', (req, res) => {
             
             list.innerHTML = profileVideos.map((video, index) => {
                 const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
-                return \`
-                <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; margin-bottom: 0.25rem;">\${video.title || '未命名影片'}</div>
-                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="\${video.url}" target="_blank" style="color: #3b82f6;">\${video.url}</a></div>
-                        \${codeHtml}
-                    </div>
-                    <button type="button" class="btn-small" onclick="removeVideo(\${index})" style="background: #ef4444; color: white;">刪除</button>
-                </div>
-            \`;
+                const title = video.title || '未命名影片';
+                return '<div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">' +
+                    '<div style="flex: 1;">' +
+                    '<div style="font-weight: 600; margin-bottom: 0.25rem;">' + title + '</div>' +
+                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + video.url + '" target="_blank" style="color: #3b82f6;">' + video.url + '</a></div>' +
+                    codeHtml +
+                    '</div>' +
+                    '<button type="button" class="btn-small" onclick="removeVideo(' + index + ')" style="background: #ef4444; color: white;">刪除</button>' +
+                    '</div>';
             }).join('');
         }
 
