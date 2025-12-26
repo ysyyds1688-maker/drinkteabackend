@@ -1674,7 +1674,7 @@ router.get('/', (req, res) => {
                 if (parsed.code || parsed.title) {
                     // 顯示成功提示
                     const successMsg = document.createElement('div');
-                    successMsg.textContent = parsed.code ? \`已自動填入番號: \${parsed.code}\` : '已解析部分資訊';
+                    successMsg.textContent = parsed.code ? ('已自動填入番號: ' + parsed.code) : '已解析部分資訊';
                     successMsg.style.cssText = 'color: #10b981; font-size: 0.875rem; margin-top: 0.5rem;';
                     urlInput.parentElement.appendChild(successMsg);
                     setTimeout(() => successMsg.remove(), 3000);
@@ -1730,16 +1730,19 @@ router.get('/', (req, res) => {
             const list = document.getElementById('videosList');
             if (!list) return;
             
-            list.innerHTML = profileVideos.map((video, index) => \`
+            list.innerHTML = profileVideos.map((video, index) => {
+                const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
+                return \`
                 <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">
                     <div style="flex: 1;">
                         <div style="font-weight: 600; margin-bottom: 0.25rem;">\${video.title || '未命名影片'}</div>
                         <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="\${video.url}" target="_blank" style="color: #3b82f6;">\${video.url}</a></div>
-                        \${video.code ? \`<div style="font-size: 0.875rem; color: #6b7280;">番號: <span style="font-weight: 600;">\${video.code}</span></div>\` : ''}
+                        \${codeHtml}
                     </div>
                     <button type="button" class="btn-small" onclick="removeVideo(\${index})" style="background: #ef4444; color: white;">刪除</button>
                 </div>
-            \`).join('');
+            \`;
+            }).join('');
         }
 
         function getCurrentTags() {
