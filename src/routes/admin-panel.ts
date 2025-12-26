@@ -1441,7 +1441,7 @@ router.get('/', (req, res) => {
                 // 逐個處理圖片，顯示進度
                 const compressed = [];
                 for (const file of fileArray) {
-                    uploadArea.querySelector('p').textContent = \`正在壓縮圖片 (\${processedCount + 1}/\${fileArray.length})...\`;
+                    uploadArea.querySelector('p').textContent = '正在壓縮圖片 (' + (processedCount + 1) + '/' + fileArray.length + ')...';
                     const compressedImg = await compressImage(file);
                     compressed.push(compressedImg);
                     processedCount++;
@@ -1456,7 +1456,7 @@ router.get('/', (req, res) => {
                 const savedPercent = Math.round((1 - compressedSize / originalSize) * 100);
                 
                 if (savedPercent > 0) {
-                    uploadArea.querySelector('p').textContent = \`✅ 已壓縮，節省約 \${savedPercent}% 空間\`;
+                    uploadArea.querySelector('p').textContent = '✅ 已壓縮，節省約 ' + savedPercent + '% 空間';
                     setTimeout(() => {
                         uploadArea.querySelector('p').textContent = originalText;
                     }, 2000);
@@ -1609,13 +1609,25 @@ router.get('/', (req, res) => {
                     if (result.code && lastPart.includes(result.code.toLowerCase())) {
                         const codeLower = result.code.toLowerCase();
                         // 转义正则表达式特殊字符（使用字符串拼接避免模板字符串插值问题）
-                        const dollarSign = '$';
-                        const openBrace = '{';
-                        const closeBrace = '}';
-                        const bracketOpen = '[';
-                        const bracketClose = ']';
-                        const backslash = '\\\\';
-                        const specialChars = bracketOpen + '.*+?^' + backslash + backslash + dollarSign + openBrace + closeBrace + '()|' + bracketOpen + backslash + bracketClose + backslash + backslash + backslash + backslash + bracketClose;
+                        // 构建正则表达式字符类，避免在模板字符串中出现特殊字符
+                        const parts = [];
+                        parts.push('[');
+                        parts.push('.*+?^');
+                        parts.push('\\\\');
+                        parts.push('\\\\');
+                        parts.push('$');
+                        parts.push('{');
+                        parts.push('}');
+                        parts.push('()|');
+                        parts.push('[');
+                        parts.push('\\\\');
+                        parts.push(']');
+                        parts.push('\\\\');
+                        parts.push('\\\\');
+                        parts.push('\\\\');
+                        parts.push('\\\\');
+                        parts.push(']');
+                        const specialChars = parts.join('');
                         const regex = new RegExp(specialChars, 'g');
                         const escapedCode = codeLower.replace(regex, function(match) {
                             return '\\\\\\\\' + match;
