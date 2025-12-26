@@ -586,7 +586,8 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('profiles')">Profiles 管理</button>
+            <button class="tab active" onclick="showTab('profiles')">高級茶管理</button>
+            <button class="tab" onclick="showTab('provider-profiles')">Provider 管理</button>
             <button class="tab" onclick="showTab('articles')">Articles 管理</button>
             <button class="tab" onclick="showTab('users')">用戶管理</button>
             <button class="tab" onclick="showTab('bookings')">預約管理</button>
@@ -595,10 +596,17 @@ router.get('/', (req, res) => {
         <div class="content">
             <div id="profiles-tab">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2>Profiles 管理</h2>
-                    <button class="btn btn-success" onclick="showProfileForm()">+ 新增 Profile</button>
+                    <h2>高級茶管理（嚴選好茶）</h2>
+                    <button class="btn btn-success" onclick="showProfileForm()">+ 新增高級茶</button>
                 </div>
                 <div id="profiles-list"></div>
+            </div>
+
+            <div id="provider-profiles-tab" class="hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Provider 管理（茶茶上架）</h2>
+                </div>
+                <div id="provider-profiles-list"></div>
             </div>
 
             <div id="articles-tab" class="hidden">
@@ -983,11 +991,14 @@ router.get('/', (req, res) => {
             }
         }
 
-        // 載入 Profiles（支援國家 / 國籍篩選）
+        // 載入高級茶 Profiles（只顯示後台管理員上架的，userId為空）
         async function loadProfiles() {
             try {
                 const res = await fetch(API_BASE + '/api/admin/profiles');
                 let profiles = await res.json();
+
+                // 只顯示高級茶（userId為空或null）
+                profiles = profiles.filter(p => !p.userId || p.userId === '' || p.userId === null);
 
                 // 依照國家 / 國籍篩選
                 const nationalitySelect = document.getElementById('nationalityFilter');
@@ -1014,6 +1025,37 @@ router.get('/', (req, res) => {
             } catch (error) {
                 console.error('載入 Profiles 失敗:', error);
                 alert('載入 Profiles 失敗: ' + error.message);
+            }
+        }
+
+        // 載入 Provider Profiles（只顯示Provider上架的，userId不為空）
+        async function loadProviderProfiles() {
+            try {
+                const res = await fetch(API_BASE + '/api/admin/profiles');
+                let profiles = await res.json();
+
+                // 只顯示Provider上架的（userId不為空）
+                profiles = profiles.filter(p => p.userId && p.userId !== '' && p.userId !== null);
+
+                const list = document.getElementById('provider-profiles-list');
+                if (profiles.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; padding: 2rem; color: #666;">目前沒有Provider上架的資料</p>';
+                } else {
+                    list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>Provider ID</th><th>狀態</th></tr></thead><tbody>' +
+                        profiles.map(p => \`
+                            <tr>
+                                <td>\${p.id}</td>
+                                <td>\${p.name} \${p.nationality || ''}</td>
+                                <td>\${p.location}\${p.district ? ' - ' + p.district : ''}</td>
+                                <td>NT$ \${(p.price || 0).toLocaleString()}</td>
+                                <td>\${p.userId}</td>
+                                <td>\${p.isAvailable ? '✅ 可用' : '❌ 不可用'}</td>
+                            </tr>
+                        \`).join('') + '</tbody></table>';
+                }
+            } catch (error) {
+                console.error('載入 Provider Profiles 失敗:', error);
+                alert('載入 Provider Profiles 失敗: ' + error.message);
             }
         }
 
@@ -1048,10 +1090,12 @@ router.get('/', (req, res) => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById('profiles-tab').classList.toggle('hidden', tab !== 'profiles');
+            document.getElementById('provider-profiles-tab').classList.toggle('hidden', tab !== 'provider-profiles');
             document.getElementById('articles-tab').classList.toggle('hidden', tab !== 'articles');
             document.getElementById('users-tab').classList.toggle('hidden', tab !== 'users');
             document.getElementById('bookings-tab').classList.toggle('hidden', tab !== 'bookings');
             if (tab === 'profiles') loadProfiles();
+            if (tab === 'provider-profiles') loadProviderProfiles();
             if (tab === 'articles') loadArticles();
             if (tab === 'users') loadUsers();
             if (tab === 'bookings') loadBookings();

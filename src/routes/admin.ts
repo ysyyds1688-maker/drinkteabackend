@@ -131,10 +131,17 @@ router.post('/profiles', async (req, res) => {
       }
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin.ts:134',message:'POST /profiles: creating profile',data:{bodyUserId:req.body.userId||'none',tokenUserId:userId||'none',finalUserId:req.body.userId||'undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    // 後台管理系統上架時，確保userId為undefined（高級茶）
+    // 只有在明確指定req.body.userId時才設置userId（用於Provider上架）
     const profileData: Profile = {
       id: req.body.id || uuidv4(),
-      userId: req.body.userId || userId, // 使用請求中的 userId 或從 token 獲取
       ...req.body,
+      // 如果req.body.userId為undefined，則不設置userId（高級茶）
+      // 如果req.body.userId有值，則使用該值（Provider上架）
+      userId: req.body.userId !== undefined ? req.body.userId : undefined,
     };
 
     // Validate required fields
@@ -172,7 +179,24 @@ router.post('/profiles', async (req, res) => {
 router.put('/profiles/:id', async (req, res) => {
   try {
     console.log('PUT /api/admin/profiles/:id', req.params.id, 'Body:', JSON.stringify(req.body, null, 2));
-    const profile = await profileModel.update(req.params.id, req.body);
+    
+    // 獲取現有的profile，確保不會意外修改userId
+    const existing = await profileModel.getById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    
+    // 如果req.body中沒有userId字段，保持原有的userId（高級茶保持undefined，Provider保持原有userId）
+    const updateData = { ...req.body };
+    if (req.body.userId === undefined) {
+      // 不設置userId，讓update函數保持原有值
+      delete updateData.userId;
+    } else if (req.body.userId === null || req.body.userId === '') {
+      // 明確設置為undefined（高級茶）
+      updateData.userId = undefined;
+    }
+    
+    const profile = await profileModel.update(req.params.id, updateData);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }

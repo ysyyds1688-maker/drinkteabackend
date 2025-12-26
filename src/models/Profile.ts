@@ -15,11 +15,18 @@ export const profileModel = {
       sql += ' ORDER BY "createdAt" DESC';
       
       const result = await query(sql, params);
+      // #region agent log
+      fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Profile.ts:17',message:'getAll: query result rows count',data:{rowCount:result.rows.length,userIdFilter:userId||'none'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       return result.rows.map((row: any) => {
+        // #region agent log
+        const rawUserId = row.userId || row["userId"] || null;
+        fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Profile.ts:20',message:'getAll: processing profile row',data:{profileId:row.id,name:row.name,rawUserId:rawUserId,userIdType:typeof rawUserId,hasUserId:!!rawUserId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         try {
           return {
             ...row,
-            userId: row.userId,
+            userId: row.userId || row["userId"] || null,
             gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
             albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
             prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
