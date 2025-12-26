@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initDatabase } from './db/database.js';
+import { initTestUsers } from './scripts/initTestUsers.js';
 import profilesRouter from './routes/profiles.js';
 import articlesRouter from './routes/articles.js';
 import geminiRouter from './routes/gemini.js';
@@ -155,14 +156,17 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Initialize database and start server
-initDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
-    console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
-    console.log(`💚 Health check: http://localhost:${PORT}/health`);
-    console.log(`⚙️ Admin panel: http://localhost:${PORT}/admin`);
+initDatabase()
+  .then(() => initTestUsers())
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`📡 API endpoints available at http://localhost:${PORT}/api`);
+      console.log(`💚 Health check: http://localhost:${PORT}/health`);
+      console.log(`⚙️ Admin panel: http://localhost:${PORT}/admin`);
+    });
+  })
+  .catch((error) => {
+    console.error('❌ Failed to initialize database:', error);
+    process.exit(1);
   });
-}).catch((error) => {
-  console.error('❌ Failed to initialize database:', error);
-  process.exit(1);
-});

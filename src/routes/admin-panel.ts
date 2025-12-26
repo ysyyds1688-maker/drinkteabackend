@@ -407,11 +407,126 @@ router.get('/', (req, res) => {
         .price-input-wrapper input {
             padding-right: 100px;
         }
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .login-box h2 {
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: #1a1a1a;
+        }
+        .login-form-group {
+            margin-bottom: 1.5rem;
+        }
+        .login-form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+        .login-form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        .login-btn:hover {
+            background: #333;
+        }
+        .login-error {
+            background: #fee;
+            color: #c33;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            display: none;
+        }
+        .login-error.show {
+            display: block;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-left: auto;
+        }
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .logout-btn:hover {
+            background: #dc2626;
+        }
     </style>
 </head>
 <body>
+    <!-- 登录覆盖层 -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-box">
+            <h2>🔐 後台管理系統登入</h2>
+            <div id="loginError" class="login-error"></div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="login-form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" placeholder="admin@test.com" required />
+                </div>
+                <div class="login-form-group">
+                    <label>密碼</label>
+                    <input type="password" id="loginPassword" placeholder="請輸入密碼" required />
+                </div>
+                <button type="submit" class="login-btn">登入</button>
+            </form>
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; font-size: 0.75rem; color: #666; text-align: center;">
+                <p style="margin-bottom: 0.5rem;"><strong>測試帳號：</strong></p>
+                <p>Admin: admin@test.com / admin123</p>
+            </div>
+        </div>
+    </div>
+
     <div class="header">
-        <h1>🍵 茶王 - 後台管理系統</h1>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <h1>🍵 茶王 - 後台管理系統</h1>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <span id="userEmail"></span>
+                <button class="logout-btn" onclick="handleLogout()">登出</button>
+            </div>
+        </div>
     </div>
     <div class="container">
         <div class="stats" id="stats">
@@ -771,6 +886,88 @@ router.get('/', (req, res) => {
         let profileAddonServices = [];
         let isDragging = false;
         let isParsing = false;
+
+        // 檢查登入狀態
+        function checkAuth() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                document.querySelector('.container').style.display = 'none';
+                return false;
+            }
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.querySelector('.container').style.display = 'block';
+            // 顯示用戶信息
+            try {
+                const user = JSON.parse(localStorage.getItem('user_info') || '{}');
+                if (user.email) {
+                    document.getElementById('userEmail').textContent = user.email;
+                    document.getElementById('userInfo').style.display = 'flex';
+                }
+            } catch (e) {}
+            return true;
+        }
+
+        // 處理登入
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+
+            try {
+                const res = await fetch(API_BASE + '/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || '登入失敗');
+                }
+
+                // 檢查是否為 admin
+                if (data.user.role !== 'admin') {
+                    throw new Error('只有管理員可以登入後台系統');
+                }
+
+                // 保存 token 和用戶信息
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('user_info', JSON.stringify(data.user));
+
+                // 隱藏登入界面
+                checkAuth();
+                
+                // 載入數據
+                loadStats();
+                loadProfiles();
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.classList.add('show');
+                setTimeout(() => {
+                    errorDiv.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        // 處理登出
+        function handleLogout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_info');
+            checkAuth();
+        }
+
+        // 頁面載入時檢查登入狀態
+        window.addEventListener('DOMContentLoaded', () => {
+            if (checkAuth()) {
+                loadStats();
+                loadProfiles();
+            }
+        });
 
         // 載入統計資訊
         async function loadStats() {
@@ -1857,9 +2054,6 @@ router.get('/', (req, res) => {
             }
         }
 
-        // 初始化
-        loadStats();
-        loadProfiles();
     </script>
 </body>
 </html>

@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "db:migrate": "tsx src/db/migrate.ts",
     "sync:frontend": "tsx src/scripts/sync-frontend-data.ts",
-    "sync:additional": "tsx src/scripts/sync-from-frontend.ts"
+    "sync:additional": "tsx src/scripts/sync-from-frontend.ts",
+    "init:users": "tsx src/scripts/initTestUsers.ts"
   },
   "keywords": [],
   "author": "",
