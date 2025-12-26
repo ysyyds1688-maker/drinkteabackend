@@ -1635,7 +1635,12 @@ router.get('/', (req, res) => {
                             const bs2 = '\\\\';
                             return bs1 + bs2 + match;
                         });
-                        const titlePart = lastPart.replace(new RegExp(escapedCode, 'gi'), '').replace(/[-_]/g, ' ').trim();
+                        const regexPattern = '[' + String.fromCharCode(46) + String.fromCharCode(42) + String.fromCharCode(43) + String.fromCharCode(63) + String.fromCharCode(94) + String.fromCharCode(36) + String.fromCharCode(123) + String.fromCharCode(125) + String.fromCharCode(40) + String.fromCharCode(41) + String.fromCharCode(124) + String.fromCharCode(91) + String.fromCharCode(93) + String.fromCharCode(92) + String.fromCharCode(92) + ']';
+                        const regexObj = new RegExp(regexPattern, 'g');
+                        const escapedCodeForRegex = escapedCode.replace(regexObj, function(m) {
+                            return String.fromCharCode(92) + String.fromCharCode(92) + m;
+                        });
+                        const titlePart = lastPart.replace(new RegExp(escapedCodeForRegex, 'gi'), '').replace(/[-_]/g, ' ').trim();
                         if (titlePart.length > 3) {
                             result.title = titlePart;
                         }
