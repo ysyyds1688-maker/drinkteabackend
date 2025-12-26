@@ -8,6 +8,9 @@ import geminiRouter from './routes/gemini.js';
 import adminRouter from './routes/admin.js';
 import adminPanelRouter from './routes/admin-panel.js';
 import syncRouter from './routes/sync.js';
+import authRouter from './routes/auth.js';
+import reviewsRouter from './routes/reviews.js';
+import subscriptionsRouter from './routes/subscriptions.js';
 
 // Load environment variables
 dotenv.config();
@@ -118,6 +121,9 @@ app.use('/api/articles', articlesRouter);
 app.use('/api/gemini', geminiRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/reviews', reviewsRouter);
+app.use('/api/subscriptions', subscriptionsRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);

@@ -112,6 +112,66 @@ export const initDatabase = async () => {
     await pool.query(`ALTER TABLE profiles ALTER COLUMN "imageUrl" TYPE TEXT`);
     await pool.query(`ALTER TABLE articles ALTER COLUMN "imageUrl" TYPE TEXT`);
 
+    // Users table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255) UNIQUE,
+        phone_number VARCHAR(20) UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'client' CHECK(role IN ('provider', 'client', 'admin')),
+        membership_level VARCHAR(20) DEFAULT 'free' CHECK(membership_level IN ('free', 'subscribed')),
+        membership_expires_at TIMESTAMP,
+        email_verified BOOLEAN DEFAULT FALSE,
+        phone_verified BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login_at TIMESTAMP,
+        CONSTRAINT check_email_or_phone CHECK (email IS NOT NULL OR phone_number IS NOT NULL)
+      )
+    `);
+
+    // Reviews table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id VARCHAR(255) PRIMARY KEY,
+        profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        client_id VARCHAR(255) NOT NULL REFERENCES users(id),
+        client_name VARCHAR(100),
+        rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+        comment TEXT NOT NULL,
+        service_type VARCHAR(50),
+        is_verified BOOLEAN DEFAULT FALSE,
+        is_visible BOOLEAN DEFAULT TRUE,
+        likes INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Review replies table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS review_replies (
+        id VARCHAR(255) PRIMARY KEY,
+        review_id VARCHAR(255) NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+        reply_type VARCHAR(20) NOT NULL CHECK(reply_type IN ('provider', 'admin')),
+        author_id VARCHAR(255) REFERENCES users(id),
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Review likes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS review_likes (
+        id VARCHAR(255) PRIMARY KEY,
+        review_id VARCHAR(255) NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(review_id, user_id)
+      )
+    `);
+
     // Create indexes
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_profiles_type ON profiles(type)
@@ -124,6 +184,24 @@ export const initDatabase = async () => {
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(date)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reviews_profile ON reviews(profile_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reviews_client ON reviews(client_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reviews_created ON reviews(created_at DESC)
     `);
 
     console.log('✅ Database initialized successfully');
