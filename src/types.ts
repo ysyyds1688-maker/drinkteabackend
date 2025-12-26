@@ -37,6 +37,7 @@ export interface Album {
 
 export interface Profile {
   id: string;
+  userId?: string; // 關聯到 users 表的 id
   name: string;
   nationality: string;
   age: number;

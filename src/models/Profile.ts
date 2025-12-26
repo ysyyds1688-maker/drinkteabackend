@@ -2,13 +2,24 @@ import { query } from '../db/database.js';
 import { Profile } from '../types.js';
 
 export const profileModel = {
-  getAll: async (): Promise<Profile[]> => {
+  getAll: async (userId?: string): Promise<Profile[]> => {
     try {
-      const result = await query('SELECT * FROM profiles ORDER BY "createdAt" DESC');
+      let sql = 'SELECT * FROM profiles';
+      const params: any[] = [];
+      
+      if (userId) {
+        sql += ' WHERE "userId" = $1';
+        params.push(userId);
+      }
+      
+      sql += ' ORDER BY "createdAt" DESC';
+      
+      const result = await query(sql, params);
       return result.rows.map((row: any) => {
         try {
           return {
             ...row,
+            userId: row.userId,
             gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
             albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
             prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
@@ -24,6 +35,7 @@ export const profileModel = {
           // 返回基本資料，避免整個查詢失敗
           return {
             ...row,
+            userId: row.userId,
             gallery: [],
             albums: [],
             prices: { oneShot: { price: row.price || 0, desc: '一節/50min/1S' }, twoShot: { price: (row.price || 0) * 2 - 500, desc: '兩節/100min/2S' } },
@@ -51,6 +63,7 @@ export const profileModel = {
       try {
         return {
           ...row,
+          userId: row.userId,
           gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
           albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
           prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
@@ -66,6 +79,7 @@ export const profileModel = {
         // 返回基本資料
         return {
           ...row,
+          userId: row.userId,
           gallery: [],
           albums: [],
           prices: { oneShot: { price: row.price || 0, desc: '一節/50min/1S' }, twoShot: { price: (row.price || 0) * 2 - 500, desc: '兩節/100min/2S' } },
@@ -86,12 +100,13 @@ export const profileModel = {
   create: async (profile: Profile): Promise<Profile> => {
     await query(`
       INSERT INTO profiles (
-        id, name, nationality, age, height, weight, cup, location, district,
+        id, "userId", name, nationality, age, height, weight, cup, location, district,
         type, "imageUrl", gallery, albums, price, prices, tags,
         "basicServices", "addonServices", "isNew", "isAvailable", "availableTimes"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
     `, [
       profile.id,
+      profile.userId || null,
       profile.name,
       profile.nationality,
       profile.age,
@@ -128,6 +143,7 @@ export const profileModel = {
       ...existing,
       ...profile,
       // 確保這些欄位不會是 undefined
+      userId: profile.userId ?? existing.userId,
       name: profile.name ?? existing.name,
       nationality: profile.nationality ?? existing.nationality,
       age: profile.age ?? existing.age,
@@ -152,13 +168,14 @@ export const profileModel = {
     try {
       await query(`
         UPDATE profiles SET
-          name = $1, nationality = $2, age = $3, height = $4, weight = $5, cup = $6,
-          location = $7, district = $8, type = $9, "imageUrl" = $10, gallery = $11,
-          albums = $12, price = $13, prices = $14, tags = $15, "basicServices" = $16,
-          "addonServices" = $17, "isNew" = $18, "isAvailable" = $19, "availableTimes" = $20,
+          "userId" = $1, name = $2, nationality = $3, age = $4, height = $5, weight = $6, cup = $7,
+          location = $8, district = $9, type = $10, "imageUrl" = $11, gallery = $12,
+          albums = $13, price = $14, prices = $15, tags = $16, "basicServices" = $17,
+          "addonServices" = $18, "isNew" = $19, "isAvailable" = $20, "availableTimes" = $21,
           "updatedAt" = CURRENT_TIMESTAMP
-        WHERE id = $21
+        WHERE id = $22
       `, [
+        updated.userId || null,
         updated.name,
         updated.nationality,
         updated.age,

@@ -46,6 +46,8 @@ router.post('/register', async (req, res) => {
         id: user.id,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        userName: user.userName,
+        avatarUrl: user.avatarUrl,
         role: user.role,
         membershipLevel: user.membershipLevel,
       },
@@ -133,6 +135,8 @@ router.get('/me', async (req, res) => {
       id: user.id,
       email: user.email,
       phoneNumber: user.phoneNumber,
+      userName: user.userName,
+      avatarUrl: user.avatarUrl,
       role: user.role,
       membershipLevel: user.membershipLevel,
       membershipExpiresAt: user.membershipExpiresAt,
@@ -140,6 +144,44 @@ router.get('/me', async (req, res) => {
   } catch (error: any) {
     console.error('Get me error:', error);
     res.status(500).json({ error: error.message || '获取用户信息失败' });
+  }
+});
+
+// 更新用户信息
+router.put('/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '未授权' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 无效' });
+    }
+
+    const { userName, avatarUrl } = req.body;
+    const updatedUser = await userModel.update(payload.userId, { userName, avatarUrl });
+    
+    if (!updatedUser) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+    
+    res.json({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      phoneNumber: updatedUser.phoneNumber,
+      userName: updatedUser.userName,
+      avatarUrl: updatedUser.avatarUrl,
+      role: updatedUser.role,
+      membershipLevel: updatedUser.membershipLevel,
+      membershipExpiresAt: updatedUser.membershipExpiresAt,
+    });
+  } catch (error: any) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: error.message || '更新用户信息失败' });
   }
 });
 

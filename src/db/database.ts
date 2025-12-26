@@ -67,6 +67,7 @@ export const initDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS profiles (
         id VARCHAR(255) PRIMARY KEY,
+        "userId" VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         nationality VARCHAR(50) NOT NULL,
         age INTEGER NOT NULL,
@@ -90,6 +91,24 @@ export const initDatabase = async () => {
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // 如果表已存在，添加 userId 欄位（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS "userId" VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE
+      `);
+    } catch (error: any) {
+      // 如果欄位已存在，忽略錯誤
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 userId 欄位時出現警告:', error.message);
+      }
+    }
+
+    // 創建索引以優化查詢
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles("userId")
     `);
 
     // Articles table（封面圖改用 TEXT，避免 URL 過長）
@@ -119,6 +138,8 @@ export const initDatabase = async () => {
         email VARCHAR(255) UNIQUE,
         phone_number VARCHAR(20) UNIQUE,
         password VARCHAR(255) NOT NULL,
+        user_name VARCHAR(100),
+        avatar_url TEXT,
         role VARCHAR(20) DEFAULT 'client' CHECK(role IN ('provider', 'client', 'admin')),
         membership_level VARCHAR(20) DEFAULT 'free' CHECK(membership_level IN ('free', 'subscribed')),
         membership_expires_at TIMESTAMP,
@@ -130,6 +151,29 @@ export const initDatabase = async () => {
         CONSTRAINT check_email_or_phone CHECK (email IS NOT NULL OR phone_number IS NOT NULL)
       )
     `);
+
+    // 如果表已存在，添加新欄位（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS user_name VARCHAR(100)
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 user_name 欄位時出現警告:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS avatar_url TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 avatar_url 欄位時出現警告:', error.message);
+      }
+    }
 
     // Reviews table
     await pool.query(`

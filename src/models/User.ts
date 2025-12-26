@@ -6,6 +6,8 @@ export interface User {
   email?: string;
   phoneNumber?: string;
   password: string;
+  userName?: string;
+  avatarUrl?: string;
   role: 'provider' | 'client' | 'admin';
   membershipLevel: 'free' | 'subscribed';
   membershipExpiresAt?: string;
@@ -52,6 +54,8 @@ export const userModel = {
       email: row.email || undefined,
       phoneNumber: row.phone_number || undefined,
       password: row.password,
+      userName: row.user_name || undefined,
+      avatarUrl: row.avatar_url || undefined,
       role: row.role,
       membershipLevel: row.membership_level,
       membershipExpiresAt: row.membership_expires_at || undefined,
@@ -74,6 +78,8 @@ export const userModel = {
       email: row.email || undefined,
       phoneNumber: row.phone_number || undefined,
       password: row.password,
+      userName: row.user_name || undefined,
+      avatarUrl: row.avatar_url || undefined,
       role: row.role,
       membershipLevel: row.membership_level,
       membershipExpiresAt: row.membership_expires_at || undefined,
@@ -92,13 +98,14 @@ export const userModel = {
     const hashedPassword = await bcrypt.hash(userData.password, 10);
     
     await query(`
-      INSERT INTO users (id, email, phone_number, password, role)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO users (id, email, phone_number, password, user_name, role)
+      VALUES ($1, $2, $3, $4, $5, $6)
     `, [
       id,
       userData.email || null,
       userData.phoneNumber || null,
       hashedPassword,
+      userData.userName || null,
       userData.role || 'client'
     ]);
     
@@ -136,6 +143,8 @@ export const userModel = {
       email: row.email || undefined,
       phoneNumber: row.phone_number || undefined,
       password: row.password,
+      userName: row.user_name || undefined,
+      avatarUrl: row.avatar_url || undefined,
       role: row.role,
       membershipLevel: row.membership_level,
       membershipExpiresAt: row.membership_expires_at || undefined,
@@ -145,6 +154,55 @@ export const userModel = {
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
     }));
+  },
+
+  // 更新用户信息
+  update: async (id: string, userData: Partial<Omit<User, 'id' | 'password' | 'createdAt' | 'updatedAt' | 'lastLoginAt'>>): Promise<User | null> => {
+    const fields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (userData.userName !== undefined) {
+      fields.push(`user_name = $${paramIndex++}`);
+      values.push(userData.userName || null);
+    }
+    if (userData.avatarUrl !== undefined) {
+      fields.push(`avatar_url = $${paramIndex++}`);
+      values.push(userData.avatarUrl || null);
+    }
+
+    if (fields.length === 0) {
+      return userModel.findById(id);
+    }
+
+    values.push(id);
+    const sql = `
+      UPDATE users
+      SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const result = await query(sql, values);
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      email: row.email || undefined,
+      phoneNumber: row.phone_number || undefined,
+      password: row.password,
+      userName: row.user_name || undefined,
+      avatarUrl: row.avatar_url || undefined,
+      role: row.role,
+      membershipLevel: row.membership_level,
+      membershipExpiresAt: row.membership_expires_at || undefined,
+      emailVerified: Boolean(row.email_verified),
+      phoneVerified: Boolean(row.phone_verified),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastLoginAt: row.last_login_at || undefined,
+    };
   },
 };
 

@@ -114,8 +114,26 @@ router.get('/profiles/:id', async (req, res) => {
 // POST /api/admin/profiles - 建立新 profile（上架新茶）
 router.post('/profiles', async (req, res) => {
   try {
+    // 從 JWT token 獲取用戶信息
+    const authHeader = req.headers.authorization;
+    let userId: string | undefined;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const { verifyToken } = await import('../services/authService.js');
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload) {
+          userId = payload.userId;
+        }
+      } catch (error) {
+        // Token 無效，繼續但不設置 userId（管理員可以為任何用戶創建）
+      }
+    }
+
     const profileData: Profile = {
       id: req.body.id || uuidv4(),
+      userId: req.body.userId || userId, // 使用請求中的 userId 或從 token 獲取
       ...req.body,
     };
 
