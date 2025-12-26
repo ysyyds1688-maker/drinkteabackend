@@ -1027,19 +1027,21 @@ router.get('/', (req, res) => {
 
                 const list = document.getElementById('profiles-list');
                 list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
-                    profiles.map(p => \`
-                        <tr>
-                            <td>\${p.id}</td>
-                            <td>\${p.name} \${p.nationality || ''}</td>
-                            <td>\${p.location}\${p.district ? ' - ' + p.district : ''}</td>
-                            <td>NT$ \${(p.price || 0).toLocaleString()}</td>
-                            <td>\${p.isAvailable ? '✅ 可用' : '❌ 不可用'}</td>
-                            <td>
-                                <button class="btn" onclick="editProfile('\${p.id}')">編輯</button>
-                                <button class="btn btn-danger" onclick="deleteProfile('\${p.id}')">刪除</button>
-                            </td>
-                        </tr>
-                    \`).join('') + '</tbody></table>';
+                    profiles.map(p => {
+                        const district = p.district ? ' - ' + p.district : '';
+                        const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                        return '<tr>' +
+                            '<td>' + p.id + '</td>' +
+                            '<td>' + p.name + ' ' + (p.nationality || '') + '</td>' +
+                            '<td>' + p.location + district + '</td>' +
+                            '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
+                            '<td>' + availability + '</td>' +
+                            '<td>' +
+                            '<button class="btn" onclick="editProfile(\\'' + p.id + '\\')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteProfile(\\'' + p.id + '\\')">刪除</button>' +
+                            '</td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入 Profiles 失敗:', error);
                 alert('載入 Profiles 失敗: ' + error.message);
@@ -1060,16 +1062,18 @@ router.get('/', (req, res) => {
                     list.innerHTML = '<p style="text-align: center; padding: 2rem; color: #666;">目前沒有Provider上架的資料</p>';
                 } else {
                     list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>Provider ID</th><th>狀態</th></tr></thead><tbody>' +
-                        profiles.map(p => \`
-                            <tr>
-                                <td>\${p.id}</td>
-                                <td>\${p.name} \${p.nationality || ''}</td>
-                                <td>\${p.location}\${p.district ? ' - ' + p.district : ''}</td>
-                                <td>NT$ \${(p.price || 0).toLocaleString()}</td>
-                                <td>\${p.userId}</td>
-                                <td>\${p.isAvailable ? '✅ 可用' : '❌ 不可用'}</td>
-                            </tr>
-                        \`).join('') + '</tbody></table>';
+                        profiles.map(p => {
+                            const district = p.district ? ' - ' + p.district : '';
+                            const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                            return '<tr>' +
+                                '<td>' + p.id + '</td>' +
+                                '<td>' + p.name + ' ' + (p.nationality || '') + '</td>' +
+                                '<td>' + p.location + district + '</td>' +
+                                '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
+                                '<td>' + (p.userId || '') + '</td>' +
+                                '<td>' + availability + '</td>' +
+                                '</tr>';
+                        }).join('') + '</tbody></table>';
                 }
             } catch (error) {
                 console.error('載入 Provider Profiles 失敗:', error);
@@ -1084,19 +1088,19 @@ router.get('/', (req, res) => {
                 const articles = await res.json();
                 const list = document.getElementById('articles-list');
                 list.innerHTML = '<table><thead><tr><th>ID</th><th>標題</th><th>標籤</th><th>日期</th><th>瀏覽次數</th><th>操作</th></tr></thead><tbody>' +
-                    articles.map(a => \`
-                        <tr>
-                            <td>\${a.id}</td>
-                            <td>\${a.title}</td>
-                            <td>\${a.tag}</td>
-                            <td>\${a.date}</td>
-                            <td>\${a.views.toLocaleString()}</td>
-                            <td>
-                                <button class="btn" onclick="editArticle('\${a.id}')">編輯</button>
-                                <button class="btn btn-danger" onclick="deleteArticle('\${a.id}')">刪除</button>
-                            </td>
-                        </tr>
-                    \`).join('') + '</tbody></table>';
+                    articles.map(a => {
+                        return '<tr>' +
+                            '<td>' + a.id + '</td>' +
+                            '<td>' + a.title + '</td>' +
+                            '<td>' + a.tag + '</td>' +
+                            '<td>' + a.date + '</td>' +
+                            '<td>' + a.views.toLocaleString() + '</td>' +
+                            '<td>' +
+                            '<button class="btn" onclick="editArticle(\\'' + a.id + '\\')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteArticle(\\'' + a.id + '\\')">刪除</button>' +
+                            '</td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入 Articles 失敗:', error);
                 alert('載入 Articles 失敗: ' + error.message);
@@ -2213,19 +2217,23 @@ router.get('/', (req, res) => {
                 const users = await res.json();
                 const list = document.getElementById('users-list');
                 list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>訂閱狀態</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
-                    users.map(u => \`
-                        <tr>
-                            <td>\${u.email || '-'}</td>
-                            <td>\${u.phoneNumber || '-'}</td>
-                            <td>\${u.role === 'provider' ? '👩 小姐' : u.role === 'client' ? '👤 客戶' : '👑 管理員'}</td>
-                            <td>\${u.membershipLevel === 'subscribed' ? '✅ 已訂閱' : '❌ 未訂閱'}</td>
-                            <td>\${new Date(u.createdAt).toLocaleString('zh-TW')}</td>
-                            <td>\${u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-'}</td>
-                            <td>
-                                <button class="btn" onclick="viewUserDetail('\${u.id}')">查看詳情</button>
-                            </td>
-                        </tr>
-                    \`).join('') + '</tbody></table>';
+                    users.map(u => {
+                        const role = u.role === 'provider' ? '👩 小姐' : u.role === 'client' ? '👤 客戶' : '👑 管理員';
+                        const membership = u.membershipLevel === 'subscribed' ? '✅ 已訂閱' : '❌ 未訂閱';
+                        const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
+                        const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
+                        return '<tr>' +
+                            '<td>' + (u.email || '-') + '</td>' +
+                            '<td>' + (u.phoneNumber || '-') + '</td>' +
+                            '<td>' + role + '</td>' +
+                            '<td>' + membership + '</td>' +
+                            '<td>' + createdAt + '</td>' +
+                            '<td>' + lastLogin + '</td>' +
+                            '<td>' +
+                            '<button class="btn" onclick="viewUserDetail(\\'' + u.id + '\\')">查看詳情</button>' +
+                            '</td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入用戶失敗:', error);
                 document.getElementById('users-list').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">載入失敗: ' + error.message + '</div>';
@@ -2257,18 +2265,22 @@ router.get('/', (req, res) => {
                     bookingsHtml = '<p>暫無預約記錄</p>';
                 } else {
                     bookingsHtml = '<table style="margin-top: 1rem;"><thead><tr><th>預約ID</th><th>Profile</th><th>日期</th><th>時間</th><th>狀態</th></tr></thead><tbody>' +
-                        bookings.map(b => \`
-                            <tr>
-                                <td>\${b.id.substring(0, 8)}...</td>
-                                <td>\${b.profileId.substring(0, 8)}...</td>
-                                <td>\${b.bookingDate}</td>
-                                <td>\${b.bookingTime}</td>
-                                <td>\${b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕'}</td>
-                            </tr>
-                        \`).join('') + '</tbody></table>';
+                        bookings.map(b => {
+                            const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
+                            return '<tr>' +
+                                '<td>' + b.id.substring(0, 8) + '...</td>' +
+                                '<td>' + b.profileId.substring(0, 8) + '...</td>' +
+                                '<td>' + b.bookingDate + '</td>' +
+                                '<td>' + b.bookingTime + '</td>' +
+                                '<td>' + statusText + '</td>' +
+                                '</tr>';
+                        }).join('') + '</tbody></table>';
                 }
                 
-                alert(\`用戶詳情：\\n\\nID: \${user.id}\\nEmail: \${user.email || '-'}\\n手機號: \${user.phoneNumber || '-'}\\n身份: \${user.role === 'provider' ? '小姐' : user.role === 'client' ? '客戶' : '管理員'}\\n訂閱狀態: \${user.membershipLevel === 'subscribed' ? '已訂閱' : '未訂閱'}\\n註冊時間: \${new Date(user.createdAt).toLocaleString('zh-TW')}\\n\\n預約記錄：\${bookings.length} 筆\`);
+                const roleText = user.role === 'provider' ? '小姐' : user.role === 'client' ? '客戶' : '管理員';
+                const membershipText = user.membershipLevel === 'subscribed' ? '已訂閱' : '未訂閱';
+                const createdAtText = new Date(user.createdAt).toLocaleString('zh-TW');
+                alert('用戶詳情：\\n\\nID: ' + user.id + '\\nEmail: ' + (user.email || '-') + '\\n手機號: ' + (user.phoneNumber || '-') + '\\n身份: ' + roleText + '\\n訂閱狀態: ' + membershipText + '\\n註冊時間: ' + createdAtText + '\\n\\n預約記錄：' + bookings.length + ' 筆');
             } catch (error) {
                 console.error('載入用戶詳情失敗:', error);
                 alert('載入用戶詳情失敗: ' + error.message);
@@ -2307,7 +2319,7 @@ router.get('/', (req, res) => {
                 // 創建 CSV 內容
                 const csvContent = [
                     headers.join(','),
-                    ...rows.map(row => row.map(cell => \`"\${cell}"\`).join(','))
+                    ...rows.map(row => row.map(cell => '"' + cell + '"').join(','))
                 ].join('\\n');
                 
                 // 添加 BOM 以支援中文
@@ -2354,21 +2366,23 @@ router.get('/', (req, res) => {
                 }
                 
                 list.innerHTML = '<table><thead><tr><th>預約ID</th><th>客戶ID</th><th>小姐ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
-                    bookings.map(b => \`
-                        <tr>
-                            <td>\${b.id.substring(0, 8)}...</td>
-                            <td>\${b.clientId.substring(0, 8)}...</td>
-                            <td>\${b.providerId ? b.providerId.substring(0, 8) + '...' : '-'}</td>
-                            <td>\${b.profileId.substring(0, 8)}...</td>
-                            <td>\${b.bookingDate}</td>
-                            <td>\${b.bookingTime}</td>
-                            <td>\${b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕'}</td>
-                            <td>
-                                <button class="btn" onclick="updateBookingStatus('\${b.id}', 'accepted')">接受</button>
-                                <button class="btn btn-danger" onclick="updateBookingStatus('\${b.id}', 'rejected')">拒絕</button>
-                            </td>
-                        </tr>
-                    \`).join('') + '</tbody></table>';
+                    bookings.map(b => {
+                        const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
+                        const providerId = b.providerId ? b.providerId.substring(0, 8) + '...' : '-';
+                        return '<tr>' +
+                            '<td>' + b.id.substring(0, 8) + '...</td>' +
+                            '<td>' + b.clientId.substring(0, 8) + '...</td>' +
+                            '<td>' + providerId + '</td>' +
+                            '<td>' + b.profileId.substring(0, 8) + '...</td>' +
+                            '<td>' + b.bookingDate + '</td>' +
+                            '<td>' + b.bookingTime + '</td>' +
+                            '<td>' + statusText + '</td>' +
+                            '<td>' +
+                            '<button class="btn" onclick="updateBookingStatus(\\'' + b.id + '\\', \\'accepted\\')">接受</button>' +
+                            '<button class="btn btn-danger" onclick="updateBookingStatus(\\'' + b.id + '\\', \\'rejected\\')">拒絕</button>' +
+                            '</td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入預約失敗:', error);
                 document.getElementById('bookings-list').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">載入失敗: ' + error.message + '</div>';
