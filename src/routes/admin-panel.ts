@@ -2629,7 +2629,11 @@ router.get('/', (req, res) => {
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
     // #endregion
-    res.send(cleanHtml);
+    // Set proper content type
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    // Send HTML directly to avoid any potential truncation
+    res.write(cleanHtml);
+    res.end();
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
