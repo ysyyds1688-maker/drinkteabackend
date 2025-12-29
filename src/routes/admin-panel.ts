@@ -1064,8 +1064,8 @@ router.get('/', (req, res) => {
                             '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
                             '<td>' + availability + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="editProfile(' + JSON.stringify(p.id) + ')">編輯</button>' +
-                            '<button class="btn btn-danger" onclick="deleteProfile(' + JSON.stringify(p.id) + ')">刪除</button>' +
+                            '<button class="btn" onclick="editProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">刪除</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -1135,8 +1135,8 @@ router.get('/', (req, res) => {
                             '<td>' + safeDate + '</td>' +
                             '<td>' + a.views.toLocaleString() + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="editArticle(' + JSON.stringify(a.id) + ')">編輯</button>' +
-                            '<button class="btn btn-danger" onclick="deleteArticle(' + JSON.stringify(a.id) + ')">刪除</button>' +
+                            '<button class="btn" onclick="editArticle(' + JSON.stringify(a.id).replace(/"/g, '&quot;') + ')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteArticle(' + JSON.stringify(a.id).replace(/"/g, '&quot;') + ')">刪除</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -2395,7 +2395,7 @@ router.get('/', (req, res) => {
                             '<td>' + createdAt + '</td>' +
                             '<td>' + lastLogin + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id) + ')">查看詳情</button>' +
+                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -2537,8 +2537,8 @@ router.get('/', (req, res) => {
                             '<td>' + b.bookingTime + '</td>' +
                             '<td>' + statusText + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="updateBookingStatus(' + JSON.stringify(b.id) + ', ' + JSON.stringify('accepted') + ')">接受</button>' +
-                            '<button class="btn btn-danger" onclick="updateBookingStatus(' + JSON.stringify(b.id) + ', ' + JSON.stringify('rejected') + ')">拒絕</button>' +
+                            '<button class="btn" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('accepted').replace(/"/g, '&quot;') + ')">接受</button>' +
+                            '<button class="btn btn-danger" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('rejected').replace(/"/g, '&quot;') + ')">拒絕</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -2737,16 +2737,13 @@ router.get('/', (req, res) => {
     }
     
     // CRITICAL: Ensure we're sending HTML, not JavaScript
-    // Remove any existing Content-Type header first
     if (res.headersSent) {
         console.error('[ERROR] Headers already sent!');
         return;
     }
     
-    // Set headers using res.setHeader() first, then use res.send()
-    // This ensures Express handles the response correctly
-    res.removeHeader('Content-Type');
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    // Use res.contentType() to set Content-Type - this is the Express way
+    res.contentType('text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
