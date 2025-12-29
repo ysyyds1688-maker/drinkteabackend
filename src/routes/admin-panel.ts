@@ -1811,8 +1811,9 @@ router.get('/', (req, res) => {
             list.innerHTML = profileVideos.map((video, index) => {
                 const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
                 const title = video.title || '未命名影片';
+                const escapedTitle = title.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
                 const thumbnailHtml = video.thumbnail ? 
-                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + title.replace(/'/g, '&#39;') + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display=\'none\'" /></div>' : 
+                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + escapedTitle + '" style="width: 100%; height: 100%; object-fit: cover;" /></div>' : 
                     '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; background: #e5e7eb; margin-right: 0.75rem; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.75rem;">無縮圖</div>';
                 
                 return '<div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">' +
