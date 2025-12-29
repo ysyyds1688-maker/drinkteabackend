@@ -477,7 +477,7 @@ router.post('/parse-video-info', async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
     
-    const result: { code?: string; title?: string } = {};
+    const result: { code?: string; title?: string; thumbnail?: string } = {};
     
     try {
       const urlObj = new URL(url);
@@ -537,7 +537,8 @@ router.post('/parse-video-info', async (req, res) => {
         
         if (response.ok) {
           const html = await response.text();
-          // 簡單提取 <title> 標籤
+          
+          // 提取 <title> 標籤
           const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
           if (titleMatch && titleMatch[1]) {
             let title = titleMatch[1].trim();
@@ -546,6 +547,41 @@ router.post('/parse-video-info', async (req, res) => {
             title = title.replace(/\s*[-|]\s*.*$/i, ''); // 移除最後的 "- 網站名稱"
             if (title.length > 3 && title.length < 200) {
               result.title = title;
+            }
+          }
+          
+          // 提取縮略圖
+          // FANZA/DMM 的縮略圖通常在 og:image 或特定的 img 標籤中
+          const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+          if (ogImageMatch && ogImageMatch[1]) {
+            result.thumbnail = ogImageMatch[1].trim();
+          } else {
+            // 嘗試查找常見的縮略圖選擇器
+            const imgMatches = [
+              html.match(/<img[^>]*class=["'][^"']*thumb[^"']*["'][^>]*src=["']([^"']+)["']/i),
+              html.match(/<img[^>]*id=["'][^"']*thumb[^"']*["'][^>]*src=["']([^"']+)["']/i),
+              html.match(/<img[^>]*data-src=["']([^"']+)["'][^>]*class=["'][^"']*thumb/i),
+            ];
+            
+            for (const match of imgMatches) {
+              if (match && match[1]) {
+                let imgUrl = match[1].trim();
+                // 處理相對路徑
+                if (imgUrl.startsWith('//')) {
+                  imgUrl = 'https:' + imgUrl;
+                } else if (imgUrl.startsWith('/')) {
+                  imgUrl = urlObj.protocol + '//' + urlObj.hostname + imgUrl;
+                }
+                result.thumbnail = imgUrl;
+                break;
+              }
+            }
+            
+            // 如果還是沒有找到，嘗試根據番號生成 FANZA 縮略圖 URL
+            if (!result.thumbnail && result.code) {
+              const codeLower = result.code.toLowerCase();
+              // FANZA 縮略圖格式: https://pics.dmm.co.jp/digital/video/{code}/{code}pl.jpg
+              result.thumbnail = `https://pics.dmm.co.jp/digital/video/${codeLower}/${codeLower}pl.jpg`;
             }
           }
         }

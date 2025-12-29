@@ -909,6 +909,7 @@ router.get('/', (req, res) => {
         let currentEditingArticleId = null;
         let profileGallery = [];
         let profileAddonServices = [];
+        let profileVideos = [];
         let parsedPrices = null; // 儲存 AI 解析出的 prices（包含兩節價格）
         let isDragging = false;
         let isParsing = false;
@@ -1734,6 +1735,10 @@ router.get('/', (req, res) => {
                             if (data.title && !titleInput.value) {
                                 titleInput.value = data.title;
                             }
+                            // 將縮略圖存儲在臨時變量中，以便在 addVideo 時使用
+                            if (data.thumbnail) {
+                                urlInput.setAttribute('data-thumbnail', data.thumbnail);
+                            }
                         }
                     } catch (apiError) {
                         // API 失敗不影響基本解析
@@ -1771,6 +1776,7 @@ router.get('/', (req, res) => {
             const url = urlInput.value.trim();
             const code = codeInput.value.trim();
             const title = titleInput.value.trim();
+            const thumbnail = urlInput.getAttribute('data-thumbnail') || undefined;
             
             if (!url) {
                 alert('請輸入影片連結');
@@ -1780,11 +1786,13 @@ router.get('/', (req, res) => {
             profileVideos.push({
                 url: url,
                 code: code || undefined,
-                title: title || undefined
+                title: title || undefined,
+                thumbnail: thumbnail
             });
             
             updateVideosDisplay();
             urlInput.value = '';
+            urlInput.removeAttribute('data-thumbnail');
             codeInput.value = '';
             titleInput.value = '';
         }
@@ -1801,15 +1809,20 @@ router.get('/', (req, res) => {
             if (!list) return;
             
             list.innerHTML = profileVideos.map((video, index) => {
-                const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
+                const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
                 const title = video.title || '未命名影片';
+                const thumbnailHtml = video.thumbnail ? 
+                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + title + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display=\'none\'" /></div>' : 
+                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; background: #e5e7eb; margin-right: 0.75rem; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.75rem;">無縮圖</div>';
+                
                 return '<div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">' +
+                    thumbnailHtml +
                     '<div style="flex: 1;">' +
                     '<div style="font-weight: 600; margin-bottom: 0.25rem;">' + title + '</div>' +
-                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + video.url + '" target="_blank" style="color: #3b82f6;">' + video.url + '</a></div>' +
+                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + video.url + '" target="_blank" style="color: #3b82f6; word-break: break-all;">' + (video.url.length > 50 ? video.url.substring(0, 50) + '...' : video.url) + '</a></div>' +
                     codeHtml +
                     '</div>' +
-                    '<button type="button" class="btn-small" onclick="removeVideo(' + index + ')" style="background: #ef4444; color: white;">刪除</button>' +
+                    '<button type="button" class="btn-small" onclick="removeVideo(' + index + ')" style="background: #ef4444; color: white; flex-shrink: 0;">刪除</button>' +
                     '</div>';
             }).join('');
         }
