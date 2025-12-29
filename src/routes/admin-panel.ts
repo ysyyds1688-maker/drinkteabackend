@@ -2736,22 +2736,19 @@ router.get('/', (req, res) => {
         return res.status(500).send('HTML generation error: Invalid end');
     }
     
-    // CRITICAL: Remove ALL existing headers first, then set fresh ones
-    // This prevents any middleware from interfering
-    res.removeHeader('Content-Type');
-    res.removeHeader('Content-Length');
-    
-    // Set headers in correct order - Content-Type MUST be first
+    // CRITICAL: Use res.writeHead() to set headers atomically BEFORE any data is sent
+    // This prevents any middleware or Express from interfering
     res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
+        'Content-Length': Buffer.byteLength(trimmedHtml, 'utf8').toString(),
         'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
         'Pragma': 'no-cache',
         'Expires': '0',
         'X-Content-Type-Options': 'nosniff'
     });
     
-    // Send HTML directly
-    res.end(trimmedHtml);
+    // Send HTML directly using res.end() - bypass Express's res.send()
+    res.end(trimmedHtml, 'utf8');
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
