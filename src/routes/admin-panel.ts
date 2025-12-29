@@ -586,11 +586,11 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab(event, 'profiles')">高級茶管理</button>
-            <button class="tab" onclick="showTab(event, 'provider-profiles')">Provider 管理</button>
-            <button class="tab" onclick="showTab(event, 'articles')">Articles 管理</button>
-            <button class="tab" onclick="showTab(event, 'users')">用戶管理</button>
-            <button class="tab" onclick="showTab(event, 'bookings')">預約管理</button>
+            <button class="tab active" data-tab="profiles" onclick="showTab(event, 'profiles')">高級茶管理</button>
+            <button class="tab" data-tab="provider-profiles" onclick="showTab(event, 'provider-profiles')">Provider 管理</button>
+            <button class="tab" data-tab="articles" onclick="showTab(event, 'articles')">Articles 管理</button>
+            <button class="tab" data-tab="users" onclick="showTab(event, 'users')">用戶管理</button>
+            <button class="tab" data-tab="bookings" onclick="showTab(event, 'bookings')">預約管理</button>
         </div>
 
         <div class="content">
@@ -1126,7 +1126,14 @@ router.get('/', (req, res) => {
         }
 
         // 切換標籤
-        function showTab(tab, evt) {
+        function showTab(evt, tab) {
+            if (!tab && evt) {
+                // 如果第一個參數是 event，第二個參數是 tab
+                tab = evt.target.getAttribute('data-tab') || 'profiles';
+            } else if (!tab) {
+                tab = 'profiles';
+            }
+            
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             if (evt && evt.target) {
                 evt.target.classList.add('active');
@@ -1859,7 +1866,7 @@ router.get('/', (req, res) => {
                     thumbnailHtml +
                     '<div style="flex: 1;">' +
                     '<div style="font-weight: 600; margin-bottom: 0.25rem;">' + safeTitle + '</div>' +
-                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + String(video.url || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" target="_blank" style="color: #3b82f6; word-break: break-all;">' + (String(video.url || '').length > 50 ? String(video.url || '').substring(0, 50) + '...' : String(video.url || '')) + '</a></div>' +
+                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + String(video.url || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '" target="_blank" style="color: #3b82f6; word-break: break-all;">' + String(video.url || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').substring(0, 50) + (String(video.url || '').length > 50 ? '...' : '') + '</a></div>' +
                     codeHtml +
                     '</div>' +
                     '<button type="button" class="btn-small" onclick="removeVideo(' + index + ')" style="background: #ef4444; color: white; flex-shrink: 0;">刪除</button>' +
