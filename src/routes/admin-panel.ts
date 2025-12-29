@@ -5,7 +5,13 @@ const router = express.Router();
 // 後台管理系統頁面
 router.get('/', (req, res) => {
   // #region agent log
-  fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:6',message:'Admin panel route handler called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+  console.log('[DEBUG] Admin panel route handler called');
+  try {
+    const http = require('http');
+    const logData = JSON.stringify({location:'admin-panel.ts:6',message:'Admin panel route handler called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'});
+    const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
+    const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+  } catch(e) {}
   // #endregion
   try {
     const html = `
@@ -2577,7 +2583,16 @@ router.get('/', (req, res) => {
     const rawHtmlLast100 = html.substring(Math.max(0, html.length - 100));
     const rawHtmlFirst13 = html.substring(0, 13);
     const rawHtmlFirst13Hex = Buffer.from(rawHtmlFirst13).toString('hex');
-    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2571',message:'Raw HTML generated',data:{length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes('`')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
+    console.log('[DEBUG] Raw HTML generated - Length:', rawHtmlLength);
+    console.log('[DEBUG] First 13 chars:', JSON.stringify(rawHtmlFirst13));
+    console.log('[DEBUG] First 13 hex:', rawHtmlFirst13Hex);
+    console.log('[DEBUG] Has backtick:', rawHtmlFirst13.includes('`'));
+    try {
+      const http = require('http');
+      const logData = JSON.stringify({location:'admin-panel.ts:2571',message:'Raw HTML generated',data:{length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes('`')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'});
+      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch(e) {}
     // #endregion
     // Remove leading backtick and newline if present
     const cleanHtml = html.trimStart().startsWith('`') ? html.trimStart().substring(1).trimStart() : html.trimStart();
@@ -2589,22 +2604,51 @@ router.get('/', (req, res) => {
     const cleanHtmlFirst13Hex = Buffer.from(cleanHtmlFirst13).toString('hex');
     const hasUnclosedString = (cleanHtml.match(/"/g) || []).length % 2 !== 0 || (cleanHtml.match(/'/g) || []).length % 2 !== 0;
     const hasUnclosedTemplate = (cleanHtml.match(/`/g) || []).length % 2 !== 0;
-    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2573',message:'Clean HTML prepared',data:{length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes('`'),hasUnclosedString,hasUnclosedTemplate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'})}).catch(()=>{});
+    console.log('[DEBUG] Clean HTML prepared - Length:', cleanHtmlLength);
+    console.log('[DEBUG] Clean first 13 chars:', JSON.stringify(cleanHtmlFirst13));
+    console.log('[DEBUG] Clean first 13 hex:', cleanHtmlFirst13Hex);
+    console.log('[DEBUG] Has backtick:', cleanHtmlFirst13.includes('`'));
+    console.log('[DEBUG] Has unclosed string:', hasUnclosedString);
+    console.log('[DEBUG] Has unclosed template:', hasUnclosedTemplate);
+    try {
+      const http = require('http');
+      const logData = JSON.stringify({location:'admin-panel.ts:2573',message:'Clean HTML prepared',data:{length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes('`'),hasUnclosedString,hasUnclosedTemplate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'});
+      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch(e) {}
     // #endregion
     console.log('HTML length:', cleanHtml.length);
     console.log('HTML first 50 chars:', cleanHtml.substring(0, 50));
     console.log('HTML last 50 chars:', cleanHtml.substring(cleanHtml.length - 50));
     // #region agent log
-    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2580',message:'About to send HTML response',data:{htmlLength:cleanHtmlLength,contentType:'text/html'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    console.log('[DEBUG] About to send HTML response - Length:', cleanHtmlLength);
+    try {
+      const http = require('http');
+      const logData = JSON.stringify({location:'admin-panel.ts:2580',message:'About to send HTML response',data:{htmlLength:cleanHtmlLength,contentType:'text/html'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'});
+      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch(e) {}
     // #endregion
     res.send(cleanHtml);
     // #region agent log
-    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2582',message:'HTML response sent',data:{htmlLength:cleanHtmlLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    console.log('[DEBUG] HTML response sent');
+    try {
+      const http = require('http');
+      const logData = JSON.stringify({location:'admin-panel.ts:2582',message:'HTML response sent',data:{htmlLength:cleanHtmlLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'});
+      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch(e) {}
     // #endregion
   } catch (error) {
     // #region agent log
     const errorDetails: Record<string, unknown> = error instanceof Error ? {message:error.message,stack:error.stack,name:error.name} : {toString:String(error)};
-    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2584',message:'Error generating HTML',data:errorDetails,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    console.error('[DEBUG] Error generating HTML:', errorDetails);
+    try {
+      const http = require('http');
+      const logData = JSON.stringify({location:'admin-panel.ts:2584',message:'Error generating HTML',data:errorDetails,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'});
+      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
+      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    } catch(e) {}
     // #endregion
     console.error('Error generating HTML:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
