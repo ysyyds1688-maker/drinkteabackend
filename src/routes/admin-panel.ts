@@ -1114,8 +1114,8 @@ router.get('/', (req, res) => {
                             '<td>' + a.date + '</td>' +
                             '<td>' + a.views.toLocaleString() + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="editArticle(\\'' + a.id + '\\')">編輯</button>' +
-                            '<button class="btn btn-danger" onclick="deleteArticle(\\'' + a.id + '\\')">刪除</button>' +
+                            '<button class="btn" onclick="editArticle(' + JSON.stringify(a.id) + ')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteArticle(' + JSON.stringify(a.id) + ')">刪除</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -2309,7 +2309,7 @@ router.get('/', (req, res) => {
                             '<td>' + createdAt + '</td>' +
                             '<td>' + lastLogin + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="viewUserDetail(\\'' + u.id + '\\')">查看詳情</button>' +
+                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id) + ')">查看詳情</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -2451,8 +2451,8 @@ router.get('/', (req, res) => {
                             '<td>' + b.bookingTime + '</td>' +
                             '<td>' + statusText + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="updateBookingStatus(\\'' + b.id + '\\', \\'accepted\\')">接受</button>' +
-                            '<button class="btn btn-danger" onclick="updateBookingStatus(\\'' + b.id + '\\', \\'rejected\\')">拒絕</button>' +
+                            '<button class="btn" onclick="updateBookingStatus(' + JSON.stringify(b.id) + ', ' + JSON.stringify('accepted') + ')">接受</button>' +
+                            '<button class="btn btn-danger" onclick="updateBookingStatus(' + JSON.stringify(b.id) + ', ' + JSON.stringify('rejected') + ')">拒絕</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
