@@ -2715,7 +2715,11 @@ router.get('/', (req, res) => {
     // #endregion
     
     // Set headers BEFORE sending to ensure proper content type
-    // CRITICAL: Set Content-Type FIRST to prevent browser from treating HTML as JavaScript
+    // CRITICAL: Set headers in correct order to prevent browser from treating HTML as JavaScript
+    // Remove any existing Content-Type header first
+    res.removeHeader('Content-Type');
+    
+    // Set headers BEFORE sending to ensure proper content type
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
@@ -2723,17 +2727,19 @@ router.get('/', (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     
     // Validate HTML structure before sending
-    if (!finalHtml.trim().startsWith('<!DOCTYPE html>')) {
+    const trimmedHtml = finalHtml.trim();
+    if (!trimmedHtml.startsWith('<!DOCTYPE html>')) {
         console.error('[ERROR] HTML does not start with <!DOCTYPE html>');
         return res.status(500).send('HTML generation error: Invalid start');
     }
-    if (!finalHtml.trim().endsWith('</html>')) {
+    if (!trimmedHtml.endsWith('</html>')) {
         console.error('[ERROR] HTML does not end with </html>');
         return res.status(500).send('HTML generation error: Invalid end');
     }
     
-    // Send HTML - Express will handle encoding and Content-Length automatically
-    res.send(finalHtml);
+    // Send HTML using write/end to ensure complete transmission
+    res.write(trimmedHtml);
+    res.end();
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
