@@ -1307,7 +1307,21 @@ router.get('/', (req, res) => {
                 // 載入圖片
                 profileGallery = profile.gallery || [profile.imageUrl || ''].filter(Boolean);
                 profileAddonServices = profile.addonServices || [];
-                profileVideos = profile.videos || [];
+                // 確保 videos 是有效的數組，並清理每個 video 對象
+                try {
+                    profileVideos = (profile.videos || []).map(v => {
+                        if (!v || typeof v !== 'object') return null;
+                        return {
+                            url: String(v.url || ''),
+                            code: v.code ? String(v.code) : undefined,
+                            title: v.title ? String(v.title) : undefined,
+                            thumbnail: v.thumbnail ? String(v.thumbnail) : undefined
+                        };
+                    }).filter(v => v !== null);
+                } catch (e) {
+                    console.error('Error processing videos:', e);
+                    profileVideos = [];
+                }
                 updateGalleryDisplay();
                 updateAddonServicesDisplay();
                 updateVideosDisplay();
@@ -1533,18 +1547,26 @@ router.get('/', (req, res) => {
         
         function updateGalleryDisplay() {
             const grid = document.getElementById('galleryGrid');
-            const coverImage = profileGallery[0] || '';
-            document.getElementById('profileImageUrl').value = coverImage;
-            document.getElementById('profileGallery').value = JSON.stringify(profileGallery);
+            if (!grid) return;
             
-            grid.innerHTML = profileGallery.map((img, index) => {
-                const isCover = index === 0;
-                return '<div class="gallery-item ' + (isCover ? 'cover' : '') + '" onclick="setCoverImage(' + index + ')">' +
-                    '<img src="' + img + '" alt="圖片 ' + (index + 1) + '" />' +
-                    '<button type="button" class="delete-btn" onclick="deleteImage(' + index + '); event.stopPropagation();">✕</button>' +
-                    (isCover ? '<div class="cover-badge">當前封面</div>' : '') +
-                    '</div>';
-            }).join('');
+            try {
+                const coverImage = profileGallery[0] || '';
+                document.getElementById('profileImageUrl').value = coverImage;
+                document.getElementById('profileGallery').value = JSON.stringify(profileGallery);
+                
+                grid.innerHTML = profileGallery.map((img, index) => {
+                    const isCover = index === 0;
+                    const safeImg = String(img || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    return '<div class="gallery-item ' + (isCover ? 'cover' : '') + '" onclick="setCoverImage(' + index + ')">' +
+                        '<img src="' + safeImg + '" alt="圖片 ' + (index + 1) + '" />' +
+                        '<button type="button" class="delete-btn" onclick="deleteImage(' + index + '); event.stopPropagation();">✕</button>' +
+                        (isCover ? '<div class="cover-badge">當前封面</div>' : '') +
+                        '</div>';
+                }).join('');
+            } catch (error) {
+                console.error('updateGalleryDisplay error:', error);
+                grid.innerHTML = '<div style="color: red; padding: 1rem;">載入圖片時發生錯誤</div>';
+            }
         }
         
         function setCoverImage(index) {
@@ -1578,12 +1600,20 @@ router.get('/', (req, res) => {
         
         function updateAddonServicesDisplay() {
             const list = document.getElementById('addonServicesList');
-            list.innerHTML = profileAddonServices.map((service, index) => {
-                return '<div class="addon-tag">' +
-                    '<span>' + service + '</span>' +
-                    '<button type="button" class="remove-btn" onclick="removeAddonService(' + index + ')">✕</button>' +
-                    '</div>';
-            }).join('');
+            if (!list) return;
+            
+            try {
+                list.innerHTML = profileAddonServices.map((service, index) => {
+                    const safeService = String(service || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    return '<div class="addon-tag">' +
+                        '<span>' + safeService + '</span>' +
+                        '<button type="button" class="remove-btn" onclick="removeAddonService(' + index + ')">✕</button>' +
+                        '</div>';
+                }).join('');
+            } catch (error) {
+                console.error('updateAddonServicesDisplay error:', error);
+                list.innerHTML = '<div style="color: red; padding: 1rem;">載入加值服務時發生錯誤</div>';
+            }
         }
         
         // 影片 URL 解析函數
@@ -1808,7 +1838,14 @@ router.get('/', (req, res) => {
             const list = document.getElementById('videosList');
             if (!list) return;
             
-            list.innerHTML = profileVideos.map((video, index) => {
+            try {
+                // 確保 profileVideos 是數組
+                if (!Array.isArray(profileVideos)) {
+                    console.error('profileVideos is not an array:', profileVideos);
+                    profileVideos = [];
+                }
+                
+                list.innerHTML = profileVideos.map((video, index) => {
                 const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">番號: <span style="font-weight: 600;">' + String(video.code).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') + '</span></div>' : '';
                 const title = video.title || '未命名影片';
                 const escapedTitle = String(title).replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1822,12 +1859,27 @@ router.get('/', (req, res) => {
                     thumbnailHtml +
                     '<div style="flex: 1;">' +
                     '<div style="font-weight: 600; margin-bottom: 0.25rem;">' + safeTitle + '</div>' +
-                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + (video.url || '').replace(/"/g, '&quot;') + '" target="_blank" style="color: #3b82f6; word-break: break-all;">' + ((video.url || '').length > 50 ? (video.url || '').substring(0, 50) + '...' : (video.url || '')) + '</a></div>' +
+                    '<div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">連結: <a href="' + String(video.url || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;') + '" target="_blank" style="color: #3b82f6; word-break: break-all;">' + (String(video.url || '').length > 50 ? String(video.url || '').substring(0, 50) + '...' : String(video.url || '')) + '</a></div>' +
                     codeHtml +
                     '</div>' +
                     '<button type="button" class="btn-small" onclick="removeVideo(' + index + ')" style="background: #ef4444; color: white; flex-shrink: 0;">刪除</button>' +
                     '</div>';
-            }).join('');
+                }).join('');
+                
+                // 驗證生成的 HTML 是否有效
+                if (list.innerHTML && list.innerHTML.trim() === '') {
+                    console.warn('updateVideosDisplay: Generated empty HTML');
+                }
+            } catch (error) {
+                console.error('updateVideosDisplay error:', error);
+                console.error('Error stack:', error.stack);
+                console.error('profileVideos:', JSON.stringify(profileVideos, null, 2));
+                try {
+                    list.innerHTML = '<div style="color: red; padding: 1rem;">載入影片列表時發生錯誤: ' + String(error.message) + '</div>';
+                } catch (e) {
+                    console.error('Failed to set error message:', e);
+                }
+            }
         }
 
         function getCurrentTags() {
