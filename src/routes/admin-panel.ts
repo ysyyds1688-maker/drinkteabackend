@@ -2703,28 +2703,32 @@ router.get('/', (req, res) => {
     // Set explicit headers and send HTML directly to avoid any Express processing issues
     const htmlBuffer = Buffer.from(finalHtml, 'utf8');
     const contentLength = htmlBuffer.length;
+    
+    // #region agent log
+    console.log('[DEBUG] Final HTML validation before sending:');
+    console.log('[DEBUG] - Length:', finalHtml.length);
+    console.log('[DEBUG] - UTF-8 byte length:', contentLength);
+    console.log('[DEBUG] - Starts with:', JSON.stringify(finalHtml.substring(0, 20)));
+    console.log('[DEBUG] - Ends with:', JSON.stringify(finalHtml.substring(Math.max(0, finalHtml.length - 20))));
+    console.log('[DEBUG] - First 13 chars:', JSON.stringify(finalHtml.substring(0, 13)));
+    console.log('[DEBUG] - First 13 hex:', Buffer.from(finalHtml.substring(0, 13), 'utf8').toString('hex'));
+    // #endregion
+    
+    // Set headers BEFORE sending to ensure proper content type
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Length', contentLength.toString());
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    // #region agent log
-    console.log('[DEBUG] Setting Content-Length:', contentLength);
-    console.log('[DEBUG] Buffer length matches string length:', contentLength === Buffer.byteLength(finalHtml, 'utf8'));
-    // #endregion
-    // Use write/end instead of send to ensure exact content is sent
-    // #region agent log
-    console.log('[DEBUG] Writing HTML buffer - length:', htmlBuffer.length);
-    console.log('[DEBUG] Content-Length header set to:', contentLength);
-    // #endregion
-    res.write(htmlBuffer);
-    res.end();
-    // #region agent log
-    console.log('[DEBUG] Response ended. Total bytes written:', htmlBuffer.length);
-    // #endregion
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('X-Content-Length', contentLength.toString()); // Additional header for debugging
+    
+    // Send HTML - Express will handle encoding
+    res.send(finalHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
       const http = require('http');
-      const logData = JSON.stringify({location:'admin-panel.ts:2582',message:'HTML response sent',data:{htmlLength:cleanHtmlLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'});
+      const logData = JSON.stringify({location:'admin-panel.ts:2726',message:'HTML response sent',data:{htmlLength:finalHtml.length,contentLength:contentLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'});
       const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
