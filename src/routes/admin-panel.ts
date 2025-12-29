@@ -586,11 +586,11 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab(&apos;profiles&apos;, event)">高級茶管理</button>
-            <button class="tab" onclick="showTab(&apos;provider-profiles&apos;, event)">Provider 管理</button>
-            <button class="tab" onclick="showTab(&apos;articles&apos;, event)">Articles 管理</button>
-            <button class="tab" onclick="showTab(&apos;users&apos;, event)">用戶管理</button>
-            <button class="tab" onclick="showTab(&apos;bookings&apos;, event)">預約管理</button>
+            <button class="tab active" onclick="showTab(event, 'profiles')">高級茶管理</button>
+            <button class="tab" onclick="showTab(event, 'provider-profiles')">Provider 管理</button>
+            <button class="tab" onclick="showTab(event, 'articles')">Articles 管理</button>
+            <button class="tab" onclick="showTab(event, 'users')">用戶管理</button>
+            <button class="tab" onclick="showTab(event, 'bookings')">預約管理</button>
         </div>
 
         <div class="content">
@@ -660,7 +660,7 @@ router.get('/', (req, res) => {
                          ondrop="handleDrop(event)" 
                          ondragover="handleDragOver(event)" 
                          ondragleave="handleDragLeave(event)"
-                         onclick="document.getElementById(&apos;fileInput&apos;).click()">
+                         onclick="document.getElementById('fileInput').click()">
                         <div class="upload-icon" id="uploadIcon">📤</div>
                         <p style="font-weight: 600; color: #666; margin: 0;">拖曳或點擊上傳</p>
                     </div>
@@ -784,22 +784,22 @@ router.get('/', (req, res) => {
                     </div>
                     <div class="addon-services" id="bodyTypeQuickTags" style="margin-top: 0.5rem;">
                         <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">身材條件</div>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;纖細&apos;)">纖細</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;勻稱&apos;)">勻稱</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;肉感&apos;)">肉感</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;豐滿&apos;)">豐滿</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;模特兒&apos;)">模特兒</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;長腿&apos;)">長腿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('纖細')">纖細</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('勻稱')">勻稱</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('肉感')">肉感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('豐滿')">豐滿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('模特兒')">模特兒</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('長腿')">長腿</button>
                     </div>
                     <div class="addon-services" id="personalityQuickTags" style="margin-top: 0.5rem;">
                         <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">風格特質</div>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;氣質&apos;)">氣質</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;鄰家&apos;)">鄰家</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;性感&apos;)">性感</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;溫柔&apos;)">溫柔</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;活潑&apos;)">活潑</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;御姐&apos;)">御姐</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;學生&apos;)">學生</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('氣質')">氣質</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('鄰家')">鄰家</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('性感')">性感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('溫柔')">溫柔</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('活潑')">活潑</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('御姐')">御姐</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('學生')">學生</button>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1812,7 +1812,7 @@ router.get('/', (req, res) => {
                 const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
                 const title = video.title || '未命名影片';
                 const thumbnailHtml = video.thumbnail ? 
-                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + title.replace(/'/g, '&apos;') + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display=&apos;none&apos;" /></div>' : 
+                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + title.replace(/'/g, '&#39;') + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display=\'none\'" /></div>' : 
                     '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; background: #e5e7eb; margin-right: 0.75rem; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.75rem;">無縮圖</div>';
                 
                 return '<div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">' +
