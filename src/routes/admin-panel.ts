@@ -2666,7 +2666,25 @@ router.get('/', (req, res) => {
       }
     }
     // #endregion
+    // Validate HTML structure before sending
+    const htmlLines = cleanHtml.split('\n');
+    console.log('[DEBUG] HTML total lines:', htmlLines.length);
+    console.log('[DEBUG] First line (first 50 chars):', JSON.stringify(htmlLines[0].substring(0, 50)));
+    console.log('[DEBUG] Last line (last 50 chars):', JSON.stringify(htmlLines[htmlLines.length - 1].substring(Math.max(0, htmlLines[htmlLines.length - 1].length - 50))));
+    // Check if HTML starts correctly
+    if (!cleanHtml.trimStart().startsWith('<!DOCTYPE')) {
+      console.error('[DEBUG] ERROR: HTML does not start with <!DOCTYPE');
+    }
+    // Check if HTML ends correctly
+    if (!cleanHtml.trimEnd().endsWith('</html>')) {
+      console.error('[DEBUG] ERROR: HTML does not end with </html>');
+    }
     // Send HTML using res.send - Express will automatically set Content-Length correctly
+    // #region agent log
+    console.log('[DEBUG] About to send HTML - actual byte length:', Buffer.byteLength(cleanHtml, 'utf8'));
+    console.log('[DEBUG] First 20 bytes hex:', Buffer.from(cleanHtml.substring(0, 20), 'utf8').toString('hex'));
+    console.log('[DEBUG] Last 20 bytes hex:', Buffer.from(cleanHtml.substring(Math.max(0, cleanHtml.length - 20)), 'utf8').toString('hex'));
+    // #endregion
     res.send(cleanHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
