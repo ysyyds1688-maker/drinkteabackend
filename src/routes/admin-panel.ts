@@ -595,11 +595,11 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" data-tab="profiles" onclick="showTab(event, 'profiles')">高級茶管理</button>
-            <button class="tab" data-tab="provider-profiles" onclick="showTab(event, 'provider-profiles')">Provider 管理</button>
-            <button class="tab" data-tab="articles" onclick="showTab(event, 'articles')">Articles 管理</button>
-            <button class="tab" data-tab="users" onclick="showTab(event, 'users')">用戶管理</button>
-            <button class="tab" data-tab="bookings" onclick="showTab(event, 'bookings')">預約管理</button>
+            <button class="tab active" data-tab="profiles" onclick="showTab(event, &#39;profiles&#39;)">高級茶管理</button>
+            <button class="tab" data-tab="provider-profiles" onclick="showTab(event, &#39;provider-profiles&#39;)">Provider 管理</button>
+            <button class="tab" data-tab="articles" onclick="showTab(event, &#39;articles&#39;)">Articles 管理</button>
+            <button class="tab" data-tab="users" onclick="showTab(event, &#39;users&#39;)">用戶管理</button>
+            <button class="tab" data-tab="bookings" onclick="showTab(event, &#39;bookings&#39;)">預約管理</button>
         </div>
 
         <div class="content">
@@ -793,22 +793,22 @@ router.get('/', (req, res) => {
                     </div>
                     <div class="addon-services" id="bodyTypeQuickTags" style="margin-top: 0.5rem;">
                         <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">身材條件</div>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('纖細')">纖細</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('勻稱')">勻稱</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('肉感')">肉感</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('豐滿')">豐滿</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('模特兒')">模特兒</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('長腿')">長腿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;纖細&#39;)">纖細</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;勻稱&#39;)">勻稱</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;肉感&#39;)">肉感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;豐滿&#39;)">豐滿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;模特兒&#39;)">模特兒</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;長腿&#39;)">長腿</button>
                     </div>
                     <div class="addon-services" id="personalityQuickTags" style="margin-top: 0.5rem;">
                         <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">風格特質</div>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('氣質')">氣質</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('鄰家')">鄰家</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('性感')">性感</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('溫柔')">溫柔</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('活潑')">活潑</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('御姐')">御姐</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('學生')">學生</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;氣質&#39;)">氣質</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;鄰家&#39;)">鄰家</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;性感&#39;)">性感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;溫柔&#39;)">溫柔</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;活潑&#39;)">活潑</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;御姐&#39;)">御姐</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&#39;學生&#39;)">學生</button>
                     </div>
                 </div>
                 <div class="form-group">
