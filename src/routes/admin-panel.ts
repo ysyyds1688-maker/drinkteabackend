@@ -669,7 +669,7 @@ router.get('/', (req, res) => {
                          ondrop="handleDrop(event)" 
                          ondragover="handleDragOver(event)" 
                          ondragleave="handleDragLeave(event)"
-                         onclick="document.getElementById('fileInput').click()">
+                         onclick="document.getElementById(&#39;fileInput&#39;).click()">
                         <div class="upload-icon" id="uploadIcon">📤</div>
                         <p style="font-weight: 600; color: #666; margin: 0;">拖曳或點擊上傳</p>
                     </div>
@@ -2716,13 +2716,23 @@ router.get('/', (req, res) => {
     
     // Set headers BEFORE sending to ensure proper content type
     // CRITICAL: Set Content-Type FIRST to prevent browser from treating HTML as JavaScript
-    res.contentType('text/html; charset=utf-8');
-    res.setHeader('Content-Length', contentLength.toString());
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     
-    // Send HTML - Express will handle encoding
+    // Validate HTML structure before sending
+    if (!finalHtml.trim().startsWith('<!DOCTYPE html>')) {
+        console.error('[ERROR] HTML does not start with <!DOCTYPE html>');
+        return res.status(500).send('HTML generation error: Invalid start');
+    }
+    if (!finalHtml.trim().endsWith('</html>')) {
+        console.error('[ERROR] HTML does not end with </html>');
+        return res.status(500).send('HTML generation error: Invalid end');
+    }
+    
+    // Send HTML - Express will handle encoding and Content-Length automatically
     res.send(finalHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
