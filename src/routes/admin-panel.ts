@@ -4,7 +4,9 @@ const router = express.Router();
 
 // 後台管理系統頁面
 router.get('/', (req, res) => {
-  res.send(`
+  // #region agent log
+  try {
+    const html = `
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -2566,7 +2568,16 @@ router.get('/', (req, res) => {
     </script>
 </body>
 </html>
-  `);
+  `;
+    console.log('HTML length:', html.length);
+    console.log('HTML first 50 chars:', html.substring(0, 50));
+    console.log('HTML last 50 chars:', html.substring(html.length - 50));
+    res.send(html);
+  } catch (error) {
+    console.error('Error generating HTML:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).send('Error generating admin panel: ' + errorMessage);
+  }
 });
 
 export default router;
