@@ -2700,10 +2700,19 @@ router.get('/', (req, res) => {
       console.error('[DEBUG] ERROR: HTML starts with BOM (Byte Order Mark)!');
     }
     // #endregion
-    // Set explicit Content-Type and ensure no compression issues
+    // Set explicit headers and send HTML directly to avoid any Express processing issues
+    const htmlBuffer = Buffer.from(finalHtml, 'utf8');
+    const contentLength = htmlBuffer.length;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Length', contentLength.toString());
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.send(finalHtml);
+    // #region agent log
+    console.log('[DEBUG] Setting Content-Length:', contentLength);
+    console.log('[DEBUG] Buffer length matches string length:', contentLength === Buffer.byteLength(finalHtml, 'utf8'));
+    // #endregion
+    // Use write/end instead of send to ensure exact content is sent
+    res.write(htmlBuffer);
+    res.end();
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
