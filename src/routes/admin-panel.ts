@@ -2576,7 +2576,7 @@ router.get('/', (req, res) => {
     </script>
 </body>
 </html>
-  `;
+`;
     // #region agent log
     const rawHtmlLength = html.length;
     const rawHtmlFirst100 = html.substring(0, 100);
@@ -2594,16 +2594,24 @@ router.get('/', (req, res) => {
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
     // #endregion
-    // Remove leading backtick and newline if present
+    // Remove leading backtick and newline if present, and trailing whitespace
     const cleanHtml = html.trimStart().startsWith('`') ? html.trimStart().substring(1).trimStart() : html.trimStart();
+    // Ensure cleanHtml ends with </html> without trailing whitespace
+    const finalHtml = cleanHtml.trimEnd();
     // #region agent log
-    const cleanHtmlLength = cleanHtml.length;
-    const cleanHtmlFirst100 = cleanHtml.substring(0, 100);
-    const cleanHtmlLast100 = cleanHtml.substring(Math.max(0, cleanHtml.length - 100));
-    const cleanHtmlFirst13 = cleanHtml.substring(0, 13);
+    console.log('[DEBUG] After trimEnd - finalHtml length:', finalHtml.length);
+    console.log('[DEBUG] finalHtml ends with </html>:', finalHtml.endsWith('</html>'));
+    console.log('[DEBUG] finalHtml last 30 chars:', JSON.stringify(finalHtml.substring(Math.max(0, finalHtml.length - 30))));
+    console.log('[DEBUG] finalHtml last 20 bytes hex:', Buffer.from(finalHtml.substring(Math.max(0, finalHtml.length - 20)), 'utf8').toString('hex'));
+    // #endregion
+    // #region agent log
+    const cleanHtmlLength = finalHtml.length;
+    const cleanHtmlFirst100 = finalHtml.substring(0, 100);
+    const cleanHtmlLast100 = finalHtml.substring(Math.max(0, finalHtml.length - 100));
+    const cleanHtmlFirst13 = finalHtml.substring(0, 13);
     const cleanHtmlFirst13Hex = Buffer.from(cleanHtmlFirst13).toString('hex');
-    const hasUnclosedString = (cleanHtml.match(/"/g) || []).length % 2 !== 0 || (cleanHtml.match(/'/g) || []).length % 2 !== 0;
-    const hasUnclosedTemplate = (cleanHtml.match(/`/g) || []).length % 2 !== 0;
+    const hasUnclosedString = (finalHtml.match(/"/g) || []).length % 2 !== 0 || (finalHtml.match(/'/g) || []).length % 2 !== 0;
+    const hasUnclosedTemplate = (finalHtml.match(/`/g) || []).length % 2 !== 0;
     console.log('[DEBUG] Clean HTML prepared - Length:', cleanHtmlLength);
     console.log('[DEBUG] Clean first 13 chars:', JSON.stringify(cleanHtmlFirst13));
     console.log('[DEBUG] Clean first 13 hex:', cleanHtmlFirst13Hex);
@@ -2617,9 +2625,9 @@ router.get('/', (req, res) => {
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
     // #endregion
-    console.log('HTML length:', cleanHtml.length);
-    console.log('HTML first 50 chars:', cleanHtml.substring(0, 50));
-    console.log('HTML last 50 chars:', cleanHtml.substring(cleanHtml.length - 50));
+    console.log('HTML length:', finalHtml.length);
+    console.log('HTML first 50 chars:', finalHtml.substring(0, 50));
+    console.log('HTML last 50 chars:', finalHtml.substring(finalHtml.length - 50));
     // #region agent log
     console.log('[DEBUG] About to send HTML response - Length:', cleanHtmlLength);
     try {
@@ -2632,16 +2640,16 @@ router.get('/', (req, res) => {
     // Set proper content type - DO NOT set Content-Length manually, let Express handle it
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     // #region agent log
-    const actualByteLength = Buffer.byteLength(cleanHtml, 'utf8');
-    console.log('[DEBUG] HTML string length:', cleanHtml.length);
+    const actualByteLength = Buffer.byteLength(finalHtml, 'utf8');
+    console.log('[DEBUG] HTML string length:', finalHtml.length);
     console.log('[DEBUG] HTML UTF-8 byte length:', actualByteLength);
-    console.log('[DEBUG] HTML ends with </html>:', cleanHtml.trimEnd().endsWith('</html>'));
-    const scriptTags = (cleanHtml.match(/<script>/g) || []).length;
-    const closeScriptTags = (cleanHtml.match(/<\/script>/g) || []).length;
+    console.log('[DEBUG] HTML ends with </html>:', finalHtml.endsWith('</html>'));
+    const scriptTags = (finalHtml.match(/<script>/g) || []).length;
+    const closeScriptTags = (finalHtml.match(/<\/script>/g) || []).length;
     console.log('[DEBUG] Script tags - open:', scriptTags, 'close:', closeScriptTags);
     // Check for any unclosed strings in the script content
-    const scriptStart = cleanHtml.indexOf('<script>');
-    const scriptEnd = cleanHtml.indexOf('</script>');
+    const scriptStart = finalHtml.indexOf('<script>');
+    const scriptEnd = finalHtml.indexOf('</script>');
     if (scriptStart >= 0 && scriptEnd >= 0) {
       const scriptContent = cleanHtml.substring(scriptStart + 8, scriptEnd);
       const singleQuotes = (scriptContent.match(/'/g) || []).length;
@@ -2667,25 +2675,25 @@ router.get('/', (req, res) => {
     }
     // #endregion
     // Validate HTML structure before sending
-    const htmlLines = cleanHtml.split('\n');
+    const htmlLines = finalHtml.split('\n');
     console.log('[DEBUG] HTML total lines:', htmlLines.length);
     console.log('[DEBUG] First line (first 50 chars):', JSON.stringify(htmlLines[0].substring(0, 50)));
     console.log('[DEBUG] Last line (last 50 chars):', JSON.stringify(htmlLines[htmlLines.length - 1].substring(Math.max(0, htmlLines[htmlLines.length - 1].length - 50))));
     // Check if HTML starts correctly
-    if (!cleanHtml.trimStart().startsWith('<!DOCTYPE')) {
+    if (!finalHtml.startsWith('<!DOCTYPE')) {
       console.error('[DEBUG] ERROR: HTML does not start with <!DOCTYPE');
     }
     // Check if HTML ends correctly
-    if (!cleanHtml.trimEnd().endsWith('</html>')) {
+    if (!finalHtml.endsWith('</html>')) {
       console.error('[DEBUG] ERROR: HTML does not end with </html>');
     }
     // Send HTML using res.send - Express will automatically set Content-Length correctly
     // #region agent log
-    console.log('[DEBUG] About to send HTML - actual byte length:', Buffer.byteLength(cleanHtml, 'utf8'));
-    console.log('[DEBUG] First 20 bytes hex:', Buffer.from(cleanHtml.substring(0, 20), 'utf8').toString('hex'));
-    console.log('[DEBUG] Last 20 bytes hex:', Buffer.from(cleanHtml.substring(Math.max(0, cleanHtml.length - 20)), 'utf8').toString('hex'));
+    console.log('[DEBUG] About to send HTML - actual byte length:', Buffer.byteLength(finalHtml, 'utf8'));
+    console.log('[DEBUG] First 20 bytes hex:', Buffer.from(finalHtml.substring(0, 20), 'utf8').toString('hex'));
+    console.log('[DEBUG] Last 20 bytes hex:', Buffer.from(finalHtml.substring(Math.max(0, finalHtml.length - 20)), 'utf8').toString('hex'));
     // #endregion
-    res.send(cleanHtml);
+    res.send(finalHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
