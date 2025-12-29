@@ -1051,8 +1051,8 @@ router.get('/', (req, res) => {
                             '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
                             '<td>' + availability + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="editProfile(\\'' + p.id + '\\')">編輯</button>' +
-                            '<button class="btn btn-danger" onclick="deleteProfile(\\'' + p.id + '\\')">刪除</button>' +
+                            '<button class="btn" onclick="editProfile(\'' + p.id + '\')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteProfile(\'' + p.id + '\')">刪除</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -1114,8 +1114,8 @@ router.get('/', (req, res) => {
                             '<td>' + a.date + '</td>' +
                             '<td>' + a.views.toLocaleString() + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="editArticle(\\'' + a.id + '\\')">編輯</button>' +
-                            '<button class="btn btn-danger" onclick="deleteArticle(\\'' + a.id + '\\')">刪除</button>' +
+                            '<button class="btn" onclick="editArticle(\'' + a.id + '\')">編輯</button>' +
+                            '<button class="btn btn-danger" onclick="deleteArticle(\'' + a.id + '\')">刪除</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -1812,7 +1812,7 @@ router.get('/', (req, res) => {
                 const codeHtml = video.code ? '<div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">番號: <span style="font-weight: 600;">' + video.code + '</span></div>' : '';
                 const title = video.title || '未命名影片';
                 const thumbnailHtml = video.thumbnail ? 
-                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + title + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display=\'none\'" /></div>' : 
+                    '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; overflow: hidden; background: #e5e7eb; margin-right: 0.75rem;"><img src="' + video.thumbnail + '" alt="' + title + '" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display=&quot;none&quot;" /></div>' : 
                     '<div style="width: 120px; height: 90px; flex-shrink: 0; border-radius: 0.375rem; background: #e5e7eb; margin-right: 0.75rem; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 0.75rem;">無縮圖</div>';
                 
                 return '<div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.75rem; background: #f9fafb; border-radius: 0.5rem; margin-bottom: 0.5rem;">' +
@@ -2308,7 +2308,7 @@ router.get('/', (req, res) => {
                             '<td>' + createdAt + '</td>' +
                             '<td>' + lastLogin + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="viewUserDetail(\\'' + u.id + '\\')">查看詳情</button>' +
+                            '<button class="btn" onclick="viewUserDetail(\'' + u.id + '\')">查看詳情</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
@@ -2450,8 +2450,8 @@ router.get('/', (req, res) => {
                             '<td>' + b.bookingTime + '</td>' +
                             '<td>' + statusText + '</td>' +
                             '<td>' +
-                            '<button class="btn" onclick="updateBookingStatus(\\'' + b.id + '\\', \\'accepted\\')">接受</button>' +
-                            '<button class="btn btn-danger" onclick="updateBookingStatus(\\'' + b.id + '\\', \\'rejected\\')">拒絕</button>' +
+                            '<button class="btn" onclick="updateBookingStatus(\'' + b.id + '\', \'accepted\')">接受</button>' +
+                            '<button class="btn btn-danger" onclick="updateBookingStatus(\'' + b.id + '\', \'rejected\')">拒絕</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table>';
