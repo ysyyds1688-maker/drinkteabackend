@@ -1044,10 +1044,14 @@ router.get('/', (req, res) => {
                     profiles.map(p => {
                         const district = p.district ? ' - ' + p.district : '';
                         const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                        const safeName = String(p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         return '<tr>' +
                             '<td>' + p.id + '</td>' +
-                            '<td>' + p.name + ' ' + (p.nationality || '') + '</td>' +
-                            '<td>' + p.location + district + '</td>' +
+                            '<td>' + safeName + ' ' + safeNationality + '</td>' +
+                            '<td>' + safeLocation + safeDistrict + '</td>' +
                             '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
                             '<td>' + availability + '</td>' +
                             '<td>' +
@@ -1081,12 +1085,17 @@ router.get('/', (req, res) => {
                         profiles.map(p => {
                             const district = p.district ? ' - ' + p.district : '';
                             const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                            const safeName = String(p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeUserId = String(p.userId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                             return '<tr>' +
                                 '<td>' + p.id + '</td>' +
-                                '<td>' + p.name + ' ' + (p.nationality || '') + '</td>' +
-                                '<td>' + p.location + district + '</td>' +
+                                '<td>' + safeName + ' ' + safeNationality + '</td>' +
+                                '<td>' + safeLocation + safeDistrict + '</td>' +
                                 '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
-                                '<td>' + (p.userId || '') + '</td>' +
+                                '<td>' + safeUserId + '</td>' +
                                 '<td>' + availability + '</td>' +
                                 '</tr>';
                         }).join('') + '</tbody></table>';
@@ -1107,11 +1116,14 @@ router.get('/', (req, res) => {
                 const list = document.getElementById('articles-list');
                 list.innerHTML = '<table><thead><tr><th>ID</th><th>標題</th><th>標籤</th><th>日期</th><th>瀏覽次數</th><th>操作</th></tr></thead><tbody>' +
                     articles.map(a => {
+                        const safeTitle = String(a.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeTag = String(a.tag || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeDate = String(a.date || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         return '<tr>' +
                             '<td>' + a.id + '</td>' +
-                            '<td>' + a.title + '</td>' +
-                            '<td>' + a.tag + '</td>' +
-                            '<td>' + a.date + '</td>' +
+                            '<td>' + safeTitle + '</td>' +
+                            '<td>' + safeTag + '</td>' +
+                            '<td>' + safeDate + '</td>' +
                             '<td>' + a.views.toLocaleString() + '</td>' +
                             '<td>' +
                             '<button class="btn" onclick="editArticle(' + JSON.stringify(a.id) + ')">編輯</button>' +
@@ -1397,7 +1409,10 @@ router.get('/', (req, res) => {
                     profileAddonServices = (data.addonServices || []).map(service => {
                         // 移除 "+數字" 格式的價格部分，例如："毒龍+2000" -> "毒龍"
                         // 這裡是在 HTML 字串裡產生 JavaScript，所以要用四個反斜線，讓瀏覽器端真正看到的是 "\\+\\d+"
-                        return service.replace(new RegExp('\\\\+\\\\d+', 'g'), '').trim();
+                        const plusChar = String.fromCharCode(43);
+                        const dChar = String.fromCharCode(100);
+                        const pattern = plusChar + '\\\\' + dChar + '+';
+                        return service.replace(new RegExp(pattern, 'g'), '').trim();
                     }).filter(service => service.length > 0);
                     updateAddonServicesDisplay();
                 }
@@ -1706,7 +1721,8 @@ router.get('/', (req, res) => {
                         const specialCharsPattern = '[' + dot + star + plus + qmark + caret + dollar + lbrace + rbrace + lparen + rparen + pipe + lbracket + rbracket + backslash + backslash + ']';
                         const escapeRegex = new RegExp(specialCharsPattern, 'g');
                         const escapedCode = codeLower.replace(escapeRegex, function(m) {
-                            return '\\\\' + m;
+                            const backslashChar = String.fromCharCode(92);
+                            return backslashChar + backslashChar + m;
                         });
                         const dash = String.fromCharCode(45);
                         const underscore = String.fromCharCode(95);
