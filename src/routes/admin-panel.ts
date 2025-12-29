@@ -2647,6 +2647,23 @@ router.get('/', (req, res) => {
       const singleQuotes = (scriptContent.match(/'/g) || []).length;
       const doubleQuotes = (scriptContent.match(/"/g) || []).length;
       console.log('[DEBUG] Script content quotes - single:', singleQuotes, 'double:', doubleQuotes);
+      // Check for unmatched quotes (odd numbers indicate unclosed strings)
+      if (singleQuotes % 2 !== 0) {
+        console.warn('[DEBUG] WARNING: Odd number of single quotes in script - possible unclosed string!');
+      }
+      if (doubleQuotes % 2 !== 0) {
+        console.warn('[DEBUG] WARNING: Odd number of double quotes in script - possible unclosed string!');
+      }
+      // Try to parse the script to check for syntax errors
+      try {
+        new Function(scriptContent);
+        console.log('[DEBUG] Script syntax validation: PASSED');
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        const errorString = e instanceof Error ? e.toString() : String(e);
+        console.error('[DEBUG] Script syntax validation: FAILED -', errorMessage);
+        console.error('[DEBUG] Error at:', errorString);
+      }
     }
     // #endregion
     // Send HTML using res.send - Express will automatically set Content-Length correctly
