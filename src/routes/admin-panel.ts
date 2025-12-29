@@ -5,6 +5,8 @@ const router = express.Router();
 // 後台管理系統頁面
 router.get('/', (req, res) => {
   // #region agent log
+  fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:6',message:'Admin panel route handler called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'})}).catch(()=>{});
+  // #endregion
   try {
     const html = `
 <!DOCTYPE html>
@@ -2569,13 +2571,41 @@ router.get('/', (req, res) => {
 </body>
 </html>
   `;
+    // #region agent log
+    const rawHtmlLength = html.length;
+    const rawHtmlFirst100 = html.substring(0, 100);
+    const rawHtmlLast100 = html.substring(Math.max(0, html.length - 100));
+    const rawHtmlFirst13 = html.substring(0, 13);
+    const rawHtmlFirst13Hex = Buffer.from(rawHtmlFirst13).toString('hex');
+    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2571',message:'Raw HTML generated',data:{length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes('`')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     // Remove leading backtick and newline if present
     const cleanHtml = html.trimStart().startsWith('`') ? html.trimStart().substring(1).trimStart() : html.trimStart();
+    // #region agent log
+    const cleanHtmlLength = cleanHtml.length;
+    const cleanHtmlFirst100 = cleanHtml.substring(0, 100);
+    const cleanHtmlLast100 = cleanHtml.substring(Math.max(0, cleanHtml.length - 100));
+    const cleanHtmlFirst13 = cleanHtml.substring(0, 13);
+    const cleanHtmlFirst13Hex = Buffer.from(cleanHtmlFirst13).toString('hex');
+    const hasUnclosedString = (cleanHtml.match(/"/g) || []).length % 2 !== 0 || (cleanHtml.match(/'/g) || []).length % 2 !== 0;
+    const hasUnclosedTemplate = (cleanHtml.match(/`/g) || []).length % 2 !== 0;
+    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2573',message:'Clean HTML prepared',data:{length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes('`'),hasUnclosedString,hasUnclosedTemplate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'})}).catch(()=>{});
+    // #endregion
     console.log('HTML length:', cleanHtml.length);
     console.log('HTML first 50 chars:', cleanHtml.substring(0, 50));
     console.log('HTML last 50 chars:', cleanHtml.substring(cleanHtml.length - 50));
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2580',message:'About to send HTML response',data:{htmlLength:cleanHtmlLength,contentType:'text/html'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     res.send(cleanHtml);
+    // #region agent log
+    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2582',message:'HTML response sent',data:{htmlLength:cleanHtmlLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
   } catch (error) {
+    // #region agent log
+    const errorDetails: Record<string, unknown> = error instanceof Error ? {message:error.message,stack:error.stack,name:error.name} : {toString:String(error)};
+    fetch('http://127.0.0.1:7247/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'admin-panel.ts:2584',message:'Error generating HTML',data:errorDetails,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     console.error('Error generating HTML:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     res.status(500).send('Error generating admin panel: ' + errorMessage);
