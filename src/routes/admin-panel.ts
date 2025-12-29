@@ -2726,20 +2726,32 @@ router.get('/', (req, res) => {
     res.setHeader('Expires', '0');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     
-    // Validate HTML structure before sending
+    // Validate and send HTML
     const trimmedHtml = finalHtml.trim();
+    
     if (!trimmedHtml.startsWith('<!DOCTYPE html>')) {
-        console.error('[ERROR] HTML does not start with <!DOCTYPE html>');
         return res.status(500).send('HTML generation error: Invalid start');
     }
     if (!trimmedHtml.endsWith('</html>')) {
-        console.error('[ERROR] HTML does not end with </html>');
         return res.status(500).send('HTML generation error: Invalid end');
     }
     
-    // Send HTML using write/end to ensure complete transmission
-    res.write(trimmedHtml);
-    res.end();
+    // CRITICAL: Remove ALL existing headers first, then set fresh ones
+    // This prevents any middleware from interfering
+    res.removeHeader('Content-Type');
+    res.removeHeader('Content-Length');
+    
+    // Set headers in correct order - Content-Type MUST be first
+    res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Content-Type-Options': 'nosniff'
+    });
+    
+    // Send HTML directly
+    res.end(trimmedHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
