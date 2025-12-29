@@ -2650,7 +2650,7 @@ router.get('/', (req, res) => {
     const scriptStart = finalHtml.indexOf('<script>');
     const scriptEnd = finalHtml.indexOf('</script>');
     if (scriptStart >= 0 && scriptEnd >= 0) {
-      const scriptContent = cleanHtml.substring(scriptStart + 8, scriptEnd);
+      const scriptContent = finalHtml.substring(scriptStart + 8, scriptEnd);
       const singleQuotes = (scriptContent.match(/'/g) || []).length;
       const doubleQuotes = (scriptContent.match(/"/g) || []).length;
       console.log('[DEBUG] Script content quotes - single:', singleQuotes, 'double:', doubleQuotes);
@@ -2711,8 +2711,15 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] Buffer length matches string length:', contentLength === Buffer.byteLength(finalHtml, 'utf8'));
     // #endregion
     // Use write/end instead of send to ensure exact content is sent
+    // #region agent log
+    console.log('[DEBUG] Writing HTML buffer - length:', htmlBuffer.length);
+    console.log('[DEBUG] Content-Length header set to:', contentLength);
+    // #endregion
     res.write(htmlBuffer);
     res.end();
+    // #region agent log
+    console.log('[DEBUG] Response ended. Total bytes written:', htmlBuffer.length);
+    // #endregion
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
