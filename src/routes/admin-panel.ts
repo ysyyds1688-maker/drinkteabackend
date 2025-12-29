@@ -586,11 +586,11 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('profiles', event)">高級茶管理</button>
-            <button class="tab" onclick="showTab('provider-profiles', event)">Provider 管理</button>
-            <button class="tab" onclick="showTab('articles', event)">Articles 管理</button>
-            <button class="tab" onclick="showTab('users', event)">用戶管理</button>
-            <button class="tab" onclick="showTab('bookings', event)">預約管理</button>
+            <button class="tab active" onclick="showTab(&apos;profiles&apos;, event)">高級茶管理</button>
+            <button class="tab" onclick="showTab(&apos;provider-profiles&apos;, event)">Provider 管理</button>
+            <button class="tab" onclick="showTab(&apos;articles&apos;, event)">Articles 管理</button>
+            <button class="tab" onclick="showTab(&apos;users&apos;, event)">用戶管理</button>
+            <button class="tab" onclick="showTab(&apos;bookings&apos;, event)">預約管理</button>
         </div>
 
         <div class="content">
@@ -660,7 +660,7 @@ router.get('/', (req, res) => {
                          ondrop="handleDrop(event)" 
                          ondragover="handleDragOver(event)" 
                          ondragleave="handleDragLeave(event)"
-                         onclick="document.getElementById('fileInput').click()">
+                         onclick="document.getElementById(&apos;fileInput&apos;).click()">
                         <div class="upload-icon" id="uploadIcon">📤</div>
                         <p style="font-weight: 600; color: #666; margin: 0;">拖曳或點擊上傳</p>
                     </div>
@@ -784,22 +784,22 @@ router.get('/', (req, res) => {
                     </div>
                     <div class="addon-services" id="bodyTypeQuickTags" style="margin-top: 0.5rem;">
                         <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">身材條件</div>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('纖細')">纖細</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('勻稱')">勻稱</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('肉感')">肉感</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('豐滿')">豐滿</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('模特兒')">模特兒</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('長腿')">長腿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;纖細&apos;)">纖細</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;勻稱&apos;)">勻稱</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;肉感&apos;)">肉感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;豐滿&apos;)">豐滿</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;模特兒&apos;)">模特兒</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;長腿&apos;)">長腿</button>
                     </div>
                     <div class="addon-services" id="personalityQuickTags" style="margin-top: 0.5rem;">
                         <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem;">風格特質</div>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('氣質')">氣質</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('鄰家')">鄰家</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('性感')">性感</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('溫柔')">溫柔</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('活潑')">活潑</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('御姐')">御姐</button>
-                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag('學生')">學生</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;氣質&apos;)">氣質</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;鄰家&apos;)">鄰家</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;性感&apos;)">性感</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;溫柔&apos;)">溫柔</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;活潑&apos;)">活潑</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;御姐&apos;)">御姐</button>
+                        <button type="button" class="btn" style="background:#f3f4f6;color:#374151;" onclick="toggleProfileTag(&apos;學生&apos;)">學生</button>
                     </div>
                 </div>
                 <div class="form-group">
