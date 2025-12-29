@@ -2629,17 +2629,27 @@ router.get('/', (req, res) => {
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
     // #endregion
-    // Set proper content type and ensure complete transmission
+    // Set proper content type - DO NOT set Content-Length manually, let Express handle it
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Length', Buffer.byteLength(cleanHtml, 'utf8').toString());
     // #region agent log
-    console.log('[DEBUG] Sending HTML - Content-Length header:', Buffer.byteLength(cleanHtml, 'utf8'));
+    const actualByteLength = Buffer.byteLength(cleanHtml, 'utf8');
+    console.log('[DEBUG] HTML string length:', cleanHtml.length);
+    console.log('[DEBUG] HTML UTF-8 byte length:', actualByteLength);
     console.log('[DEBUG] HTML ends with </html>:', cleanHtml.trimEnd().endsWith('</html>'));
     const scriptTags = (cleanHtml.match(/<script>/g) || []).length;
     const closeScriptTags = (cleanHtml.match(/<\/script>/g) || []).length;
     console.log('[DEBUG] Script tags - open:', scriptTags, 'close:', closeScriptTags);
+    // Check for any unclosed strings in the script content
+    const scriptStart = cleanHtml.indexOf('<script>');
+    const scriptEnd = cleanHtml.indexOf('</script>');
+    if (scriptStart >= 0 && scriptEnd >= 0) {
+      const scriptContent = cleanHtml.substring(scriptStart + 8, scriptEnd);
+      const singleQuotes = (scriptContent.match(/'/g) || []).length;
+      const doubleQuotes = (scriptContent.match(/"/g) || []).length;
+      console.log('[DEBUG] Script content quotes - single:', singleQuotes, 'double:', doubleQuotes);
+    }
     // #endregion
-    // Send HTML using res.send to ensure proper Express handling
+    // Send HTML using res.send - Express will automatically set Content-Length correctly
     res.send(cleanHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
