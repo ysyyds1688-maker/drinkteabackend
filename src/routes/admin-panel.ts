@@ -2629,11 +2629,18 @@ router.get('/', (req, res) => {
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
     // #endregion
-    // Set proper content type
+    // Set proper content type and ensure complete transmission
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    // Send HTML directly to avoid any potential truncation
-    res.write(cleanHtml);
-    res.end();
+    res.setHeader('Content-Length', Buffer.byteLength(cleanHtml, 'utf8').toString());
+    // #region agent log
+    console.log('[DEBUG] Sending HTML - Content-Length header:', Buffer.byteLength(cleanHtml, 'utf8'));
+    console.log('[DEBUG] HTML ends with </html>:', cleanHtml.trimEnd().endsWith('</html>'));
+    const scriptTags = (cleanHtml.match(/<script>/g) || []).length;
+    const closeScriptTags = (cleanHtml.match(/<\/script>/g) || []).length;
+    console.log('[DEBUG] Script tags - open:', scriptTags, 'close:', closeScriptTags);
+    // #endregion
+    // Send HTML using res.send to ensure proper Express handling
+    res.send(cleanHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
