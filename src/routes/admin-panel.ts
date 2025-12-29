@@ -2715,12 +2715,12 @@ router.get('/', (req, res) => {
     // #endregion
     
     // Set headers BEFORE sending to ensure proper content type
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    // CRITICAL: Set Content-Type FIRST to prevent browser from treating HTML as JavaScript
+    res.contentType('text/html; charset=utf-8');
     res.setHeader('Content-Length', contentLength.toString());
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    res.setHeader('X-Content-Length', contentLength.toString()); // Additional header for debugging
     
     // Send HTML - Express will handle encoding
     res.send(finalHtml);
