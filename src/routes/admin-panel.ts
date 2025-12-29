@@ -14,8 +14,7 @@ router.get('/', (req, res) => {
   } catch(e) {}
   // #endregion
   try {
-    const html = `
-<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -2692,7 +2691,18 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] About to send HTML - actual byte length:', Buffer.byteLength(finalHtml, 'utf8'));
     console.log('[DEBUG] First 20 bytes hex:', Buffer.from(finalHtml.substring(0, 20), 'utf8').toString('hex'));
     console.log('[DEBUG] Last 20 bytes hex:', Buffer.from(finalHtml.substring(Math.max(0, finalHtml.length - 20)), 'utf8').toString('hex'));
+    // Check for BOM or invisible characters at the very start
+    const firstChar = finalHtml[0];
+    const firstCharCode = firstChar ? firstChar.charCodeAt(0) : -1;
+    console.log('[DEBUG] First char:', JSON.stringify(firstChar), 'code:', firstCharCode, 'hex:', firstCharCode.toString(16));
+    // Check if HTML starts with BOM (0xFEFF)
+    if (firstCharCode === 0xFEFF) {
+      console.error('[DEBUG] ERROR: HTML starts with BOM (Byte Order Mark)!');
+    }
     // #endregion
+    // Set explicit Content-Type and ensure no compression issues
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.send(finalHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
