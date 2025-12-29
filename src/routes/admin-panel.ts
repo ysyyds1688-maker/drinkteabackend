@@ -2736,19 +2736,24 @@ router.get('/', (req, res) => {
         return res.status(500).send('HTML generation error: Invalid end');
     }
     
-    // CRITICAL: Use res.writeHead() to set headers atomically BEFORE any data is sent
-    // This prevents any middleware or Express from interfering
-    res.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Content-Length': Buffer.byteLength(trimmedHtml, 'utf8').toString(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-Content-Type-Options': 'nosniff'
-    });
+    // CRITICAL: Ensure we're sending HTML, not JavaScript
+    // Remove any existing Content-Type header first
+    if (res.headersSent) {
+        console.error('[ERROR] Headers already sent!');
+        return;
+    }
     
-    // Send HTML directly using res.end() - bypass Express's res.send()
-    res.end(trimmedHtml, 'utf8');
+    // Set headers using res.setHeader() first, then use res.send()
+    // This ensures Express handles the response correctly
+    res.removeHeader('Content-Type');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Use res.send() to let Express handle encoding and Content-Length
+    res.send(trimmedHtml);
     // #region agent log
     console.log('[DEBUG] HTML response sent');
     try {
