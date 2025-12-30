@@ -282,13 +282,30 @@ export const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS subscriptions (
         id VARCHAR(255) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        membership_level VARCHAR(20) NOT NULL CHECK(membership_level IN ('tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant')),
+        membership_level VARCHAR(20) NOT NULL CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant')),
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         expires_at TIMESTAMP,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // 更新 subscriptions 表的 membership_level 約束（如果表已存在）
+    try {
+      await pool.query(`
+        ALTER TABLE subscriptions
+        DROP CONSTRAINT IF EXISTS subscriptions_membership_level_check
+      `);
+      await pool.query(`
+        ALTER TABLE subscriptions
+        ADD CONSTRAINT subscriptions_membership_level_check
+        CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant'))
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists') && !error.message.includes('does not exist')) {
+        console.warn('更新 subscriptions membership_level 約束時出現警告:', error.message);
+      }
+    }
 
     // 創建 subscriptions 表的索引
     await pool.query(`

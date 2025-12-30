@@ -560,11 +560,11 @@ router.get('/', (req, res) => {
                 <div class="value" id="totalUsers">-</div>
             </div>
             <div class="stat-card">
-                <h3>品茶客數</h3>
+                <h3>供茶人數</h3>
                 <div class="value" id="totalProviders">-</div>
             </div>
             <div class="stat-card">
-                <h3>供茶人數</h3>
+                <h3>品茶客數</h3>
                 <div class="value" id="totalClients">-</div>
             </div>
             <div class="stat-card">
@@ -2401,7 +2401,7 @@ router.get('/', (req, res) => {
                 };
                 list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
                     users.map(u => {
-                        const role = u.role === 'provider' ? '👩 品茶客' : u.role === 'client' ? '👤 供茶人' : '👑 管理員';
+                        const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 供茶人' : '👑 管理員';
                         const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
                         const badges = getVerificationBadges(u.verificationBadges);
                         const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
@@ -2460,7 +2460,7 @@ router.get('/', (req, res) => {
                         }).join('') + '</tbody></table>';
                 }
                 
-                const roleText = user.role === 'provider' ? '品茶客' : user.role === 'client' ? '供茶人' : '管理員';
+                const roleText = user.role === 'client' ? '品茶客' : user.role === 'provider' ? '供茶人' : '管理員';
                 const membershipLabels = {
                     'tea_guest': '茶客',
                     'tea_scholar': '入門茶士',
@@ -2509,7 +2509,7 @@ router.get('/', (req, res) => {
                 const rows = users.map(u => [
                     u.email || '',
                     u.phoneNumber || '',
-                    u.role === 'provider' ? '品茶客' : u.role === 'client' ? '供茶人' : '管理員',
+                    u.role === 'client' ? '品茶客' : u.role === 'provider' ? '供茶人' : '管理員',
                     membershipLabels[u.membershipLevel] || u.membershipLevel || '免費會員',
                     u.membershipExpiresAt ? new Date(u.membershipExpiresAt).toLocaleString('zh-TW') : '無',
                     (u.verificationBadges && u.verificationBadges.length > 0) ? u.verificationBadges.join(', ') : '無',
@@ -2564,7 +2564,7 @@ router.get('/', (req, res) => {
                     return;
                 }
                 
-                list.innerHTML = '<table><thead><tr><th>預約ID</th><th>供茶人ID</th><th>品茶客ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                list.innerHTML = '<table><thead><tr><th>預約ID</th><th>品茶客ID</th><th>供茶人ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
                     bookings.map(b => {
                         const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
                         const providerId = b.providerId ? b.providerId.substring(0, 8) + '...' : '-';
