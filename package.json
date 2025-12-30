@@ -11,7 +11,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "sync:frontend": "tsx src/scripts/sync-frontend-data.ts",
     "sync:additional": "tsx src/scripts/sync-from-frontend.ts",
-    "init:users": "tsx src/scripts/initTestUsers.ts"
+    "init:users": "tsx src/scripts/initTestUsers.ts",
+    "assign:article-images": "tsx src/scripts/assign-article-images.ts"
   },
   "keywords": [],
   "author": "",
