@@ -16,6 +16,7 @@ export interface User {
   verificationBadges?: string[];
   emailVerified: boolean;
   phoneVerified: boolean;
+  registeredAt?: string; // 註冊時間（用於成就計算）
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
@@ -74,6 +75,7 @@ export const userModel = {
       verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       emailVerified: Boolean(row.email_verified),
       phoneVerified: Boolean(row.phone_verified),
+      registeredAt: row.registered_at || row.created_at || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
@@ -108,6 +110,7 @@ export const userModel = {
       verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       emailVerified: Boolean(row.email_verified),
       phoneVerified: Boolean(row.phone_verified),
+      registeredAt: row.registered_at || row.created_at || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
@@ -299,6 +302,7 @@ export const userModel = {
       verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       emailVerified: Boolean(row.email_verified),
       phoneVerified: Boolean(row.phone_verified),
+      registeredAt: row.registered_at || row.created_at || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,

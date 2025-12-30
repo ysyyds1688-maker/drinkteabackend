@@ -289,6 +289,23 @@ export const initDatabase = async () => {
       }
     }
 
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      `);
+      // 如果 registered_at 為 NULL，使用 created_at 的值
+      await pool.query(`
+        UPDATE users 
+        SET registered_at = created_at 
+        WHERE registered_at IS NULL
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 registered_at 欄位時出現警告:', error.message);
+      }
+    }
+
     // 數據遷移：將現有的 'subscribed' 用戶遷移為 'bronze'
     try {
       await pool.query(`
@@ -542,10 +559,41 @@ export const initDatabase = async () => {
         posts_count INTEGER DEFAULT 0,
         replies_count INTEGER DEFAULT 0,
         likes_received INTEGER DEFAULT 0,
+        premium_tea_bookings_count INTEGER DEFAULT 0,
+        lady_bookings_count INTEGER DEFAULT 0,
+        repeat_lady_bookings_count INTEGER DEFAULT 0,
+        consecutive_login_days INTEGER DEFAULT 0,
+        last_login_date DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // 添加新字段（如果表已存在）
+    try {
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS premium_tea_bookings_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS lady_bookings_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS repeat_lady_bookings_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS consecutive_login_days INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS last_login_date DATE
+      `);
+    } catch (error: any) {
+      console.warn('添加 user_stats 新字段時出現警告:', error.message);
+    }
 
     // Forum posts table (論壇帖子表)
     await pool.query(`

@@ -138,6 +138,13 @@ router.post('/login', async (req, res) => {
     
     await userModel.updateLastLogin(user.id);
     
+    // 更新連續登入天數
+    try {
+      await userStatsModel.updateLoginStreak(user.id);
+    } catch (error) {
+      console.error('更新連續登入天數失敗:', error);
+    }
+    
     // 更新每日登入任務
     try {
       const taskResult = await tasksModel.updateTaskProgress(user.id, 'daily_login');
@@ -153,6 +160,16 @@ router.post('/login', async (req, res) => {
     } catch (error) {
       // 任務更新失敗不影響登入流程
       console.error('更新每日登入任務失敗:', error);
+    }
+    
+    // 檢查並解鎖忠誠成就（守席之人、老茶客、茶王舊識）
+    try {
+      const unlocked = await achievementModel.checkAndUnlockAchievements(user.id);
+      if (unlocked.length > 0) {
+        console.log(`用戶 ${user.id} 登入時解鎖了 ${unlocked.length} 個成就`);
+      }
+    } catch (error) {
+      console.error('檢查成就失敗:', error);
     }
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）

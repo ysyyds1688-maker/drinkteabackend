@@ -105,7 +105,7 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
       return res.status(401).json({ error: 'Token 无效' });
     }
     
-    const { rating, comment, serviceType, clientName } = req.body;
+    const { rating, comment, serviceType, clientName, category } = req.body;
     
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ error: '评分必须在1-5之间' });
@@ -123,6 +123,36 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
       comment: comment.trim(),
       serviceType: serviceType || undefined,
     });
+    
+    // 根據類別更新統計並檢查成就（嚴選好茶或特選魚市）
+    // 注意：前端需要在請求中傳遞 category 參數（'premium_tea' 或 'lady_booking'）
+    if (category === 'premium_tea' || category === 'lady_booking') {
+      try {
+        const { userStatsModel } = await import('../models/UserStats.js');
+        const { achievementModel } = await import('../models/Achievement.js');
+        
+        if (category === 'premium_tea') {
+          // 嚴選好茶：更新高級茶預約計數
+          await userStatsModel.updateCounts(payload.userId, {
+            premiumTeaBookingsCount: 1,
+          });
+        } else if (category === 'lady_booking') {
+          // 特選魚市：更新個人小姐預約計數
+          await userStatsModel.updateCounts(payload.userId, {
+            ladyBookingsCount: 1,
+          });
+        }
+        
+        // 檢查並解鎖成就
+        const unlocked = await achievementModel.checkAndUnlockAchievements(payload.userId);
+        if (unlocked.length > 0) {
+          console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就`);
+        }
+      } catch (error) {
+        console.error('更新統計或檢查成就失敗:', error);
+        // 不影響評論創建，只記錄錯誤
+      }
+    }
     
     res.status(201).json(review);
   } catch (error: any) {
