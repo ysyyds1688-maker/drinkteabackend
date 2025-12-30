@@ -85,6 +85,11 @@ export const userStatsModel = {
       postsCount: row.posts_count || 0,
       repliesCount: row.replies_count || 0,
       likesReceived: row.likes_received || 0,
+      premiumTeaBookingsCount: row.premium_tea_bookings_count || 0,
+      ladyBookingsCount: row.lady_bookings_count || 0,
+      repeatLadyBookingsCount: row.repeat_lady_bookings_count || 0,
+      consecutiveLoginDays: row.consecutive_login_days || 0,
+      lastLoginDate: row.last_login_date || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
