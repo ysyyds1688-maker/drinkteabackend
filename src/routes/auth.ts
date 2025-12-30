@@ -349,6 +349,7 @@ router.get('/users/:userId', async (req, res) => {
       }),
       badges: badges.map(b => ({
         id: b.id,
+        badgeId: b.badgeId,
         badgeName: b.badgeName,
         badgeIcon: b.badgeIcon,
         unlockedAt: b.unlockedAt,

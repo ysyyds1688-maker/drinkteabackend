@@ -86,11 +86,14 @@ export const forumModel = {
              u.user_name, 
              u.avatar_url, 
              u.membership_level,
-             s.is_active as subscription_active,
-             s.expires_at as subscription_expires_at
+             (SELECT is_active FROM subscriptions 
+              WHERE user_id = u.id AND is_active = true 
+              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
+             (SELECT expires_at FROM subscriptions 
+              WHERE user_id = u.id AND is_active = true 
+              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_expires_at
       FROM forum_posts p
       LEFT JOIN users u ON p.user_id = u.id
-      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -232,11 +235,14 @@ export const forumModel = {
              u.user_name, 
              u.avatar_url, 
              u.membership_level,
-             s.is_active as subscription_active,
-             s.expires_at as subscription_expires_at
+             (SELECT is_active FROM subscriptions 
+              WHERE user_id = u.id AND is_active = true 
+              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
+             (SELECT expires_at FROM subscriptions 
+              WHERE user_id = u.id AND is_active = true 
+              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_expires_at
       FROM forum_replies r
       LEFT JOIN users u ON r.user_id = u.id
-      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE r.post_id = $1
       ORDER BY r.created_at ASC
     `, [postId]);

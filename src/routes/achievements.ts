@@ -29,7 +29,17 @@ router.get('/my', async (req, res) => {
 // 獲取所有成就定義
 router.get('/definitions', async (req, res) => {
   try {
-    res.json({ definitions: ACHIEVEMENT_DEFINITIONS });
+    // 過濾掉 condition 函數，只返回前端需要的欄位
+    const definitions = ACHIEVEMENT_DEFINITIONS.map(def => ({
+      type: def.type,
+      name: def.name,
+      description: def.description,
+      icon: def.icon,
+      category: def.category,
+      pointsReward: def.pointsReward,
+      experienceReward: def.experienceReward,
+    }));
+    res.json({ definitions });
   } catch (error: any) {
     console.error('Get achievement definitions error:', error);
     res.status(500).json({ error: error.message || '獲取成就定義失敗' });
