@@ -30,11 +30,17 @@ router.get('/my', async (req, res) => {
     const isActive = user.membershipLevel !== 'free' && 
       (!user.membershipExpiresAt || new Date(user.membershipExpiresAt) > new Date());
     
+    // 檢查是否有活躍的付費訂閱（VIP狀態）
+    const isVip = activeSubscription !== null && 
+      activeSubscription.isActive && 
+      (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+    
     res.json({
       membershipLevel: user.membershipLevel,
       membershipExpiresAt: user.membershipExpiresAt,
       verificationBadges: user.verificationBadges || [],
       isActive,
+      isVip,
       activeSubscription: activeSubscription || null,
     });
   } catch (error: any) {

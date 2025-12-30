@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { userModel } from '../models/User.js';
+import { subscriptionModel } from '../models/Subscription.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
 
 const router = Router();
@@ -46,6 +47,12 @@ router.post('/register', async (req, res) => {
     
     await userModel.updateLastLogin(user.id);
     
+    // 檢查是否有活躍的付費訂閱（VIP狀態）
+    const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
+    const isVip = activeSubscription !== null && 
+      activeSubscription.isActive && 
+      (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+    
     res.json({
       user: {
         id: user.id,
@@ -58,6 +65,7 @@ router.post('/register', async (req, res) => {
         membershipExpiresAt: user.membershipExpiresAt,
         verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
+        isVip,
       },
       ...tokens,
     });
@@ -102,6 +110,12 @@ router.post('/login', async (req, res) => {
     
     await userModel.updateLastLogin(user.id);
     
+    // 檢查是否有活躍的付費訂閱（VIP狀態）
+    const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
+    const isVip = activeSubscription !== null && 
+      activeSubscription.isActive && 
+      (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+    
     res.json({
       user: {
         id: user.id,
@@ -114,6 +128,7 @@ router.post('/login', async (req, res) => {
         membershipExpiresAt: user.membershipExpiresAt,
         verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
+        isVip,
       },
       ...tokens,
     });
@@ -143,6 +158,12 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: '用户不存在' });
     }
     
+    // 檢查是否有活躍的付費訂閱（VIP狀態）
+    const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
+    const isVip = activeSubscription !== null && 
+      activeSubscription.isActive && 
+      (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+    
     res.json({
       id: user.id,
       email: user.email,
@@ -154,6 +175,7 @@ router.get('/me', async (req, res) => {
       membershipExpiresAt: user.membershipExpiresAt,
       verificationBadges: user.verificationBadges || [],
       nicknameChangedAt: user.nicknameChangedAt,
+      isVip,
     });
   } catch (error: any) {
     console.error('Get me error:', error);
@@ -183,6 +205,12 @@ router.put('/me', async (req, res) => {
       return res.status(404).json({ error: '用户不存在' });
     }
     
+    // 檢查是否有活躍的付費訂閱（VIP狀態）
+    const activeSubscription = await subscriptionModel.getActiveByUserId(updatedUser.id);
+    const isVip = activeSubscription !== null && 
+      activeSubscription.isActive && 
+      (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+    
     res.json({
       id: updatedUser.id,
       email: updatedUser.email,
@@ -193,6 +221,7 @@ router.put('/me', async (req, res) => {
       membershipLevel: updatedUser.membershipLevel,
       membershipExpiresAt: updatedUser.membershipExpiresAt,
       verificationBadges: updatedUser.verificationBadges || [],
+      isVip,
     });
   } catch (error: any) {
     console.error('Update user error:', error);

@@ -18,6 +18,11 @@ import favoritesRouter from './routes/favorites.js';
 import importRouter from './routes/import.js';
 import webhooksRouter from './routes/webhooks.js';
 import schedulerRouter from './routes/scheduler.js';
+import forumRouter from './routes/forum.js';
+import tasksRouter from './routes/tasks.js';
+import userStatsRouter from './routes/user-stats.js';
+import badgesRouter from './routes/badges.js';
+import achievementsRouter from './routes/achievements.js';
 import { schedulerService } from './services/schedulerService.js';
 
 // Load environment variables
@@ -144,6 +149,11 @@ app.use('/api/favorites', favoritesRouter);
 app.use('/api/import', importRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/scheduler', schedulerRouter);
+app.use('/api/forum', forumRouter);
+app.use('/api/tasks', tasksRouter);
+app.use('/api/user-stats', userStatsRouter);
+app.use('/api/badges', badgesRouter);
+app.use('/api/achievements', achievementsRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);

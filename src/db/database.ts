@@ -491,6 +491,143 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_active ON scheduled_tasks(is_active)
     `);
 
+    // User stats table (用戶統計表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_stats (
+        user_id VARCHAR(255) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        total_points INTEGER DEFAULT 0,
+        current_points INTEGER DEFAULT 0,
+        experience_points INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        posts_count INTEGER DEFAULT 0,
+        replies_count INTEGER DEFAULT 0,
+        likes_received INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Forum posts table (論壇帖子表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS forum_posts (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(500) NOT NULL,
+        content TEXT NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        tags TEXT,
+        views INTEGER DEFAULT 0,
+        likes_count INTEGER DEFAULT 0,
+        replies_count INTEGER DEFAULT 0,
+        is_pinned BOOLEAN DEFAULT FALSE,
+        is_locked BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Forum replies table (論壇回覆表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS forum_replies (
+        id VARCHAR(255) PRIMARY KEY,
+        post_id VARCHAR(255) NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        parent_reply_id VARCHAR(255) REFERENCES forum_replies(id),
+        content TEXT NOT NULL,
+        likes_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Forum likes table (論壇點讚表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS forum_likes (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        target_type VARCHAR(20) NOT NULL CHECK(target_type IN ('post', 'reply')),
+        target_id VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, target_type, target_id)
+      )
+    `);
+
+    // Daily tasks table (每日任務表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS daily_tasks (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        task_type VARCHAR(50) NOT NULL,
+        task_date DATE NOT NULL,
+        is_completed BOOLEAN DEFAULT FALSE,
+        progress INTEGER DEFAULT 0,
+        target INTEGER NOT NULL,
+        points_earned INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, task_type, task_date)
+      )
+    `);
+
+    // Achievements table (成就表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS achievements (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        achievement_type VARCHAR(50) NOT NULL,
+        achievement_name VARCHAR(255) NOT NULL,
+        points_earned INTEGER DEFAULT 0,
+        experience_earned INTEGER DEFAULT 0,
+        unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, achievement_type)
+      )
+    `);
+
+    // Badges table (勳章表 - 用戶擁有的勳章)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_badges (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        badge_id VARCHAR(255) NOT NULL,
+        badge_name VARCHAR(255) NOT NULL,
+        badge_icon VARCHAR(100),
+        points_cost INTEGER NOT NULL,
+        unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, badge_id)
+      )
+    `);
+
+    // Create indexes for forum and gamification tables
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_posts_user ON forum_posts(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_posts_category ON forum_posts(category)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_posts_created ON forum_posts(created_at DESC)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_replies_post ON forum_replies(post_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_replies_user ON forum_replies(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_likes_target ON forum_likes(target_type, target_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_daily_tasks_user_date ON daily_tasks(user_id, task_date)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_badges_user ON user_badges(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id)
+    `);
+
     console.log('✅ Database initialized successfully');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
