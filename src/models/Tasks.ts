@@ -23,14 +23,16 @@ export interface TaskDefinition {
 }
 
 // 任務定義
+// 設計原則：經驗值比積分更容易獲得（經驗是積分的 1.5 倍）
+// 積分用於兌換勳章，經驗值用於升級會員等級
 export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
   daily_login: {
     type: 'daily_login',
     name: '每日登入',
     description: '登入網站',
     target: 1,
-    pointsReward: 10,
-    experienceReward: 5,
+    pointsReward: 10,        // 積分：較難獲得
+    experienceReward: 15,    // 經驗：較容易獲得（積分的 1.5 倍）
     category: 'daily',
   },
   create_post: {
@@ -38,8 +40,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '發表帖子',
     description: '在論壇發表 1 篇帖子',
     target: 1,
-    pointsReward: 20,
-    experienceReward: 10,
+    pointsReward: 20,        // 積分：較難獲得
+    experienceReward: 30,    // 經驗：較容易獲得（積分的 1.5 倍）
     category: 'daily',
   },
   reply_post: {
@@ -47,8 +49,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '回覆帖子',
     description: '在論壇回覆 3 篇帖子',
     target: 3,
-    pointsReward: 30,
-    experienceReward: 15,
+    pointsReward: 30,        // 積分：較難獲得
+    experienceReward: 45,    // 經驗：較容易獲得（積分的 1.5 倍）
     category: 'daily',
   },
   like_content: {
@@ -56,8 +58,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '互動任務',
     description: '點讚 5 個帖子/回覆',
     target: 5,
-    pointsReward: 25,
-    experienceReward: 12,
+    pointsReward: 25,        // 積分：較難獲得
+    experienceReward: 37,    // 經驗：較容易獲得（積分的 1.5 倍，四捨五入）
     category: 'daily',
   },
   browse_profiles: {
@@ -65,8 +67,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '瀏覽任務',
     description: '瀏覽 10 個個人資料',
     target: 10,
-    pointsReward: 20,
-    experienceReward: 10,
+    pointsReward: 20,        // 積分：較難獲得
+    experienceReward: 30,    // 經驗：較容易獲得（積分的 1.5 倍）
     category: 'daily',
   },
 };
