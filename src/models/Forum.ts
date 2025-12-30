@@ -16,6 +16,8 @@ export interface ForumPost {
   updatedAt: string;
   userName?: string;
   avatarUrl?: string;
+  membershipLevel?: string;
+  isVip?: boolean;
 }
 
 export interface ForumReply {
@@ -29,6 +31,8 @@ export interface ForumReply {
   updatedAt: string;
   userName?: string;
   avatarUrl?: string;
+  membershipLevel?: string;
+  isVip?: boolean;
   replies?: ForumReply[];
 }
 
@@ -78,9 +82,15 @@ export const forumModel = {
     offset?: number;
   } = {}): Promise<ForumPost[]> => {
     let sql = `
-      SELECT p.*, u.user_name, u.avatar_url
+      SELECT p.*, 
+             u.user_name, 
+             u.avatar_url, 
+             u.membership_level,
+             s.is_active as subscription_active,
+             s.expires_at as subscription_expires_at
       FROM forum_posts p
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -116,23 +126,30 @@ export const forumModel = {
     }
     
     const result = await query(sql, params);
-    return result.rows.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      title: row.title,
-      content: row.content,
-      category: row.category,
-      tags: row.tags ? JSON.parse(row.tags) : undefined,
-      views: row.views || 0,
-      likesCount: row.likes_count || 0,
-      repliesCount: row.replies_count || 0,
-      isPinned: Boolean(row.is_pinned),
-      isLocked: Boolean(row.is_locked),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-    }));
+    return result.rows.map(row => {
+      const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+      const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+      
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        content: row.content,
+        category: row.category,
+        tags: row.tags ? JSON.parse(row.tags) : undefined,
+        views: row.views || 0,
+        likesCount: row.likes_count || 0,
+        repliesCount: row.replies_count || 0,
+        isPinned: Boolean(row.is_pinned),
+        isLocked: Boolean(row.is_locked),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        userName: row.user_name || undefined,
+        avatarUrl: row.avatar_url || undefined,
+        membershipLevel: row.membership_level || 'tea_guest',
+        isVip: Boolean(isVip),
+      };
+    });
   },
 
   // 獲取單個帖子
@@ -141,15 +158,24 @@ export const forumModel = {
     await query('UPDATE forum_posts SET views = views + 1 WHERE id = $1', [id]);
     
     const result = await query(`
-      SELECT p.*, u.user_name, u.avatar_url
+      SELECT p.*, 
+             u.user_name, 
+             u.avatar_url, 
+             u.membership_level,
+             s.is_active as subscription_active,
+             s.expires_at as subscription_expires_at
       FROM forum_posts p
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE p.id = $1
     `, [id]);
     
     if (result.rows.length === 0) return null;
     
     const row = result.rows[0];
+    const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+    const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+    
     return {
       id: row.id,
       userId: row.user_id,
@@ -166,6 +192,8 @@ export const forumModel = {
       updatedAt: row.updated_at,
       userName: row.user_name || undefined,
       avatarUrl: row.avatar_url || undefined,
+      membershipLevel: row.membership_level || 'tea_guest',
+      isVip: Boolean(isVip),
     };
   },
 
@@ -200,26 +228,39 @@ export const forumModel = {
   // 獲取回覆列表
   getRepliesByPostId: async (postId: string): Promise<ForumReply[]> => {
     const result = await query(`
-      SELECT r.*, u.user_name, u.avatar_url
+      SELECT r.*, 
+             u.user_name, 
+             u.avatar_url, 
+             u.membership_level,
+             s.is_active as subscription_active,
+             s.expires_at as subscription_expires_at
       FROM forum_replies r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE r.post_id = $1
       ORDER BY r.created_at ASC
     `, [postId]);
     
-    const replies = result.rows.map(row => ({
-      id: row.id,
-      postId: row.post_id,
-      userId: row.user_id,
-      parentReplyId: row.parent_reply_id || undefined,
-      content: row.content,
-      likesCount: row.likes_count || 0,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-      replies: [] as ForumReply[],
-    }));
+    const replies = result.rows.map(row => {
+      const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+      const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+      
+      return {
+        id: row.id,
+        postId: row.post_id,
+        userId: row.user_id,
+        parentReplyId: row.parent_reply_id || undefined,
+        content: row.content,
+        likesCount: row.likes_count || 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        userName: row.user_name || undefined,
+        avatarUrl: row.avatar_url || undefined,
+        membershipLevel: row.membership_level || 'tea_guest',
+        isVip: Boolean(isVip),
+        replies: [] as ForumReply[],
+      };
+    });
     
     // 構建嵌套結構
     const replyMap = new Map<string, ForumReply>();
@@ -247,15 +288,24 @@ export const forumModel = {
   // 獲取單個回覆
   getReplyById: async (id: string): Promise<ForumReply | null> => {
     const result = await query(`
-      SELECT r.*, u.user_name, u.avatar_url
+      SELECT r.*, 
+             u.user_name, 
+             u.avatar_url, 
+             u.membership_level,
+             s.is_active as subscription_active,
+             s.expires_at as subscription_expires_at
       FROM forum_replies r
       LEFT JOIN users u ON r.user_id = u.id
+      LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE r.id = $1
     `, [id]);
     
     if (result.rows.length === 0) return null;
     
     const row = result.rows[0];
+    const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+    const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+    
     return {
       id: row.id,
       postId: row.post_id,
@@ -267,6 +317,8 @@ export const forumModel = {
       updatedAt: row.updated_at,
       userName: row.user_name || undefined,
       avatarUrl: row.avatar_url || undefined,
+      membershipLevel: row.membership_level || 'tea_guest',
+      isVip: Boolean(isVip),
     };
   },
 

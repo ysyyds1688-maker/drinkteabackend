@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { userModel } from '../models/User.js';
 import { subscriptionModel } from '../models/Subscription.js';
+import { userStatsModel } from '../models/UserStats.js';
+import { achievementModel } from '../models/Achievement.js';
+import { badgeModel } from '../models/Badge.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
 
 const router = Router();
@@ -232,6 +235,66 @@ router.put('/me', async (req, res) => {
 // 登出（客户端删除token即可，这里可以记录日志）
 router.post('/logout', async (req, res) => {
   res.json({ message: '登出成功' });
+});
+
+// 獲取用戶詳情（公開，用於查看其他用戶資料）
+router.get('/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // 獲取用戶基本信息
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 檢查是否有活躍的付費訂閱（VIP狀態）
+    const activeSubscription = await subscriptionModel.getActiveByUserId(userId);
+    const isVip = activeSubscription !== null && 
+      activeSubscription.isActive && 
+      (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+    
+    // 獲取用戶統計
+    const stats = await userStatsModel.getOrCreate(userId);
+    
+    // 獲取成就
+    const achievements = await achievementModel.getUserAchievements(userId);
+    
+    // 獲取勳章
+    const badges = await badgeModel.getUserBadges(userId);
+    
+    res.json({
+      id: user.id,
+      userName: user.userName,
+      avatarUrl: user.avatarUrl,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      membershipLevel: user.membershipLevel,
+      isVip,
+      currentPoints: stats.currentPoints,
+      experiencePoints: stats.experiencePoints,
+      postsCount: stats.postsCount,
+      repliesCount: stats.repliesCount,
+      likesReceived: stats.likesReceived,
+      achievements: achievements.map(a => ({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        icon: a.icon,
+        unlockedAt: a.unlockedAt,
+      })),
+      badges: badges.map(b => ({
+        id: b.id,
+        badgeName: b.badgeName,
+        badgeIcon: b.badgeIcon,
+        unlockedAt: b.unlockedAt,
+      })),
+    });
+  } catch (error: any) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ error: error.message || '獲取用戶資料失敗' });
+  }
 });
 
 export default router;
