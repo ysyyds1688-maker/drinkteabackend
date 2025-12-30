@@ -16,20 +16,29 @@ export interface UserStats {
 
 // 等級對應經驗值門檻
 const LEVEL_THRESHOLDS: Record<MembershipLevel, number> = {
-  free: 0,
-  bronze: 100,
-  silver: 500,
-  gold: 2000,
-  diamond: 10000,
+  tea_guest: 0,
+  tea_scholar: 100,
+  royal_tea_scholar: 500,
+  royal_tea_officer: 2000,
+  tea_king_attendant: 10000,
+};
+
+// 等級中文名稱映射
+export const LEVEL_NAMES: Record<MembershipLevel, string> = {
+  tea_guest: '茶客',
+  tea_scholar: '入門茶士',
+  royal_tea_scholar: '御前茶士',
+  royal_tea_officer: '御用茶官',
+  tea_king_attendant: '茶王近侍',
 };
 
 // 根據經驗值獲取等級
 export const getLevelFromExperience = (experience: number): MembershipLevel => {
-  if (experience >= LEVEL_THRESHOLDS.diamond) return 'diamond';
-  if (experience >= LEVEL_THRESHOLDS.gold) return 'gold';
-  if (experience >= LEVEL_THRESHOLDS.silver) return 'silver';
-  if (experience >= LEVEL_THRESHOLDS.bronze) return 'bronze';
-  return 'free';
+  if (experience >= LEVEL_THRESHOLDS.tea_king_attendant) return 'tea_king_attendant';
+  if (experience >= LEVEL_THRESHOLDS.royal_tea_officer) return 'royal_tea_officer';
+  if (experience >= LEVEL_THRESHOLDS.royal_tea_scholar) return 'royal_tea_scholar';
+  if (experience >= LEVEL_THRESHOLDS.tea_scholar) return 'tea_scholar';
+  return 'tea_guest';
 };
 
 export const userStatsModel = {

@@ -189,7 +189,7 @@ export const initDatabase = async () => {
         avatar_url TEXT,
         nickname_changed_at TIMESTAMP,
         role VARCHAR(20) DEFAULT 'client' CHECK(role IN ('provider', 'client', 'admin')),
-        membership_level VARCHAR(20) DEFAULT 'free' CHECK(membership_level IN ('free', 'bronze', 'silver', 'gold', 'diamond')),
+        membership_level VARCHAR(20) DEFAULT 'tea_guest' CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant')),
         membership_expires_at TIMESTAMP,
         verification_badges TEXT,
         email_verified BOOLEAN DEFAULT FALSE,
@@ -246,7 +246,7 @@ export const initDatabase = async () => {
       await pool.query(`
         ALTER TABLE users 
         ADD CONSTRAINT users_membership_level_check 
-        CHECK(membership_level IN ('free', 'bronze', 'silver', 'gold', 'diamond'))
+        CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant'))
       `);
     } catch (error: any) {
       if (!error.message.includes('already exists') && !error.message.includes('does not exist')) {
@@ -282,7 +282,7 @@ export const initDatabase = async () => {
       CREATE TABLE IF NOT EXISTS subscriptions (
         id VARCHAR(255) PRIMARY KEY,
         user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        membership_level VARCHAR(20) NOT NULL CHECK(membership_level IN ('bronze', 'silver', 'gold', 'diamond')),
+        membership_level VARCHAR(20) NOT NULL CHECK(membership_level IN ('tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant')),
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         expires_at TIMESTAMP,
         is_active BOOLEAN DEFAULT TRUE,

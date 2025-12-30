@@ -30,28 +30,28 @@ router.get('/me', async (req, res) => {
     
     // 計算下一級所需經驗值
     const levelThresholds = {
-      free: 0,
-      bronze: 100,
-      silver: 500,
-      gold: 2000,
-      diamond: 10000,
+      tea_guest: 0,
+      tea_scholar: 100,
+      royal_tea_scholar: 500,
+      royal_tea_officer: 2000,
+      tea_king_attendant: 10000,
     };
     
     let nextLevel: string | null = null;
     let experienceNeeded = 0;
     
-    if (currentLevel === 'free') {
-      nextLevel = 'bronze';
-      experienceNeeded = levelThresholds.bronze - stats.experiencePoints;
-    } else if (currentLevel === 'bronze') {
-      nextLevel = 'silver';
-      experienceNeeded = levelThresholds.silver - stats.experiencePoints;
-    } else if (currentLevel === 'silver') {
-      nextLevel = 'gold';
-      experienceNeeded = levelThresholds.gold - stats.experiencePoints;
-    } else if (currentLevel === 'gold') {
-      nextLevel = 'diamond';
-      experienceNeeded = levelThresholds.diamond - stats.experiencePoints;
+    if (currentLevel === 'tea_guest') {
+      nextLevel = 'tea_scholar';
+      experienceNeeded = levelThresholds.tea_scholar - stats.experiencePoints;
+    } else if (currentLevel === 'tea_scholar') {
+      nextLevel = 'royal_tea_scholar';
+      experienceNeeded = levelThresholds.royal_tea_scholar - stats.experiencePoints;
+    } else if (currentLevel === 'royal_tea_scholar') {
+      nextLevel = 'royal_tea_officer';
+      experienceNeeded = levelThresholds.royal_tea_officer - stats.experiencePoints;
+    } else if (currentLevel === 'royal_tea_officer') {
+      nextLevel = 'tea_king_attendant';
+      experienceNeeded = levelThresholds.tea_king_attendant - stats.experiencePoints;
     }
     
     const currentThreshold = levelThresholds[currentLevel];

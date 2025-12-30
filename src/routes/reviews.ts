@@ -25,7 +25,7 @@ const getUserStatus = async (req: any): Promise<'guest' | 'logged_in' | 'subscri
   }
   
   // 检查订阅状态（非免费会员且未过期）
-  if (user.membershipLevel !== 'free') {
+  if (user.membershipLevel !== 'tea_guest') {
     // 检查是否过期
     if (user.membershipExpiresAt) {
       const expiresAt = new Date(user.membershipExpiresAt);

@@ -1,7 +1,7 @@
 import { query } from '../db/database.js';
 import bcrypt from 'bcrypt';
 
-export type MembershipLevel = 'free' | 'bronze' | 'silver' | 'gold' | 'diamond';
+export type MembershipLevel = 'tea_guest' | 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant';
 
 export interface User {
   id: string;
@@ -160,16 +160,16 @@ export const userModel = {
   },
 
   // 獲取會員等級權益
-  getMembershipBenefits: (level: MembershipLevel) => {
-    const benefits: Record<MembershipLevel, string[]> = {
-      free: ['基本功能'],
-      bronze: ['基本功能', '解鎖部分內容', '優先客服'],
-      silver: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤'],
-      gold: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章'],
-      diamond: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務'],
-    };
-    return benefits[level] || benefits.free;
-  },
+    getMembershipBenefits: (level: MembershipLevel) => {
+      const benefits: Record<MembershipLevel, string[]> = {
+        tea_guest: ['基本功能'],
+        tea_scholar: ['基本功能', '解鎖部分內容', '優先客服'],
+        royal_tea_scholar: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤'],
+        royal_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章'],
+        tea_king_attendant: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務'],
+      };
+      return benefits[level] || benefits.tea_guest;
+    },
 
   // 更新驗證勳章
   updateVerificationBadge: async (userId: string, badge: string, add: boolean = true): Promise<void> => {

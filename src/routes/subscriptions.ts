@@ -27,7 +27,7 @@ router.get('/my', async (req, res) => {
     }
     
     const activeSubscription = await subscriptionModel.getActiveByUserId(payload.userId);
-    const isActive = user.membershipLevel !== 'free' && 
+    const isActive = user.membershipLevel !== 'tea_guest' && 
       (!user.membershipExpiresAt || new Date(user.membershipExpiresAt) > new Date());
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）
@@ -65,9 +65,9 @@ router.post('/subscribe', async (req, res) => {
       return res.status(401).json({ error: 'Token 無效' });
     }
     
-    const { membershipLevel, duration } = req.body; // membershipLevel: 'bronze' | 'silver' | 'gold' | 'diamond', duration in days
+    const { membershipLevel, duration } = req.body; // membershipLevel: 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant', duration in days
     
-    if (!membershipLevel || !['bronze', 'silver', 'gold', 'diamond'].includes(membershipLevel)) {
+    if (!membershipLevel || !['tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant'].includes(membershipLevel)) {
       return res.status(400).json({ error: '無效的會員等級' });
     }
     
@@ -147,8 +147,8 @@ router.post('/cancel', async (req, res) => {
     
     await subscriptionModel.cancel(activeSubscription.id);
     
-    // 將用戶等級降為免費會員
-    await userModel.updateMembership(payload.userId, 'free');
+    // 將用戶等級降為茶客
+    await userModel.updateMembership(payload.userId, 'tea_guest');
     
     res.json({
       message: '訂閱已取消',
@@ -162,7 +162,7 @@ router.post('/cancel', async (req, res) => {
 // 獲取等級權益列表
 router.get('/benefits', async (req, res) => {
   try {
-    const levels: MembershipLevel[] = ['free', 'bronze', 'silver', 'gold', 'diamond'];
+    const levels: MembershipLevel[] = ['tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant'];
     const benefits = levels.map(level => ({
       level,
       benefits: userModel.getMembershipBenefits(level),
