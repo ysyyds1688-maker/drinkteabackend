@@ -1,7 +1,7 @@
 import { query } from '../db/database.js';
 import bcrypt from 'bcrypt';
 
-export type MembershipLevel = 'tea_guest' | 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant';
+export type MembershipLevel = 'tea_guest' | 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant' | 'imperial_chief_tea_officer' | 'tea_king_confidant' | 'tea_king_personal_selection' | 'imperial_golden_seal_tea_officer' | 'national_master_tea_officer';
 
 export interface User {
   id: string;
@@ -167,6 +167,11 @@ export const userModel = {
         royal_tea_scholar: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤'],
         royal_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章'],
         tea_king_attendant: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務'],
+        imperial_chief_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問'],
+        tea_king_confidant: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約'],
+        tea_king_personal_selection: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約', '茶王親選', '獨家內容'],
+        imperial_golden_seal_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約', '茶王親選', '獨家內容', '金印特權', '尊貴服務'],
+        national_master_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約', '茶王親選', '獨家內容', '金印特權', '尊貴服務', '國師級特權', '至尊服務', '無限權限'],
       };
       return benefits[level] || benefits.tea_guest;
     },

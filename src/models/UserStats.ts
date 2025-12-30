@@ -21,6 +21,11 @@ const LEVEL_THRESHOLDS: Record<MembershipLevel, number> = {
   royal_tea_scholar: 500,
   royal_tea_officer: 2000,
   tea_king_attendant: 10000,
+  imperial_chief_tea_officer: 50000,
+  tea_king_confidant: 100000,
+  tea_king_personal_selection: 200000,
+  imperial_golden_seal_tea_officer: 500000,
+  national_master_tea_officer: 1000000,
 };
 
 // 等級中文名稱映射
@@ -30,10 +35,20 @@ export const LEVEL_NAMES: Record<MembershipLevel, string> = {
   royal_tea_scholar: '御前茶士',
   royal_tea_officer: '御用茶官',
   tea_king_attendant: '茶王近侍',
+  imperial_chief_tea_officer: '御前總茶官',
+  tea_king_confidant: '茶王心腹',
+  tea_king_personal_selection: '茶王親選',
+  imperial_golden_seal_tea_officer: '御賜金印茶官',
+  national_master_tea_officer: '國師級茶官',
 };
 
 // 根據經驗值獲取等級
 export const getLevelFromExperience = (experience: number): MembershipLevel => {
+  if (experience >= LEVEL_THRESHOLDS.national_master_tea_officer) return 'national_master_tea_officer';
+  if (experience >= LEVEL_THRESHOLDS.imperial_golden_seal_tea_officer) return 'imperial_golden_seal_tea_officer';
+  if (experience >= LEVEL_THRESHOLDS.tea_king_personal_selection) return 'tea_king_personal_selection';
+  if (experience >= LEVEL_THRESHOLDS.tea_king_confidant) return 'tea_king_confidant';
+  if (experience >= LEVEL_THRESHOLDS.imperial_chief_tea_officer) return 'imperial_chief_tea_officer';
   if (experience >= LEVEL_THRESHOLDS.tea_king_attendant) return 'tea_king_attendant';
   if (experience >= LEVEL_THRESHOLDS.royal_tea_officer) return 'royal_tea_officer';
   if (experience >= LEVEL_THRESHOLDS.royal_tea_scholar) return 'royal_tea_scholar';

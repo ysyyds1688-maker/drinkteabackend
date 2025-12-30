@@ -2387,7 +2387,12 @@ router.get('/', (req, res) => {
                         'tea_scholar': '🥉 入門茶士',
                         'royal_tea_scholar': '🥈 御前茶士',
                         'royal_tea_officer': '🥇 御用茶官',
-                        'tea_king_attendant': '💎 茶王近侍'
+                        'tea_king_attendant': '💎 茶王近侍',
+                        'imperial_chief_tea_officer': '👑 御前總茶官',
+                        'tea_king_confidant': '🤝 茶王心腹',
+                        'tea_king_personal_selection': '⭐ 茶王親選',
+                        'imperial_golden_seal_tea_officer': '🏆 御賜金印茶官',
+                        'national_master_tea_officer': '🌟 國師級茶官'
                     };
                     return labels[level] || level;
                 };
@@ -2466,7 +2471,12 @@ router.get('/', (req, res) => {
                     'tea_scholar': '入門茶士',
                     'royal_tea_scholar': '御前茶士',
                     'royal_tea_officer': '御用茶官',
-                    'tea_king_attendant': '茶王近侍'
+                    'tea_king_attendant': '茶王近侍',
+                    'imperial_chief_tea_officer': '御前總茶官',
+                    'tea_king_confidant': '茶王心腹',
+                    'tea_king_personal_selection': '茶王親選',
+                    'imperial_golden_seal_tea_officer': '御賜金印茶官',
+                    'national_master_tea_officer': '國師級茶官'
                 };
                 const membershipText = membershipLabels[user.membershipLevel] || user.membershipLevel || '茶客';
                 const badgesText = user.verificationBadges && user.verificationBadges.length > 0 
@@ -2503,7 +2513,12 @@ router.get('/', (req, res) => {
                     'tea_scholar': '入門茶士',
                     'royal_tea_scholar': '御前茶士',
                     'royal_tea_officer': '御用茶官',
-                    'tea_king_attendant': '茶王近侍'
+                    'tea_king_attendant': '茶王近侍',
+                    'imperial_chief_tea_officer': '御前總茶官',
+                    'tea_king_confidant': '茶王心腹',
+                    'tea_king_personal_selection': '茶王親選',
+                    'imperial_golden_seal_tea_officer': '御賜金印茶官',
+                    'national_master_tea_officer': '國師級茶官'
                 };
                 const headers = ['Email', '手機號', '身份', '會員等級', '會員到期', '驗證勳章', '註冊時間', '最後登入'];
                 const rows = users.map(u => [

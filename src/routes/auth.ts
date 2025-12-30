@@ -4,6 +4,7 @@ import { subscriptionModel } from '../models/Subscription.js';
 import { userStatsModel } from '../models/UserStats.js';
 import { achievementModel, ACHIEVEMENT_DEFINITIONS } from '../models/Achievement.js';
 import { badgeModel } from '../models/Badge.js';
+import { tasksModel } from '../models/Tasks.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
 
 const router = Router();
@@ -49,6 +50,22 @@ router.post('/register', async (req, res) => {
     });
     
     await userModel.updateLastLogin(user.id);
+    
+    // 更新每日登入任務（註冊時也視為登入）
+    try {
+      const taskResult = await tasksModel.updateTaskProgress(user.id, 'daily_login');
+      if (taskResult.completed && taskResult.pointsEarned > 0) {
+        // 任務完成，添加積分和經驗值
+        await userStatsModel.addPoints(
+          user.id,
+          taskResult.pointsEarned,
+          taskResult.experienceEarned
+        );
+        console.log(`用戶 ${user.id} 完成每日登入任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+      }
+    } catch (error) {
+      console.error('更新每日登入任務失敗:', error);
+    }
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）
     const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
@@ -112,6 +129,23 @@ router.post('/login', async (req, res) => {
     });
     
     await userModel.updateLastLogin(user.id);
+    
+    // 更新每日登入任務
+    try {
+      const taskResult = await tasksModel.updateTaskProgress(user.id, 'daily_login');
+      if (taskResult.completed && taskResult.pointsEarned > 0) {
+        // 任務完成，添加積分和經驗值
+        await userStatsModel.addPoints(
+          user.id,
+          taskResult.pointsEarned,
+          taskResult.experienceEarned
+        );
+        console.log(`用戶 ${user.id} 完成每日登入任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+      }
+    } catch (error) {
+      // 任務更新失敗不影響登入流程
+      console.error('更新每日登入任務失敗:', error);
+    }
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）
     const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);

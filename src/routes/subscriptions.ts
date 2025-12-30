@@ -67,7 +67,7 @@ router.post('/subscribe', async (req, res) => {
     
     const { membershipLevel, duration } = req.body; // membershipLevel: 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant', duration in days
     
-    if (!membershipLevel || !['tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant'].includes(membershipLevel)) {
+    if (!membershipLevel || !['tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer'].includes(membershipLevel)) {
       return res.status(400).json({ error: '無效的會員等級' });
     }
     
@@ -162,7 +162,7 @@ router.post('/cancel', async (req, res) => {
 // 獲取等級權益列表
 router.get('/benefits', async (req, res) => {
   try {
-    const levels: MembershipLevel[] = ['tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant'];
+    const levels: MembershipLevel[] = ['tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer'];
     const benefits = levels.map(level => ({
       level,
       benefits: userModel.getMembershipBenefits(level),
