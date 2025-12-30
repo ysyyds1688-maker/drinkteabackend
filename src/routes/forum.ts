@@ -202,6 +202,10 @@ router.post('/likes', async (req, res) => {
     // 更新任務進度（如果是點讚）
     if (liked) {
       await tasksModel.updateTaskProgress(payload.userId, 'like_content');
+      
+      // 如果是點讚帖子或回覆，需要更新被點讚者的統計
+      // 注意：這裡需要獲取帖子或回覆的作者ID來更新統計
+      // 暫時跳過，因為Forum模型可能需要擴展以返回作者ID
     }
     
     res.json({ liked });
