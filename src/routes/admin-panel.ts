@@ -505,7 +505,7 @@ router.get('/', (req, res) => {
     </style>
 </head>
 <body>
-    <!-- 登录覆盖层 -->
+    <!-- 登入覆蓋層 -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-box">
             <h2>🔐 後台管理系統登入</h2>
@@ -1692,7 +1692,7 @@ router.get('/', (req, res) => {
                 for (const pattern of codePatterns) {
                     const matches = url.match(pattern);
                     if (matches && matches.length > 0) {
-                        // 选择最长的匹配（通常是完整的番号）
+                        // 選擇最長的匹配（通常是完整的番號）
                         const bestMatch = matches.reduce((a, b) => a.length > b.length ? a : b);
                         if (bestMatch.length >= 5) { // 至少5个字符才认为是番号
                             const dash = String.fromCharCode(45);
@@ -1709,7 +1709,7 @@ router.get('/', (req, res) => {
                 const pathParts = pathname.split('/').filter(p => p);
                 if (pathParts.length > 0) {
                     const lastPart = pathParts[pathParts.length - 1];
-                    // 如果最后一部分包含番号，尝试提取标题部分
+                    // 如果最後一部分包含番號，嘗試提取標題部分
                     if (result.code && lastPart.includes(result.code.toLowerCase())) {
                         const codeLower = result.code.toLowerCase();
                         // 转义正则表达式特殊字符（使用字符串拼接避免插值问题）
@@ -1803,7 +1803,7 @@ router.get('/', (req, res) => {
                             }
                         }
                     } catch (apiError) {
-                        // API 失敗不影響基本解析
+                        // API 失敗不影響基本解析（已經是繁體）
                         console.warn('API 解析失敗:', apiError);
                     }
                 }

@@ -124,7 +124,7 @@ export const userModel = {
     return await bcrypt.compare(password, result.rows[0].password);
   },
 
-  // 更新最后登录时间
+  // 更新最後登入時間
   updateLastLogin: async (userId: string): Promise<void> => {
     await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
   },
@@ -177,7 +177,7 @@ export const userModel = {
           oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
           
           if (lastChangeDate > oneMonthAgo) {
-            throw new Error('昵称1个月内只能修改一次，请稍后再试');
+            throw new Error('暱稱1個月內只能修改一次，請稍後再試');
           }
         }
         // 更新昵称修改时间

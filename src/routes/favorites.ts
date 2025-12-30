@@ -18,12 +18,12 @@ const getUserFromRequest = async (req: any) => {
   return payload;
 };
 
-// 添加收藏
+// 添加收藏（已經是繁體）
 router.post('/', async (req, res) => {
   try {
     const payload = await getUserFromRequest(req);
     if (!payload) {
-      return res.status(401).json({ error: '请先登录' });
+      return res.status(401).json({ error: '請先登入' });
     }
     
     const { profileId } = req.body;
@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(favorite);
   } catch (error: any) {
     console.error('Add favorite error:', error);
-    res.status(500).json({ error: error.message || '添加收藏失败' });
+    res.status(500).json({ error: error.message || '添加收藏失敗' });
   }
 });
 
@@ -44,7 +44,7 @@ router.delete('/:profileId', async (req, res) => {
   try {
     const payload = await getUserFromRequest(req);
     if (!payload) {
-      return res.status(401).json({ error: '请先登录' });
+      return res.status(401).json({ error: '請先登入' });
     }
     
     const { profileId } = req.params;
@@ -57,7 +57,7 @@ router.delete('/:profileId', async (req, res) => {
     res.json({ message: '取消收藏成功' });
   } catch (error: any) {
     console.error('Delete favorite error:', error);
-    res.status(500).json({ error: error.message || '取消收藏失败' });
+    res.status(500).json({ error: error.message || '取消收藏失敗' });
   }
 });
 
@@ -74,7 +74,7 @@ router.get('/check/:profileId', async (req, res) => {
     res.json({ isFavorited });
   } catch (error: any) {
     console.error('Check favorite error:', error);
-    res.status(500).json({ error: error.message || '检查收藏失败' });
+    res.status(500).json({ error: error.message || '檢查收藏失敗' });
   }
 });
 
@@ -83,7 +83,7 @@ router.get('/my', async (req, res) => {
   try {
     const payload = await getUserFromRequest(req);
     if (!payload) {
-      return res.status(401).json({ error: '请先登录' });
+      return res.status(401).json({ error: '請先登入' });
     }
     
     const favorites = await favoriteModel.getByUserId(payload.userId);

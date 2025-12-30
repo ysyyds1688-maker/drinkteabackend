@@ -4,7 +4,7 @@ import { generateTokens, verifyToken } from '../services/authService.js';
 
 const router = Router();
 
-// 注册
+// 註冊
 router.post('/register', async (req, res) => {
   try {
     const { email, phoneNumber, password, userName, role, age } = req.body;
@@ -19,13 +19,13 @@ router.post('/register', async (req, res) => {
     
     // 年龄验证：必须年满18周岁
     if (!age || age < 18) {
-      return res.status(400).json({ error: '未满18周岁禁止注册' });
+      return res.status(400).json({ error: '未滿18周歲禁止註冊' });
     }
     
     // 检查用户是否已存在
     const existing = await userModel.findByEmailOrPhone(email, phoneNumber);
     if (existing) {
-      return res.status(400).json({ error: '该 Email 或手机号已被注册' });
+      return res.status(400).json({ error: '該 Email 或手機號已被註冊' });
     }
     
     // 创建用户
@@ -61,11 +61,11 @@ router.post('/register', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Register error:', error);
-    res.status(500).json({ error: error.message || '注册失败' });
+    res.status(500).json({ error: error.message || '註冊失敗' });
   }
 });
 
-// 登录
+// 登入
 router.post('/login', async (req, res) => {
   try {
     const { email, phoneNumber, password } = req.body;
@@ -116,7 +116,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ error: error.message || '登录失败' });
+    res.status(500).json({ error: error.message || '登入失敗' });
   }
 });
 
@@ -125,7 +125,7 @@ router.get('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: '未授权' });
+      return res.status(401).json({ error: '未授權' });
     }
     
     const token = authHeader.substring(7);
@@ -162,7 +162,7 @@ router.put('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: '未授权' });
+      return res.status(401).json({ error: '未授權' });
     }
     
     const token = authHeader.substring(7);
