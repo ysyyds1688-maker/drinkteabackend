@@ -1,10 +1,10 @@
+// 必须在导入其他模块之前加载环境变量
 import dotenv from 'dotenv';
+dotenv.config();
+
 import { initDatabase } from '../db/database.js';
 import { articleModel } from '../models/Article.js';
 import * as fs from 'fs';
-
-// 加载环境变量
-dotenv.config();
 
 // 图片文件列表（从指定文件夹）
 const IMAGE_FOLDER = '/Users/user/Downloads/drinkstea-main/frontend/public/images/茶訊公告';
