@@ -24,8 +24,8 @@ const getUserStatus = async (req: any): Promise<'guest' | 'logged_in' | 'subscri
     return 'guest';
   }
   
-  // 检查订阅状态
-  if (user.membershipLevel === 'subscribed') {
+  // 检查订阅状态（非免费会员且未过期）
+  if (user.membershipLevel !== 'free') {
     // 检查是否过期
     if (user.membershipExpiresAt) {
       const expiresAt = new Date(user.membershipExpiresAt);
@@ -33,6 +33,7 @@ const getUserStatus = async (req: any): Promise<'guest' | 'logged_in' | 'subscri
         return 'subscribed';
       }
     } else {
+      // 如果没有到期时间，视为永久订阅
       return 'subscribed';
     }
   }
