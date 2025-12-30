@@ -13,6 +13,7 @@ backend/
 │   │   ├── Profile.ts           # 個人資料模型
 │   │   ├── Article.ts           # 文章模型
 │   │   ├── User.ts              # 用戶模型
+│   │   ├── Subscription.ts     # 訂閱模型
 │   │   ├── Review.ts            # 評論模型
 │   │   └── Booking.ts           # 預約模型
 │   ├── routes/                   # API 路由
@@ -49,7 +50,9 @@ backend/
 - ✅ 用戶註冊/登入（Email 或手機號）
 - ✅ JWT Token 認證
 - ✅ 角色管理（Provider、Client、Admin）
-- ✅ 會員訂閱系統
+- ✅ **多級會員系統**（免費、銅牌、銀牌、金牌、鑽石）
+- ✅ **驗證勳章系統**（郵箱驗證、手機驗證）
+- ✅ 訂閱管理（訂閱、取消、歷史記錄、權益查詢）
 
 ### 評論系統
 - ✅ 5星評分系統
@@ -67,7 +70,7 @@ backend/
 - ✅ 可視化後台管理介面
 - ✅ Profile 管理（上架/編輯/下架）
 - ✅ Article 管理（發布/編輯/刪除）
-- ✅ 用戶管理（查看所有用戶資料和預約狀況）
+- ✅ 用戶管理（查看所有用戶資料、會員等級、驗證勳章和預約狀況）
 - ✅ 預約管理（查看和管理所有預約）
 - ✅ 統計資訊儀表板
 
@@ -106,7 +109,8 @@ FRONTEND_URL=http://localhost:5173
 資料庫會在首次啟動時自動初始化，包括：
 - Profiles 表
 - Articles 表
-- Users 表
+- Users 表（包含會員等級和驗證勳章）
+- Subscriptions 表（訂閱記錄）
 - Reviews 表
 - Review Replies 表
 - Review Likes 表
@@ -189,8 +193,29 @@ POST /api/auth/login
 ### 訂閱 API
 
 #### 訂閱管理
-- `GET /api/subscriptions/my` - 取得當前用戶的訂閱狀態（需要 Token）
-- `POST /api/subscriptions/subscribe` - 訂閱會員（需要 Token）
+- `GET /api/subscriptions/my` - 取得當前用戶的訂閱狀態（包含等級和勳章，需要 Token）
+- `POST /api/subscriptions/subscribe` - 訂閱會員（支持選擇等級，需要 Token）
+- `GET /api/subscriptions/history` - 取得訂閱歷史記錄（需要 Token）
+- `POST /api/subscriptions/cancel` - 取消訂閱（需要 Token）
+- `GET /api/subscriptions/benefits` - 取得會員等級權益列表
+
+**請求範例：**
+```json
+// 訂閱
+POST /api/subscriptions/subscribe
+{
+  "membershipLevel": "bronze",  // bronze, silver, gold, diamond
+  "duration": 30  // 天數，預設 30 天
+}
+
+// 響應
+{
+  "message": "訂閱成功",
+  "membershipLevel": "bronze",
+  "membershipExpiresAt": "2024-02-01T00:00:00.000Z",
+  "subscription": { ... }
+}
+```
 
 ### 預約 API
 
@@ -224,8 +249,8 @@ POST /api/auth/login
 - `POST /api/admin/articles/batch` - **批量操作** ⭐
 
 #### 用戶管理
-- `GET /api/admin/users` - 取得所有用戶（僅 Admin）
-- `GET /api/admin/users/:userId` - 取得用戶詳情（包含預約記錄）
+- `GET /api/admin/users` - 取得所有用戶（包含會員等級和驗證勳章，僅 Admin）
+- `GET /api/admin/users/:userId` - 取得用戶詳情（包含預約記錄、會員等級、驗證勳章）
 
 ### Health Check
 - `GET /health` - 檢查伺服器狀態
@@ -246,7 +271,7 @@ POST /api/auth/login
 - ✅ 編輯文章
 - ✅ 批量操作
 - ✅ 統計資訊儀表板
-- ✅ **用戶管理**（查看所有註冊用戶）
+- ✅ **用戶管理**（查看所有註冊用戶、會員等級、驗證勳章）
 - ✅ **預約管理**（查看和管理所有預約）
 
 ### 訪問方式
@@ -289,6 +314,70 @@ npm start
 1. 添加 PostgreSQL 服務
 2. 設定 `DATABASE_URL` 環境變數
 3. 確保資料庫持久化（Zeabur 會自動處理）
+
+## 🎖️ 會員等級與驗證勳章系統
+
+### 會員等級系統
+
+系統支持 5 個會員等級：
+
+1. **免費會員（free）**
+   - 基本功能
+   - 預設等級
+
+2. **銅牌會員（bronze）**
+   - 基本功能
+   - 解鎖部分內容
+   - 優先客服
+
+3. **銀牌會員（silver）**
+   - 基本功能
+   - 解鎖部分內容
+   - 優先客服
+   - 更多內容
+   - 專屬標籤
+
+4. **金牌會員（gold）**
+   - 基本功能
+   - 解鎖部分內容
+   - 優先客服
+   - 更多內容
+   - 專屬標籤
+   - 全部內容
+   - 專屬徽章
+
+5. **鑽石會員（diamond）**
+   - 基本功能
+   - 解鎖部分內容
+   - 優先客服
+   - 更多內容
+   - 專屬標籤
+   - 全部內容
+   - 專屬徽章
+   - 最高權限
+   - 專屬服務
+
+### 驗證勳章系統
+
+系統支持以下驗證勳章：
+
+- **email_verified** - 郵箱驗證勳章
+- **phone_verified** - 手機驗證勳章
+
+驗證勳章存儲在 `users.verification_badges` 欄位中（JSON 格式）。
+
+### 訂閱記錄
+
+每次訂閱都會在 `subscriptions` 表中創建記錄，包含：
+- 用戶 ID
+- 會員等級
+- 開始時間
+- 到期時間
+- 是否活躍
+
+### 數據遷移
+
+系統會自動將現有的 `subscribed` 用戶遷移到 `bronze` 等級，確保數據一致性。
 
 ## 🔐 安全說明
 

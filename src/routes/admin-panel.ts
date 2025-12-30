@@ -2381,10 +2381,29 @@ router.get('/', (req, res) => {
                 }
                 const users = await res.json();
                 const list = document.getElementById('users-list');
-                list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>訂閱狀態</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
+                const getMembershipLabel = (level) => {
+                    const labels = {
+                        'free': '免費會員',
+                        'bronze': '🥉 銅牌會員',
+                        'silver': '🥈 銀牌會員',
+                        'gold': '🥇 金牌會員',
+                        'diamond': '💎 鑽石會員'
+                    };
+                    return labels[level] || level;
+                };
+                const getVerificationBadges = (badges) => {
+                    if (!badges || badges.length === 0) return '';
+                    const badgeIcons = {
+                        'email_verified': '✉️',
+                        'phone_verified': '📱'
+                    };
+                    return badges.map(b => badgeIcons[b] || '').join(' ');
+                };
+                list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
                     users.map(u => {
                         const role = u.role === 'provider' ? '👩 小姐' : u.role === 'client' ? '👤 客戶' : '👑 管理員';
-                        const membership = u.membershipLevel === 'subscribed' ? '✅ 已訂閱' : '❌ 未訂閱';
+                        const membership = getMembershipLabel(u.membershipLevel || 'free');
+                        const badges = getVerificationBadges(u.verificationBadges);
                         const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
                         const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
                         return '<tr>' +
@@ -2392,6 +2411,7 @@ router.get('/', (req, res) => {
                             '<td>' + (u.phoneNumber || '-') + '</td>' +
                             '<td>' + role + '</td>' +
                             '<td>' + membership + '</td>' +
+                            '<td>' + (badges || '-') + '</td>' +
                             '<td>' + createdAt + '</td>' +
                             '<td>' + lastLogin + '</td>' +
                             '<td>' +
@@ -2441,9 +2461,20 @@ router.get('/', (req, res) => {
                 }
                 
                 const roleText = user.role === 'provider' ? '小姐' : user.role === 'client' ? '客戶' : '管理員';
-                const membershipText = user.membershipLevel === 'subscribed' ? '已訂閱' : '未訂閱';
+                const membershipLabels = {
+                    'free': '免費會員',
+                    'bronze': '銅牌會員',
+                    'silver': '銀牌會員',
+                    'gold': '金牌會員',
+                    'diamond': '鑽石會員'
+                };
+                const membershipText = membershipLabels[user.membershipLevel] || user.membershipLevel || '免費會員';
+                const badgesText = user.verificationBadges && user.verificationBadges.length > 0 
+                    ? user.verificationBadges.join(', ') 
+                    : '無';
                 const createdAtText = new Date(user.createdAt).toLocaleString('zh-TW');
-                alert('用戶詳情：\\n\\nID: ' + user.id + '\\nEmail: ' + (user.email || '-') + '\\n手機號: ' + (user.phoneNumber || '-') + '\\n身份: ' + roleText + '\\n訂閱狀態: ' + membershipText + '\\n註冊時間: ' + createdAtText + '\\n\\n預約記錄：' + bookings.length + ' 筆');
+                const expiresAtText = user.membershipExpiresAt ? new Date(user.membershipExpiresAt).toLocaleString('zh-TW') : '無';
+                alert('用戶詳情：\\n\\nID: ' + user.id + '\\nEmail: ' + (user.email || '-') + '\\n手機號: ' + (user.phoneNumber || '-') + '\\n身份: ' + roleText + '\\n會員等級: ' + membershipText + '\\n會員到期: ' + expiresAtText + '\\n驗證勳章: ' + badgesText + '\\n註冊時間: ' + createdAtText + '\\n\\n預約記錄：' + bookings.length + ' 筆');
             } catch (error) {
                 console.error('載入用戶詳情失敗:', error);
                 alert('載入用戶詳情失敗: ' + error.message);
@@ -2467,12 +2498,21 @@ router.get('/', (req, res) => {
                 const users = await res.json();
                 
                 // 轉換為 CSV 格式
-                const headers = ['Email', '手機號', '身份', '訂閱狀態', '註冊時間', '最後登入'];
+                const membershipLabels = {
+                    'free': '免費會員',
+                    'bronze': '銅牌會員',
+                    'silver': '銀牌會員',
+                    'gold': '金牌會員',
+                    'diamond': '鑽石會員'
+                };
+                const headers = ['Email', '手機號', '身份', '會員等級', '會員到期', '驗證勳章', '註冊時間', '最後登入'];
                 const rows = users.map(u => [
                     u.email || '',
                     u.phoneNumber || '',
                     u.role === 'provider' ? '小姐' : u.role === 'client' ? '客戶' : '管理員',
-                    u.membershipLevel === 'subscribed' ? '已訂閱' : '未訂閱',
+                    membershipLabels[u.membershipLevel] || u.membershipLevel || '免費會員',
+                    u.membershipExpiresAt ? new Date(u.membershipExpiresAt).toLocaleString('zh-TW') : '無',
+                    (u.verificationBadges && u.verificationBadges.length > 0) ? u.verificationBadges.join(', ') : '無',
                     new Date(u.createdAt).toLocaleString('zh-TW'),
                     u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : ''
                 ]);

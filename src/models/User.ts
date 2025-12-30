@@ -1,6 +1,8 @@
 import { query } from '../db/database.js';
 import bcrypt from 'bcrypt';
 
+export type MembershipLevel = 'free' | 'bronze' | 'silver' | 'gold' | 'diamond';
+
 export interface User {
   id: string;
   email?: string;
@@ -9,14 +11,15 @@ export interface User {
   userName?: string;
   avatarUrl?: string;
   role: 'provider' | 'client' | 'admin';
-  membershipLevel: 'free' | 'subscribed';
+  membershipLevel: MembershipLevel;
   membershipExpiresAt?: string;
+  verificationBadges?: string[];
   emailVerified: boolean;
   phoneVerified: boolean;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
-  nicknameChangedAt?: string; // 昵称最后修改时间
+  nicknameChangedAt?: string; // 暱稱最後修改時間
 }
 
 export interface CreateUserData {
@@ -50,6 +53,14 @@ export const userModel = {
     if (result.rows.length === 0) return null;
     
     const row = result.rows[0];
+    let verificationBadges: string[] = [];
+    if (row.verification_badges) {
+      try {
+        verificationBadges = JSON.parse(row.verification_badges);
+      } catch (e) {
+        verificationBadges = [];
+      }
+    }
     return {
       id: row.id,
       email: row.email || undefined,
@@ -58,8 +69,9 @@ export const userModel = {
       userName: row.user_name || undefined,
       avatarUrl: row.avatar_url || undefined,
       role: row.role,
-      membershipLevel: row.membership_level,
+      membershipLevel: row.membership_level as MembershipLevel,
       membershipExpiresAt: row.membership_expires_at || undefined,
+      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       emailVerified: Boolean(row.email_verified),
       phoneVerified: Boolean(row.phone_verified),
       createdAt: row.created_at,
@@ -75,6 +87,14 @@ export const userModel = {
     if (result.rows.length === 0) return null;
     
     const row = result.rows[0];
+    let verificationBadges: string[] = [];
+    if (row.verification_badges) {
+      try {
+        verificationBadges = JSON.parse(row.verification_badges);
+      } catch (e) {
+        verificationBadges = [];
+      }
+    }
     return {
       id: row.id,
       email: row.email || undefined,
@@ -83,8 +103,9 @@ export const userModel = {
       userName: row.user_name || undefined,
       avatarUrl: row.avatar_url || undefined,
       role: row.role,
-      membershipLevel: row.membership_level,
+      membershipLevel: row.membership_level as MembershipLevel,
       membershipExpiresAt: row.membership_expires_at || undefined,
+      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       emailVerified: Boolean(row.email_verified),
       phoneVerified: Boolean(row.phone_verified),
       createdAt: row.created_at,
@@ -129,8 +150,8 @@ export const userModel = {
     await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
   },
 
-  // 更新订阅状态
-  updateMembership: async (userId: string, level: 'free' | 'subscribed', expiresAt?: Date): Promise<void> => {
+  // 更新訂閱狀態
+  updateMembership: async (userId: string, level: MembershipLevel, expiresAt?: Date): Promise<void> => {
     await query(`
       UPDATE users 
       SET membership_level = $1, membership_expires_at = $2, updated_at = CURRENT_TIMESTAMP
@@ -138,25 +159,70 @@ export const userModel = {
     `, [level, expiresAt || null, userId]);
   },
 
+  // 獲取會員等級權益
+  getMembershipBenefits: (level: MembershipLevel) => {
+    const benefits: Record<MembershipLevel, string[]> = {
+      free: ['基本功能'],
+      bronze: ['基本功能', '解鎖部分內容', '優先客服'],
+      silver: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤'],
+      gold: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章'],
+      diamond: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務'],
+    };
+    return benefits[level] || benefits.free;
+  },
+
+  // 更新驗證勳章
+  updateVerificationBadge: async (userId: string, badge: string, add: boolean = true): Promise<void> => {
+    const user = await userModel.findById(userId);
+    if (!user) throw new Error('用戶不存在');
+
+    let badges = user.verificationBadges || [];
+    if (add) {
+      if (!badges.includes(badge)) {
+        badges.push(badge);
+      }
+    } else {
+      badges = badges.filter(b => b !== badge);
+    }
+
+    await query(`
+      UPDATE users 
+      SET verification_badges = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [JSON.stringify(badges), userId]);
+  },
+
   // 获取所有用户（管理员）
   getAll: async (): Promise<User[]> => {
     const result = await query('SELECT * FROM users ORDER BY created_at DESC');
-    return result.rows.map(row => ({
-      id: row.id,
-      email: row.email || undefined,
-      phoneNumber: row.phone_number || undefined,
-      password: row.password,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-      role: row.role,
-      membershipLevel: row.membership_level,
-      membershipExpiresAt: row.membership_expires_at || undefined,
-      emailVerified: Boolean(row.email_verified),
-      phoneVerified: Boolean(row.phone_verified),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      lastLoginAt: row.last_login_at || undefined,
-    }));
+      return result.rows.map(row => {
+      let verificationBadges: string[] = [];
+      if (row.verification_badges) {
+        try {
+          verificationBadges = JSON.parse(row.verification_badges);
+        } catch (e) {
+          verificationBadges = [];
+        }
+      }
+      return {
+        id: row.id,
+        email: row.email || undefined,
+        phoneNumber: row.phone_number || undefined,
+        password: row.password,
+        userName: row.user_name || undefined,
+        avatarUrl: row.avatar_url || undefined,
+        role: row.role,
+        membershipLevel: row.membership_level as MembershipLevel,
+        membershipExpiresAt: row.membership_expires_at || undefined,
+        verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
+        emailVerified: Boolean(row.email_verified),
+        phoneVerified: Boolean(row.phone_verified),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        lastLoginAt: row.last_login_at || undefined,
+        nicknameChangedAt: row.nickname_changed_at || undefined,
+      };
+    });
   },
 
   // 更新用户信息
@@ -207,6 +273,14 @@ export const userModel = {
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
+    let verificationBadges: string[] = [];
+    if (row.verification_badges) {
+      try {
+        verificationBadges = JSON.parse(row.verification_badges);
+      } catch (e) {
+        verificationBadges = [];
+      }
+    }
     return {
       id: row.id,
       email: row.email || undefined,
@@ -215,8 +289,9 @@ export const userModel = {
       userName: row.user_name || undefined,
       avatarUrl: row.avatar_url || undefined,
       role: row.role,
-      membershipLevel: row.membership_level,
+      membershipLevel: row.membership_level as MembershipLevel,
       membershipExpiresAt: row.membership_expires_at || undefined,
+      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       emailVerified: Boolean(row.email_verified),
       phoneVerified: Boolean(row.phone_verified),
       createdAt: row.created_at,

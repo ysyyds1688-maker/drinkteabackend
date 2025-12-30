@@ -189,8 +189,9 @@ export const initDatabase = async () => {
         avatar_url TEXT,
         nickname_changed_at TIMESTAMP,
         role VARCHAR(20) DEFAULT 'client' CHECK(role IN ('provider', 'client', 'admin')),
-        membership_level VARCHAR(20) DEFAULT 'free' CHECK(membership_level IN ('free', 'subscribed')),
+        membership_level VARCHAR(20) DEFAULT 'free' CHECK(membership_level IN ('free', 'bronze', 'silver', 'gold', 'diamond')),
         membership_expires_at TIMESTAMP,
+        verification_badges TEXT,
         email_verified BOOLEAN DEFAULT FALSE,
         phone_verified BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -233,6 +234,69 @@ export const initDatabase = async () => {
         console.warn('添加 nickname_changed_at 欄位時出現警告:', error.message);
       }
     }
+
+    // 擴展 membership_level 支持多級會員（如果表已存在）
+    try {
+      // 先移除舊的 CHECK 約束（如果存在）
+      await pool.query(`
+        ALTER TABLE users 
+        DROP CONSTRAINT IF EXISTS users_membership_level_check
+      `);
+      // 添加新的 CHECK 約束支持 5 個等級
+      await pool.query(`
+        ALTER TABLE users 
+        ADD CONSTRAINT users_membership_level_check 
+        CHECK(membership_level IN ('free', 'bronze', 'silver', 'gold', 'diamond'))
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists') && !error.message.includes('does not exist')) {
+        console.warn('更新 membership_level 約束時出現警告:', error.message);
+      }
+    }
+
+    // 添加 verification_badges 欄位
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS verification_badges TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 verification_badges 欄位時出現警告:', error.message);
+      }
+    }
+
+    // 數據遷移：將現有的 'subscribed' 用戶遷移為 'bronze'
+    try {
+      await pool.query(`
+        UPDATE users 
+        SET membership_level = 'bronze' 
+        WHERE membership_level = 'subscribed'
+      `);
+    } catch (error: any) {
+      console.warn('遷移 subscribed 用戶時出現警告:', error.message);
+    }
+
+    // Subscriptions table (訂閱記錄表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        membership_level VARCHAR(20) NOT NULL CHECK(membership_level IN ('bronze', 'silver', 'gold', 'diamond')),
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 創建 subscriptions 表的索引
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_active ON subscriptions(is_active, expires_at)
+    `);
 
     // Reviews table
     await pool.query(`

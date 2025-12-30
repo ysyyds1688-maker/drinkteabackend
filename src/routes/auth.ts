@@ -55,6 +55,8 @@ router.post('/register', async (req, res) => {
         avatarUrl: user.avatarUrl,
         role: user.role,
         membershipLevel: user.membershipLevel,
+        membershipExpiresAt: user.membershipExpiresAt,
+        verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
       },
       ...tokens,
@@ -110,6 +112,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         membershipLevel: user.membershipLevel,
         membershipExpiresAt: user.membershipExpiresAt,
+        verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
       },
       ...tokens,
@@ -149,6 +152,7 @@ router.get('/me', async (req, res) => {
       role: user.role,
       membershipLevel: user.membershipLevel,
       membershipExpiresAt: user.membershipExpiresAt,
+      verificationBadges: user.verificationBadges || [],
       nicknameChangedAt: user.nicknameChangedAt,
     });
   } catch (error: any) {
@@ -188,6 +192,7 @@ router.put('/me', async (req, res) => {
       role: updatedUser.role,
       membershipLevel: updatedUser.membershipLevel,
       membershipExpiresAt: updatedUser.membershipExpiresAt,
+      verificationBadges: updatedUser.verificationBadges || [],
     });
   } catch (error: any) {
     console.error('Update user error:', error);
