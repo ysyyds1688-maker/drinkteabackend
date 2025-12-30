@@ -2,10 +2,21 @@ import { Pool, QueryResult } from 'pg';
 
 // 從環境變數獲取資料庫連接資訊
 const getDatabaseConfig = () => {
+  const baseConfig: any = {
+    // 連接池配置 - 優化以支持高並發
+    max: parseInt(process.env.DB_POOL_MAX || '100', 10), // 最大連接數：支持1000+並發用戶
+    min: parseInt(process.env.DB_POOL_MIN || '10', 10), // 最小連接數：保持基本連接
+    idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '30000', 10), // 空閒連接超時：30秒
+    connectionTimeoutMillis: parseInt(process.env.DB_POOL_CONNECTION_TIMEOUT || '10000', 10), // 連接超時：10秒
+    // 允許連接池在需要時創建新連接
+    allowExitOnIdle: false,
+  };
+
   // 優先使用 DATABASE_URL（PostgreSQL 連接字串）
   if (process.env.DATABASE_URL) {
     return {
       connectionString: process.env.DATABASE_URL,
+      ...baseConfig,
     };
   }
 
@@ -18,6 +29,7 @@ const getDatabaseConfig = () => {
       password: process.env.PGPASSWORD,
       database: process.env.PGDATABASE,
       ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false,
+      ...baseConfig,
     };
   }
 
@@ -27,6 +39,17 @@ const getDatabaseConfig = () => {
 
 // 創建 PostgreSQL 連接池
 const pool = new Pool(getDatabaseConfig());
+
+// 連接池監控（用於調試和優化）
+if (process.env.NODE_ENV === 'development') {
+  setInterval(() => {
+    console.log('📊 連接池狀態:', {
+      totalCount: pool.totalCount,
+      idleCount: pool.idleCount,
+      waitingCount: pool.waitingCount,
+    });
+  }, 30000); // 每30秒記錄一次
+}
 
 // 連接池錯誤處理
 pool.on('error', (err) => {
@@ -652,16 +675,19 @@ export const initDatabase = async () => {
   }
 };
 
-// 導出查詢函數
+// 導出查詢函數（優化以支持高並發）
 export const query = async (text: string, params?: any[]): Promise<QueryResult> => {
   const start = Date.now();
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
+    // 只在開發環境或查詢時間超過1秒時記錄（減少日誌開銷）
+    if (process.env.NODE_ENV === 'development' || duration > 1000) {
+      console.log('Executed query', { text: text.substring(0, 100), duration, rows: res.rowCount });
+    }
     return res;
   } catch (error) {
-    console.error('Query error', { text, error });
+    console.error('Query error', { text: text.substring(0, 100), error });
     throw error;
   }
 };

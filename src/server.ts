@@ -47,6 +47,18 @@ app.use(
 
 // 明確處理 OPTIONS 請求（確保預檢請求通過）
 app.options('*', cors());
+
+// 請求超時配置（支持高並發）
+const REQUEST_TIMEOUT = parseInt(process.env.REQUEST_TIMEOUT || '30000', 10); // 30秒超時
+app.use((req, res, next) => {
+  req.setTimeout(REQUEST_TIMEOUT, () => {
+    if (!res.headersSent) {
+      res.status(408).json({ error: '請求超時' });
+    }
+  });
+  next();
+});
+
 // 增加請求體大小限制以支援圖片上傳（base64 編碼）
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
