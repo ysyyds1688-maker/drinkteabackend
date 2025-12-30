@@ -305,5 +305,16 @@ export const userModel = {
       nicknameChangedAt: row.nickname_changed_at || undefined,
     };
   },
+
+  // 更新邮箱验证状态
+  updateEmailVerified: async (id: string, verified: boolean): Promise<User | null> => {
+    await query(`
+      UPDATE users
+      SET email_verified = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [verified, id]);
+    
+    return userModel.findById(id);
+  },
 };
 

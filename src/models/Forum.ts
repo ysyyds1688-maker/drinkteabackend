@@ -323,7 +323,7 @@ export const forumModel = {
   },
 
   // 切換點讚
-  toggleLike: async (userId: string, targetType: 'post' | 'reply', targetId: string): Promise<boolean> => {
+  toggleLike: async (userId: string, targetType: 'post' | 'reply', targetId: string): Promise<{ liked: boolean; authorId?: string }> => {
     // 檢查是否已點讚
     const checkResult = await query(`
       SELECT id FROM forum_likes 
@@ -346,8 +346,16 @@ export const forumModel = {
         WHERE id = $1
       `, [targetId]);
       
-      return false;
+      return { liked: false };
     } else {
+      // 獲取被點讚者的ID
+      const authorResult = await query(`
+        SELECT user_id FROM ${targetType === 'post' ? 'forum_posts' : 'forum_replies'}
+        WHERE id = $1
+      `, [targetId]);
+      
+      const authorId = authorResult.rows.length > 0 ? authorResult.rows[0].user_id : undefined;
+      
       // 添加點讚
       const { v4: uuidv4 } = await import('uuid');
       const id = `like_${Date.now()}_${uuidv4().substring(0, 9)}`;
@@ -366,7 +374,7 @@ export const forumModel = {
         WHERE id = $1
       `, [targetId]);
       
-      return true;
+      return { liked: true, authorId };
     }
   },
 

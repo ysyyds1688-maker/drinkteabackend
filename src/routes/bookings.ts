@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { bookingModel } from '../models/Booking.js';
 import { verifyToken } from '../services/authService.js';
 import { userModel } from '../models/User.js';
+import { userStatsModel } from '../models/UserStats.js';
 
 const router = Router();
 
@@ -119,10 +120,31 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ error: '无效的状态' });
     }
     
+    const existingBooking = await bookingModel.getById(id);
+    if (!existingBooking) {
+      return res.status(404).json({ error: '預約不存在' });
+    }
+    
     const booking = await bookingModel.updateStatus(id, status, user.id, user.role);
     
     if (!booking) {
-      return res.status(403).json({ error: '无权修改此预约' });
+      return res.status(403).json({ error: '無权修改此預約' });
+    }
+    
+    // 如果預約狀態變為 'completed'，給完成預約的用戶經驗值獎勵（+25經驗值/次）
+    if (status === 'completed' && existingBooking.status !== 'completed') {
+      try {
+        // 給客戶經驗值（如果是客戶完成的預約）
+        if (user.role === 'client' && booking.clientId === user.id) {
+          await userStatsModel.addPoints(booking.clientId, 0, 25); // 只給經驗值，不給積分
+        }
+        // 給供茶人經驗值（如果是供茶人完成的預約）
+        if (user.role === 'provider' && booking.providerId === user.id) {
+          await userStatsModel.addPoints(booking.providerId, 0, 25); // 只給經驗值，不給積分
+        }
+      } catch (error) {
+        console.error('給完成預約者經驗值失敗:', error);
+      }
     }
     
     res.json(booking);

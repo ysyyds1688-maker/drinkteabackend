@@ -149,14 +149,25 @@ router.post('/posts/:postId/replies', async (req, res) => {
     await userStatsModel.updateCounts(payload.userId, { repliesCount: 1 });
     const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'reply_post');
     
-    // 如果任務完成，添加積分和經驗值
+    // 發表評論直接給經驗值獎勵（+8經驗值/次）
     let pointsResult = null;
+    try {
+      pointsResult = await userStatsModel.addPoints(payload.userId, 0, 8); // 只給經驗值，不給積分
+    } catch (error) {
+      console.error('給評論者經驗值失敗:', error);
+    }
+    
+    // 如果任務完成，添加任務積分和經驗值
     if (taskResult.completed) {
-      pointsResult = await userStatsModel.addPoints(
+      const taskPointsResult = await userStatsModel.addPoints(
         payload.userId,
         taskResult.pointsEarned,
         taskResult.experienceEarned
       );
+      // 如果任務完成導致升級，使用任務的升級結果
+      if (taskPointsResult.levelUp) {
+        pointsResult = taskPointsResult;
+      }
     }
     
     // 檢查並解鎖成就
@@ -197,18 +208,24 @@ router.post('/likes', async (req, res) => {
       return res.status(400).json({ error: '無效的參數' });
     }
     
-    const liked = await forumModel.toggleLike(payload.userId, targetType, targetId);
+    const likeResult = await forumModel.toggleLike(payload.userId, targetType, targetId);
     
     // 更新任務進度（如果是點讚）
-    if (liked) {
+    if (likeResult.liked) {
       await tasksModel.updateTaskProgress(payload.userId, 'like_content');
       
-      // 如果是點讚帖子或回覆，需要更新被點讚者的統計
-      // 注意：這裡需要獲取帖子或回覆的作者ID來更新統計
-      // 暫時跳過，因為Forum模型可能需要擴展以返回作者ID
+      // 給被點讚者經驗值獎勵（+2經驗值/次）
+      if (likeResult.authorId && likeResult.authorId !== payload.userId) {
+        try {
+          await userStatsModel.addPoints(likeResult.authorId, 0, 2); // 只給經驗值，不給積分
+          await userStatsModel.updateCounts(likeResult.authorId, { likesReceived: 1 });
+        } catch (error) {
+          console.error('給被點讚者經驗值失敗:', error);
+        }
+      }
     }
     
-    res.json({ liked });
+    res.json({ liked: likeResult.liked });
   } catch (error: any) {
     console.error('Toggle like error:', error);
     res.status(500).json({ error: error.message || '操作失敗' });

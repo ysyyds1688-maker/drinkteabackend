@@ -2,6 +2,9 @@ import { Router } from 'express';
 import { profileModel } from '../models/Profile.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile } from '../types.js';
+import { verifyToken } from '../services/authService.js';
+import { tasksModel } from '../models/Tasks.js';
+import { userStatsModel } from '../models/UserStats.js';
 
 const router = Router();
 
@@ -22,6 +25,31 @@ router.get('/:id', async (req, res) => {
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
+    
+    // 如果用户已登录，更新浏览任务进度（浏览个人资料）
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload && payload.userId) {
+          // 更新浏览任务进度
+          const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'browse_profiles');
+          // 如果任务完成，添加积分和经验值
+          if (taskResult.completed) {
+            await userStatsModel.addPoints(
+              payload.userId,
+              taskResult.pointsEarned,
+              taskResult.experienceEarned
+            );
+          }
+        }
+      } catch (error) {
+        // 忽略验证错误，不影响返回profile
+        console.error('更新浏览任务失败:', error);
+      }
+    }
+    
     res.json(profile);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

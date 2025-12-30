@@ -9,6 +9,14 @@ import { generateTokens, verifyToken } from '../services/authService.js';
 
 const router = Router();
 
+// 存储邮箱验证码（生产环境应使用 Redis）
+const emailVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
+
+// 生成6位数字验证码
+const generateVerificationCode = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
 // 註冊
 router.post('/register', async (req, res) => {
   try {
@@ -332,6 +340,138 @@ router.get('/users/:userId', async (req, res) => {
   } catch (error: any) {
     console.error('Get user profile error:', error);
     res.status(500).json({ error: error.message || '獲取用戶資料失敗' });
+  }
+});
+
+// 發送郵箱驗證碼
+router.post('/send-verification-email', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const user = await userModel.findById(payload.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    if (!user.email) {
+      return res.status(400).json({ error: '用戶未綁定郵箱' });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({ error: '郵箱已驗證' });
+    }
+    
+    // 生成驗證碼
+    const code = generateVerificationCode();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10分鐘後過期
+    
+    // 存儲驗證碼
+    emailVerificationCodes.set(user.id, { code, expiresAt });
+    
+    // TODO: 這裡應該發送真實的郵件，目前先返回驗證碼（開發環境）
+    // 生產環境應該移除這個返回，只返回成功消息
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[開發環境] 用戶 ${user.email} 的驗證碼: ${code}`);
+    }
+    
+    // TODO: 發送郵件
+    // await sendEmail(user.email, '郵箱驗證', `您的驗證碼是: ${code}，有效期10分鐘`);
+    
+    res.json({ 
+      message: '驗證碼已發送',
+      // 開發環境返回驗證碼，生產環境不返回
+      ...(process.env.NODE_ENV === 'development' ? { code } : {})
+    });
+  } catch (error: any) {
+    console.error('Send verification email error:', error);
+    res.status(500).json({ error: error.message || '發送驗證碼失敗' });
+  }
+});
+
+// 驗證郵箱
+router.post('/verify-email', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: '請提供驗證碼' });
+    }
+    
+    const user = await userModel.findById(payload.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    if (user.emailVerified) {
+      return res.status(400).json({ error: '郵箱已驗證' });
+    }
+    
+    // 檢查驗證碼
+    const verificationData = emailVerificationCodes.get(user.id);
+    if (!verificationData) {
+      return res.status(400).json({ error: '驗證碼不存在或已過期，請重新發送' });
+    }
+    
+    if (Date.now() > verificationData.expiresAt) {
+      emailVerificationCodes.delete(user.id);
+      return res.status(400).json({ error: '驗證碼已過期，請重新發送' });
+    }
+    
+    if (verificationData.code !== code) {
+      return res.status(400).json({ error: '驗證碼錯誤' });
+    }
+    
+    // 驗證成功，更新用戶狀態
+    await userModel.updateEmailVerified(user.id, true);
+    
+    // 刪除已使用的驗證碼
+    emailVerificationCodes.delete(user.id);
+    
+    // 給用戶經驗值獎勵（+10經驗值）
+    try {
+      await userStatsModel.addPoints(user.id, 0, 10); // 只給經驗值，不給積分
+      console.log(`用戶 ${user.id} 驗證郵箱成功，獲得 10 經驗值`);
+    } catch (error) {
+      console.error('給驗證郵箱經驗值失敗:', error);
+    }
+    
+    // 獲取更新後的用戶信息
+    const updatedUser = await userModel.findById(user.id);
+    if (!updatedUser) {
+      return res.status(500).json({ error: '獲取用戶信息失敗' });
+    }
+    
+    res.json({ 
+      message: '郵箱驗證成功',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        emailVerified: updatedUser.emailVerified,
+      },
+      experienceEarned: 10,
+    });
+  } catch (error: any) {
+    console.error('Verify email error:', error);
+    res.status(500).json({ error: error.message || '驗證郵箱失敗' });
   }
 });
 
