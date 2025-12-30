@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { userModel } from '../models/User.js';
 import { subscriptionModel } from '../models/Subscription.js';
 import { userStatsModel } from '../models/UserStats.js';
-import { achievementModel } from '../models/Achievement.js';
+import { achievementModel, ACHIEVEMENT_DEFINITIONS } from '../models/Achievement.js';
 import { badgeModel } from '../models/Badge.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
 
@@ -277,13 +277,17 @@ router.get('/users/:userId', async (req, res) => {
       postsCount: stats.postsCount,
       repliesCount: stats.repliesCount,
       likesReceived: stats.likesReceived,
-      achievements: achievements.map(a => ({
-        id: a.id,
-        name: a.name,
-        description: a.description,
-        icon: a.icon,
-        unlockedAt: a.unlockedAt,
-      })),
+      achievements: achievements.map(a => {
+        // 從定義中查找對應的成就信息
+        const definition = ACHIEVEMENT_DEFINITIONS.find(d => d.type === a.achievementType);
+        return {
+          id: a.id,
+          name: definition?.name || a.achievementName,
+          description: definition?.description || '',
+          icon: definition?.icon || '🏆',
+          unlockedAt: a.unlockedAt,
+        };
+      }),
       badges: badges.map(b => ({
         id: b.id,
         badgeName: b.badgeName,
