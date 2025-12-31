@@ -172,6 +172,17 @@ router.post('/login', async (req, res) => {
       console.error('檢查成就失敗:', error);
     }
     
+    // 獲取用戶統計並計算正確的等級
+    const stats = await userStatsModel.getOrCreate(user.id);
+    const { getLevelFromExperience } = await import('../models/UserStats.js');
+    const calculatedLevel = await getLevelFromExperience(user.id, stats.experiencePoints);
+    
+    // 如果計算出的等級與用戶表中的等級不一致，更新用戶表
+    if (calculatedLevel !== user.membershipLevel) {
+      await userModel.updateMembership(user.id, calculatedLevel as any, undefined);
+      user.membershipLevel = calculatedLevel as any;
+    }
+    
     // 檢查是否有活躍的付費訂閱（VIP狀態）
     const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
     const isVip = activeSubscription !== null && 
@@ -186,7 +197,7 @@ router.post('/login', async (req, res) => {
         userName: user.userName,
         avatarUrl: user.avatarUrl,
         role: user.role,
-        membershipLevel: user.membershipLevel,
+        membershipLevel: calculatedLevel,
         membershipExpiresAt: user.membershipExpiresAt,
         verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
@@ -218,6 +229,17 @@ router.get('/me', async (req, res) => {
     const user = await userModel.findById(payload.userId);
     if (!user) {
       return res.status(404).json({ error: '用户不存在' });
+    }
+    
+    // 獲取用戶統計並計算正確的等級
+    const stats = await userStatsModel.getOrCreate(user.id);
+    const { getLevelFromExperience } = await import('../models/UserStats.js');
+    const calculatedLevel = await getLevelFromExperience(user.id, stats.experiencePoints);
+    
+    // 如果計算出的等級與用戶表中的等級不一致，更新用戶表
+    if (calculatedLevel !== user.membershipLevel) {
+      await userModel.updateMembership(user.id, calculatedLevel as any, undefined);
+      user.membershipLevel = calculatedLevel as any;
     }
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）
@@ -316,6 +338,16 @@ router.get('/users/:userId', async (req, res) => {
     // 獲取用戶統計
     const stats = await userStatsModel.getOrCreate(userId);
     
+    // 根據經驗值和角色計算正確的等級
+    const { getLevelFromExperience } = await import('../models/UserStats.js');
+    const calculatedLevel = await getLevelFromExperience(userId, stats.experiencePoints);
+    
+    // 如果計算出的等級與用戶表中的等級不一致，更新用戶表
+    if (calculatedLevel !== user.membershipLevel) {
+      await userModel.updateMembership(userId, calculatedLevel as any, undefined);
+      user.membershipLevel = calculatedLevel as any;
+    }
+    
     // 獲取成就
     const achievements = await achievementModel.getUserAchievements(userId);
     
@@ -329,7 +361,7 @@ router.get('/users/:userId', async (req, res) => {
       email: user.email,
       phoneNumber: user.phoneNumber,
       role: user.role,
-      membershipLevel: user.membershipLevel,
+      membershipLevel: calculatedLevel,
       isVip,
       currentPoints: stats.currentPoints,
       experiencePoints: stats.experiencePoints,

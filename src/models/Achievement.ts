@@ -171,6 +171,180 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
   },
 ];
 
+// 後宮佳麗專屬成就定義
+export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
+  // 🟦 服務資歷（Service Experience）
+  {
+    type: 'lady_first_booking',
+    name: '初入宮廷',
+    description: '完成首次預約服務',
+    icon: '💃',
+    category: 'all',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 1,
+    pointsReward: 100,
+    experienceReward: 50,
+  },
+  {
+    type: 'lady_newbie',
+    name: '服務新手',
+    description: '完成 5 次預約服務',
+    icon: '🌸',
+    category: 'all',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 5,
+    pointsReward: 200,
+    experienceReward: 100,
+  },
+  {
+    type: 'lady_stable',
+    name: '穩定服務',
+    description: '完成 20 次預約服務',
+    icon: '⭐',
+    category: 'all',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 20,
+    pointsReward: 500,
+    experienceReward: 250,
+  },
+  {
+    type: 'lady_veteran',
+    name: '資深服務',
+    description: '完成 50 次預約服務',
+    icon: '👑',
+    category: 'all',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 50,
+    pointsReward: 1000,
+    experienceReward: 500,
+  },
+  {
+    type: 'lady_master',
+    name: '服務大師',
+    description: '完成 100 次預約服務',
+    icon: '🏆',
+    category: 'all',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 100,
+    pointsReward: 2000,
+    experienceReward: 1000,
+  },
+  
+  // 🟦 品質保證（Quality Assurance）
+  {
+    type: 'lady_first_good_review',
+    name: '初次好評',
+    description: '獲得第一個 5 星評價',
+    icon: '✨',
+    category: 'all',
+    condition: (stats) => (stats.fiveStarReviewsCount || 0) >= 1,
+    pointsReward: 100,
+    experienceReward: 50,
+  },
+  {
+    type: 'lady_highly_rated',
+    name: '好評如潮',
+    description: '獲得 10 個 5 星評價',
+    icon: '🌟',
+    category: 'all',
+    condition: (stats) => (stats.fiveStarReviewsCount || 0) >= 10,
+    pointsReward: 300,
+    experienceReward: 150,
+  },
+  {
+    type: 'lady_perfect',
+    name: '完美評價',
+    description: '獲得 50 個 5 星評價',
+    icon: '💎',
+    category: 'all',
+    condition: (stats) => (stats.fiveStarReviewsCount || 0) >= 50,
+    pointsReward: 800,
+    experienceReward: 400,
+  },
+  {
+    type: 'lady_quality_assured',
+    name: '品質保證',
+    description: '平均評價達到 4.5 星以上（至少 20 個評價）',
+    icon: '🎖️',
+    category: 'all',
+    condition: (stats) => {
+      const avgRating = stats.averageRating || 0;
+      const totalReviews = stats.totalReviewsCount || 0;
+      return avgRating >= 4.5 && totalReviews >= 20;
+    },
+    pointsReward: 500,
+    experienceReward: 250,
+  },
+  
+  // 🟦 忠誠客戶（Loyal Clients）
+  {
+    type: 'lady_returning_client',
+    name: '回頭客',
+    description: '同一位客戶回顧 3 次',
+    icon: '🔄',
+    category: 'all',
+    condition: (stats) => (stats.repeatClientBookingsCount || 0) >= 3,
+    pointsReward: 200,
+    experienceReward: 100,
+  },
+  {
+    type: 'lady_regular_clients',
+    name: '熟客成群',
+    description: '擁有 10 位以上的回頭客',
+    icon: '👥',
+    category: 'all',
+    condition: (stats) => (stats.uniqueReturningClientsCount || 0) >= 10,
+    pointsReward: 500,
+    experienceReward: 250,
+  },
+  
+  // 🟦 服務表現（Service Performance）
+  {
+    type: 'lady_efficient',
+    name: '效率之星',
+    description: '當日回應所有預約請求（響應時間 < 1 小時）',
+    icon: '⚡',
+    category: 'all',
+    condition: (stats) => {
+      const responseTime = stats.averageResponseTime || 999;
+      return responseTime < 60; // 60 分鐘
+    },
+    pointsReward: 100,
+    experienceReward: 50,
+  },
+  {
+    type: 'lady_punctual',
+    name: '準時達人',
+    description: '連續 10 次預約都準時完成（無取消記錄）',
+    icon: '⏰',
+    category: 'all',
+    condition: (stats) => {
+      const consecutive = stats.consecutiveCompletedBookings || 0;
+      const cancelRate = stats.cancellationRate || 1;
+      return consecutive >= 10 && cancelRate === 0;
+    },
+    pointsReward: 300,
+    experienceReward: 150,
+  },
+  
+  // 🟦 平台互動（Platform Engagement）
+  {
+    type: 'lady_forum_newbie',
+    name: '論壇新人',
+    description: '在論壇發表第一篇帖子',
+    icon: '📝',
+    category: 'all',
+    condition: (stats) => (stats.postsCount || 0) >= 1,
+    pointsReward: 50,
+    experienceReward: 20,
+  },
+  {
+    type: 'lady_active',
+    name: '活躍佳麗',
+    description: '連續登入 7 天',
+    icon: '🔥',
+    category: 'all',
+    condition: (stats) => (stats.consecutiveLoginDays || 0) >= 7,
+    pointsReward: 100,
+    experienceReward: 50,
+  },
+];
+
 export const achievementModel = {
   // 獲取用戶的成就
   getUserAchievements: async (userId: string): Promise<Achievement[]> => {
@@ -208,7 +382,10 @@ export const achievementModel = {
     
     const unlocked: Achievement[] = [];
 
-    for (const definition of ACHIEVEMENT_DEFINITIONS) {
+    // 根據用戶角色選擇對應的成就定義
+    const definitions = user?.role === 'provider' ? LADY_ACHIEVEMENT_DEFINITIONS : ACHIEVEMENT_DEFINITIONS;
+
+    for (const definition of definitions) {
       // 檢查是否已擁有此成就
       const existing = await query(`
         SELECT id FROM achievements 

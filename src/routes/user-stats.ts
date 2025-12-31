@@ -20,7 +20,13 @@ router.get('/me', async (req, res) => {
     }
     
     const stats = await userStatsModel.getOrCreate(payload.userId);
-    const currentLevel = getLevelFromExperience(stats.experiencePoints);
+    
+    // 獲取用戶信息以確定角色
+    const { userModel } = await import('../models/User.js');
+    const user = await userModel.getById(payload.userId);
+    
+    const currentLevel = await getLevelFromExperience(payload.userId, stats.experiencePoints);
+    console.log(`[user-stats] 用戶 ${payload.userId} (角色: ${user?.role}) 經驗值: ${stats.experiencePoints}, 計算等級: ${currentLevel}`);
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）
     const activeSubscription = await subscriptionModel.getActiveByUserId(payload.userId);
@@ -28,8 +34,10 @@ router.get('/me', async (req, res) => {
       activeSubscription.isActive && 
       (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
     
-    // 計算下一級所需經驗值
-    const levelThresholds = {
+    // 根據角色選擇對應的等級門檻
+    const isProvider = user?.role === 'provider';
+    
+    const clientLevelThresholds = {
       tea_guest: 0,
       tea_scholar: 100,
       royal_tea_scholar: 500,
@@ -42,39 +50,87 @@ router.get('/me', async (req, res) => {
       national_master_tea_officer: 1000000,
     };
     
+    const ladyLevelThresholds = {
+      lady_trainee: 0,
+      lady_apprentice: 100,
+      lady_junior: 500,
+      lady_senior: 2000,
+      lady_expert: 10000,
+      lady_master: 50000,
+      lady_elite: 100000,
+      lady_premium: 200000,
+      lady_royal: 500000,
+      lady_empress: 1000000,
+    };
+    
+    const levelThresholds = isProvider ? ladyLevelThresholds : clientLevelThresholds;
+    
     let nextLevel: string | null = null;
     let experienceNeeded = 0;
     
-    if (currentLevel === 'tea_guest') {
-      nextLevel = 'tea_scholar';
-      experienceNeeded = levelThresholds.tea_scholar - stats.experiencePoints;
-    } else if (currentLevel === 'tea_scholar') {
-      nextLevel = 'royal_tea_scholar';
-      experienceNeeded = levelThresholds.royal_tea_scholar - stats.experiencePoints;
-    } else if (currentLevel === 'royal_tea_scholar') {
-      nextLevel = 'royal_tea_officer';
-      experienceNeeded = levelThresholds.royal_tea_officer - stats.experiencePoints;
-    } else if (currentLevel === 'royal_tea_officer') {
-      nextLevel = 'tea_king_attendant';
-      experienceNeeded = levelThresholds.tea_king_attendant - stats.experiencePoints;
-    } else if (currentLevel === 'tea_king_attendant') {
-      nextLevel = 'imperial_chief_tea_officer';
-      experienceNeeded = levelThresholds.imperial_chief_tea_officer - stats.experiencePoints;
-    } else if (currentLevel === 'imperial_chief_tea_officer') {
-      nextLevel = 'tea_king_confidant';
-      experienceNeeded = levelThresholds.tea_king_confidant - stats.experiencePoints;
-    } else if (currentLevel === 'tea_king_confidant') {
-      nextLevel = 'tea_king_personal_selection';
-      experienceNeeded = levelThresholds.tea_king_personal_selection - stats.experiencePoints;
-    } else if (currentLevel === 'tea_king_personal_selection') {
-      nextLevel = 'imperial_golden_seal_tea_officer';
-      experienceNeeded = levelThresholds.imperial_golden_seal_tea_officer - stats.experiencePoints;
-    } else if (currentLevel === 'imperial_golden_seal_tea_officer') {
-      nextLevel = 'national_master_tea_officer';
-      experienceNeeded = levelThresholds.national_master_tea_officer - stats.experiencePoints;
+    if (isProvider) {
+      // 後宮佳麗等級邏輯
+      if (currentLevel === 'lady_trainee') {
+        nextLevel = 'lady_apprentice';
+        experienceNeeded = ladyLevelThresholds.lady_apprentice - stats.experiencePoints;
+      } else if (currentLevel === 'lady_apprentice') {
+        nextLevel = 'lady_junior';
+        experienceNeeded = ladyLevelThresholds.lady_junior - stats.experiencePoints;
+      } else if (currentLevel === 'lady_junior') {
+        nextLevel = 'lady_senior';
+        experienceNeeded = ladyLevelThresholds.lady_senior - stats.experiencePoints;
+      } else if (currentLevel === 'lady_senior') {
+        nextLevel = 'lady_expert';
+        experienceNeeded = ladyLevelThresholds.lady_expert - stats.experiencePoints;
+      } else if (currentLevel === 'lady_expert') {
+        nextLevel = 'lady_master';
+        experienceNeeded = ladyLevelThresholds.lady_master - stats.experiencePoints;
+      } else if (currentLevel === 'lady_master') {
+        nextLevel = 'lady_elite';
+        experienceNeeded = ladyLevelThresholds.lady_elite - stats.experiencePoints;
+      } else if (currentLevel === 'lady_elite') {
+        nextLevel = 'lady_premium';
+        experienceNeeded = ladyLevelThresholds.lady_premium - stats.experiencePoints;
+      } else if (currentLevel === 'lady_premium') {
+        nextLevel = 'lady_royal';
+        experienceNeeded = ladyLevelThresholds.lady_royal - stats.experiencePoints;
+      } else if (currentLevel === 'lady_royal') {
+        nextLevel = 'lady_empress';
+        experienceNeeded = ladyLevelThresholds.lady_empress - stats.experiencePoints;
+      }
+    } else {
+      // 品茶客等級邏輯
+      if (currentLevel === 'tea_guest') {
+        nextLevel = 'tea_scholar';
+        experienceNeeded = clientLevelThresholds.tea_scholar - stats.experiencePoints;
+      } else if (currentLevel === 'tea_scholar') {
+        nextLevel = 'royal_tea_scholar';
+        experienceNeeded = clientLevelThresholds.royal_tea_scholar - stats.experiencePoints;
+      } else if (currentLevel === 'royal_tea_scholar') {
+        nextLevel = 'royal_tea_officer';
+        experienceNeeded = clientLevelThresholds.royal_tea_officer - stats.experiencePoints;
+      } else if (currentLevel === 'royal_tea_officer') {
+        nextLevel = 'tea_king_attendant';
+        experienceNeeded = clientLevelThresholds.tea_king_attendant - stats.experiencePoints;
+      } else if (currentLevel === 'tea_king_attendant') {
+        nextLevel = 'imperial_chief_tea_officer';
+        experienceNeeded = clientLevelThresholds.imperial_chief_tea_officer - stats.experiencePoints;
+      } else if (currentLevel === 'imperial_chief_tea_officer') {
+        nextLevel = 'tea_king_confidant';
+        experienceNeeded = clientLevelThresholds.tea_king_confidant - stats.experiencePoints;
+      } else if (currentLevel === 'tea_king_confidant') {
+        nextLevel = 'tea_king_personal_selection';
+        experienceNeeded = clientLevelThresholds.tea_king_personal_selection - stats.experiencePoints;
+      } else if (currentLevel === 'tea_king_personal_selection') {
+        nextLevel = 'imperial_golden_seal_tea_officer';
+        experienceNeeded = clientLevelThresholds.imperial_golden_seal_tea_officer - stats.experiencePoints;
+      } else if (currentLevel === 'imperial_golden_seal_tea_officer') {
+        nextLevel = 'national_master_tea_officer';
+        experienceNeeded = clientLevelThresholds.national_master_tea_officer - stats.experiencePoints;
+      }
     }
     
-    const currentThreshold = levelThresholds[currentLevel];
+    const currentThreshold = levelThresholds[currentLevel as keyof typeof levelThresholds];
     const nextThreshold = nextLevel ? levelThresholds[nextLevel as keyof typeof levelThresholds] : currentThreshold;
     const progressInLevel = nextLevel ? stats.experiencePoints - currentThreshold : 0;
     const progressRange = nextThreshold - currentThreshold;

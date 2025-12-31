@@ -71,6 +71,23 @@ router.post('/subscribe', async (req, res) => {
       return res.status(400).json({ error: '無效的會員等級' });
     }
     
+    // 檢查用戶驗證狀態（VIP 購買前需要 Email 和手機號碼驗證）
+    const user = await userModel.findById(payload.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    if (!user.emailVerified || !user.phoneVerified) {
+      const missingVerifications: string[] = [];
+      if (!user.emailVerified) missingVerifications.push('Email');
+      if (!user.phoneVerified) missingVerifications.push('手機號碼');
+      
+      return res.status(400).json({ 
+        error: `購買VIP前，請先完成以下驗證：${missingVerifications.join('、')}`,
+        missingVerifications 
+      });
+    }
+    
     const days = duration || 30;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);

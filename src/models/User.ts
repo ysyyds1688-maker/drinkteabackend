@@ -1,7 +1,14 @@
 import { query } from '../db/database.js';
 import bcrypt from 'bcrypt';
 
+// 品茶客等級
 export type MembershipLevel = 'tea_guest' | 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant' | 'imperial_chief_tea_officer' | 'tea_king_confidant' | 'tea_king_personal_selection' | 'imperial_golden_seal_tea_officer' | 'national_master_tea_officer';
+
+// 後宮佳麗等級
+export type LadyMembershipLevel = 'lady_trainee' | 'lady_apprentice' | 'lady_junior' | 'lady_senior' | 'lady_expert' | 'lady_master' | 'lady_elite' | 'lady_premium' | 'lady_royal' | 'lady_empress';
+
+// 聯合等級類型（用於通用函數）
+export type AnyMembershipLevel = MembershipLevel | LadyMembershipLevel;
 
 export interface User {
   id: string;
@@ -153,8 +160,8 @@ export const userModel = {
     await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
   },
 
-  // 更新訂閱狀態
-  updateMembership: async (userId: string, level: MembershipLevel, expiresAt?: Date): Promise<void> => {
+  // 更新訂閱狀態（支援品茶客和後宮佳麗等級）
+  updateMembership: async (userId: string, level: AnyMembershipLevel, expiresAt?: Date): Promise<void> => {
     await query(`
       UPDATE users 
       SET membership_level = $1, membership_expires_at = $2, updated_at = CURRENT_TIMESTAMP

@@ -591,6 +591,51 @@ export const initDatabase = async () => {
         ALTER TABLE user_stats 
         ADD COLUMN IF NOT EXISTS last_login_date DATE
       `);
+      // 後宮佳麗專屬統計字段
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS completed_bookings_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS accepted_bookings_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS five_star_reviews_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS four_star_reviews_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS total_reviews_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS average_rating DECIMAL(3, 2) DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS repeat_client_bookings_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS unique_returning_clients_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS cancellation_rate DECIMAL(5, 2) DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS average_response_time INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE user_stats 
+        ADD COLUMN IF NOT EXISTS consecutive_completed_bookings INTEGER DEFAULT 0
+      `);
     } catch (error: any) {
       console.warn('添加 user_stats 新字段時出現警告:', error.message);
     }
