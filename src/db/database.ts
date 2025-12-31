@@ -656,6 +656,7 @@ export const initDatabase = async () => {
         content TEXT NOT NULL,
         category VARCHAR(50) NOT NULL,
         tags TEXT,
+        images TEXT, -- JSON array of image URLs
         views INTEGER DEFAULT 0,
         likes_count INTEGER DEFAULT 0,
         replies_count INTEGER DEFAULT 0,

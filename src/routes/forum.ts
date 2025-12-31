@@ -71,7 +71,7 @@ router.post('/posts', async (req, res) => {
       return res.status(401).json({ error: 'Token 無效' });
     }
     
-    const { title, content, category, tags } = req.body;
+    const { title, content, category, tags, images } = req.body;
     
     if (!title || !content || !category) {
       return res.status(400).json({ error: '標題、內容和分類為必填項' });
@@ -83,6 +83,7 @@ router.post('/posts', async (req, res) => {
       content,
       category,
       tags,
+      images,
     });
     
     // 更新統計和任務

@@ -7,6 +7,7 @@ export interface ForumPost {
   content: string;
   category: string;
   tags?: string[];
+  images?: string[]; // 圖片 URL 數組
   views: number;
   likesCount: number;
   repliesCount: number;
@@ -42,6 +43,7 @@ export interface CreatePostData {
   content: string;
   category: string;
   tags?: string[];
+  images?: string[]; // 圖片 URL 數組
 }
 
 export interface CreateReplyData {
@@ -58,8 +60,8 @@ export const forumModel = {
     const id = `post_${Date.now()}_${uuidv4().substring(0, 9)}`;
     
     await query(`
-      INSERT INTO forum_posts (id, user_id, title, content, category, tags)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO forum_posts (id, user_id, title, content, category, tags, images)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `, [
       id,
       data.userId,
@@ -67,6 +69,7 @@ export const forumModel = {
       data.content,
       data.category,
       data.tags ? JSON.stringify(data.tags) : null,
+      data.images && data.images.length > 0 ? JSON.stringify(data.images) : null,
     ]);
     
     const post = await forumModel.getPostById(id);
@@ -140,6 +143,7 @@ export const forumModel = {
         content: row.content,
         category: row.category,
         tags: row.tags ? JSON.parse(row.tags) : undefined,
+        images: row.images ? JSON.parse(row.images) : undefined,
         views: row.views || 0,
         likesCount: row.likes_count || 0,
         repliesCount: row.replies_count || 0,
@@ -186,6 +190,7 @@ export const forumModel = {
       content: row.content,
       category: row.category,
       tags: row.tags ? JSON.parse(row.tags) : undefined,
+      images: row.images ? JSON.parse(row.images) : undefined,
       views: row.views || 0,
       likesCount: row.likes_count || 0,
       repliesCount: row.replies_count || 0,
