@@ -42,6 +42,29 @@ router.get('/:id', async (req, res) => {
               taskResult.pointsEarned,
               taskResult.experienceEarned
             );
+            
+            // 創建任務完成通知
+            try {
+              const { notificationModel } = await import('../models/Notification.js');
+              const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'browse_profiles');
+              if (definition) {
+                await notificationModel.create({
+                  userId: payload.userId,
+                  type: 'task',
+                  title: '任務完成',
+                  content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                  link: `/user-profile?tab=points`,
+                  metadata: {
+                    taskType: 'browse_profiles',
+                    taskName: definition.name,
+                    pointsEarned: taskResult.pointsEarned,
+                    experienceEarned: taskResult.experienceEarned,
+                  },
+                });
+              }
+            } catch (error) {
+              console.error('創建任務完成通知失敗:', error);
+            }
           }
         }
       } catch (error) {

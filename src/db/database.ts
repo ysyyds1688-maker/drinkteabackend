@@ -736,6 +736,32 @@ export const initDatabase = async () => {
       )
     `);
 
+    // Notifications table (通知表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(20) NOT NULL CHECK(type IN ('achievement', 'task', 'system', 'message', 'booking', 'review')),
+        title VARCHAR(255) NOT NULL,
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        link VARCHAR(500),
+        metadata TEXT
+      )
+    `);
+
+    // Create indexes for notifications
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)
+    `);
+
     // Create indexes for forum and gamification tables
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_forum_posts_user ON forum_posts(user_id)

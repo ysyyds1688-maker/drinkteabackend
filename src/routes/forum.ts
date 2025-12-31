@@ -97,6 +97,29 @@ router.post('/posts', async (req, res) => {
         taskResult.pointsEarned,
         taskResult.experienceEarned
       );
+      
+      // 創建任務完成通知
+      try {
+        const { notificationModel } = await import('../models/Notification.js');
+        const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'create_post');
+        if (definition) {
+          await notificationModel.create({
+            userId: payload.userId,
+            type: 'task',
+            title: '任務完成',
+            content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+            link: `/user-profile?tab=points`,
+            metadata: {
+              taskType: 'create_post',
+              taskName: definition.name,
+              pointsEarned: taskResult.pointsEarned,
+              experienceEarned: taskResult.experienceEarned,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('創建任務完成通知失敗:', error);
+      }
     }
     
     // 檢查並解鎖成就
@@ -167,6 +190,29 @@ router.post('/posts/:postId/replies', async (req, res) => {
       // 如果任務完成導致升級，使用任務的升級結果
       if (taskPointsResult.levelUp) {
         pointsResult = taskPointsResult;
+      }
+      
+      // 創建任務完成通知
+      try {
+        const { notificationModel } = await import('../models/Notification.js');
+        const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'reply_post');
+        if (definition) {
+          await notificationModel.create({
+            userId: payload.userId,
+            type: 'task',
+            title: '任務完成',
+            content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+            link: `/user-profile?tab=points`,
+            metadata: {
+              taskType: 'reply_post',
+              taskName: definition.name,
+              pointsEarned: taskResult.pointsEarned,
+              experienceEarned: taskResult.experienceEarned,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('創建任務完成通知失敗:', error);
       }
     }
     

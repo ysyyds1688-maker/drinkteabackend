@@ -473,6 +473,26 @@ export const achievementModel = {
         };
 
         unlocked.push(newAchievement);
+
+        // 創建成就解鎖通知
+        try {
+          const { notificationModel } = await import('./Notification.js');
+          await notificationModel.create({
+            userId,
+            type: 'achievement',
+            title: '成就解鎖',
+            content: `恭喜您解鎖了「${definition.name}」成就！${definition.pointsReward > 0 ? `獲得 ${definition.pointsReward} 積分，` : ''}${definition.experienceReward > 0 ? `獲得 ${definition.experienceReward} 經驗值。` : ''}`,
+            link: `/user-profile?tab=achievements`,
+            metadata: {
+              achievementId: id,
+              achievementType: definition.type,
+              achievementName: definition.name,
+            },
+          });
+        } catch (error) {
+          console.error('創建成就解鎖通知失敗:', error);
+          // 不影響主流程，僅記錄錯誤
+        }
       }
     }
 

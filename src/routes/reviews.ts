@@ -226,6 +226,29 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
                 if (taskResult.completed) {
                   await userStatsModel.addPoints(payload.userId, taskResult.pointsEarned, taskResult.experienceEarned);
                   console.log(`用戶 ${payload.userId} 完成「預約高級茶」任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+                  
+                  // 創建任務完成通知
+                  try {
+                    const { notificationModel } = await import('../models/Notification.js');
+                    const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'book_premium_tea');
+                    if (definition) {
+                      await notificationModel.create({
+                        userId: payload.userId,
+                        type: 'task',
+                        title: '任務完成',
+                        content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                        link: `/user-profile?tab=points`,
+                        metadata: {
+                          taskType: 'book_premium_tea',
+                          taskName: definition.name,
+                          pointsEarned: taskResult.pointsEarned,
+                          experienceEarned: taskResult.experienceEarned,
+                        },
+                      });
+                    }
+                  } catch (error) {
+                    console.error('創建任務完成通知失敗:', error);
+                  }
                 }
               } else if (determinedCategory === 'lady_booking' && (profileBooking.status === 'accepted' || profileBooking.status === 'completed')) {
                 // 預約後宮佳麗任務
@@ -233,6 +256,29 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
                 if (taskResult.completed) {
                   await userStatsModel.addPoints(payload.userId, taskResult.pointsEarned, taskResult.experienceEarned);
                   console.log(`用戶 ${payload.userId} 完成「預約後宮佳麗」任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+                  
+                  // 創建任務完成通知
+                  try {
+                    const { notificationModel } = await import('../models/Notification.js');
+                    const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'book_lady_booking');
+                    if (definition) {
+                      await notificationModel.create({
+                        userId: payload.userId,
+                        type: 'task',
+                        title: '任務完成',
+                        content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                        link: `/user-profile?tab=points`,
+                        metadata: {
+                          taskType: 'book_lady_booking',
+                          taskName: definition.name,
+                          pointsEarned: taskResult.pointsEarned,
+                          experienceEarned: taskResult.experienceEarned,
+                        },
+                      });
+                    }
+                  } catch (error) {
+                    console.error('創建任務完成通知失敗:', error);
+                  }
                 }
               }
             } catch (taskError) {

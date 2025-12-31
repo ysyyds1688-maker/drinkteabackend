@@ -72,6 +72,29 @@ router.post('/register', async (req, res) => {
           taskResult.experienceEarned
         );
         console.log(`用戶 ${user.id} 完成每日登入任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+        
+        // 創建任務完成通知
+        try {
+          const { notificationModel } = await import('../models/Notification.js');
+          const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'daily_login');
+          if (definition) {
+            await notificationModel.create({
+              userId: user.id,
+              type: 'task',
+              title: '任務完成',
+              content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+              link: `/user-profile?tab=points`,
+              metadata: {
+                taskType: 'daily_login',
+                taskName: definition.name,
+                pointsEarned: taskResult.pointsEarned,
+                experienceEarned: taskResult.experienceEarned,
+              },
+            });
+          }
+        } catch (error) {
+          console.error('創建任務完成通知失敗:', error);
+        }
       }
     } catch (error) {
       console.error('更新每日登入任務失敗:', error);
@@ -158,6 +181,29 @@ router.post('/login', async (req, res) => {
           taskResult.experienceEarned
         );
         console.log(`用戶 ${user.id} 完成每日登入任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+        
+        // 創建任務完成通知
+        try {
+          const { notificationModel } = await import('../models/Notification.js');
+          const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'daily_login');
+          if (definition) {
+            await notificationModel.create({
+              userId: user.id,
+              type: 'task',
+              title: '任務完成',
+              content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+              link: `/user-profile?tab=points`,
+              metadata: {
+                taskType: 'daily_login',
+                taskName: definition.name,
+                pointsEarned: taskResult.pointsEarned,
+                experienceEarned: taskResult.experienceEarned,
+              },
+            });
+          }
+        } catch (error) {
+          console.error('創建任務完成通知失敗:', error);
+        }
       }
     } catch (error) {
       // 任務更新失敗不影響登入流程

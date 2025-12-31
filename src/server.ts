@@ -25,6 +25,7 @@ import tasksRouter from './routes/tasks.js';
 import userStatsRouter from './routes/user-stats.js';
 import badgesRouter from './routes/badges.js';
 import achievementsRouter from './routes/achievements.js';
+import notificationsRouter from './routes/notifications.js';
 import { schedulerService } from './services/schedulerService.js';
 
 // Load environment variables - 明確指定 .env 文件路徑
@@ -184,6 +185,7 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/user-stats', userStatsRouter);
 app.use('/api/badges', badgesRouter);
 app.use('/api/achievements', achievementsRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);

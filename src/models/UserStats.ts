@@ -219,6 +219,57 @@ export const userStatsModel = {
       const user = await userModel.findById(userId);
       if (user) {
         await userModel.updateMembership(userId, newLevel as any, undefined);
+        
+        // 創建等級提升通知
+        try {
+          const { notificationModel } = await import('./Notification.js');
+          
+          // 等級名稱映射
+          const CLIENT_LEVEL_NAMES: Record<string, string> = {
+            tea_guest: '茶客',
+            tea_scholar: '入門茶士',
+            royal_tea_scholar: '御前茶士',
+            royal_tea_officer: '御用茶官',
+            tea_king_attendant: '茶王近侍',
+            imperial_chief_tea_officer: '御前總茶官',
+            tea_king_confidant: '茶王心腹',
+            tea_king_personal_selection: '茶王親選',
+            imperial_golden_seal_tea_officer: '御賜金印茶官',
+            national_master_tea_officer: '國師級茶官',
+          };
+          
+          const LADY_LEVEL_NAMES: Record<string, string> = {
+            lady_trainee: '初級佳麗',
+            lady_apprentice: '見習佳麗',
+            lady_junior: '中級佳麗',
+            lady_senior: '高級佳麗',
+            lady_expert: '資深佳麗',
+            lady_master: '御用佳麗',
+            lady_elite: '金牌佳麗',
+            lady_premium: '鑽石佳麗',
+            lady_royal: '皇家佳麗',
+            lady_empress: '皇后級佳麗',
+          };
+          
+          const levelName = user.role === 'provider' 
+            ? (LADY_LEVEL_NAMES[newLevel] || newLevel)
+            : (CLIENT_LEVEL_NAMES[newLevel] || newLevel);
+          
+          await notificationModel.create({
+            userId,
+            type: 'system',
+            title: '等級提升',
+            content: `恭喜您升級到「${levelName}」！繼續努力解鎖更多特權。`,
+            link: `/user-profile?tab=points`,
+            metadata: {
+              oldLevel: oldLevel,
+              newLevel: newLevel,
+            },
+          });
+        } catch (error) {
+          console.error('創建等級提升通知失敗:', error);
+          // 不影響主流程，僅記錄錯誤
+        }
       }
     }
     
