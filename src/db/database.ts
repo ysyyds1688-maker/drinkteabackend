@@ -219,7 +219,7 @@ export const initDatabase = async () => {
         avatar_url TEXT,
         nickname_changed_at TIMESTAMP,
         role VARCHAR(20) DEFAULT 'client' CHECK(role IN ('provider', 'client', 'admin')),
-        membership_level VARCHAR(20) DEFAULT 'tea_guest' CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer')),
+        membership_level VARCHAR(50) DEFAULT 'tea_guest' CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer', 'lady_trainee', 'lady_apprentice', 'lady_junior', 'lady_senior', 'lady_expert', 'lady_master', 'lady_elite', 'lady_premium', 'lady_royal', 'lady_empress')),
         membership_expires_at TIMESTAMP,
         verification_badges TEXT,
         email_verified BOOLEAN DEFAULT FALSE,

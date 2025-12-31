@@ -19,6 +19,7 @@ export interface ForumPost {
   avatarUrl?: string;
   membershipLevel?: string;
   isVip?: boolean;
+  userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
 }
 
 export interface ForumReply {
@@ -34,6 +35,7 @@ export interface ForumReply {
   avatarUrl?: string;
   membershipLevel?: string;
   isVip?: boolean;
+  userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
   replies?: ForumReply[];
 }
 
@@ -89,6 +91,7 @@ export const forumModel = {
              u.user_name, 
              u.avatar_url, 
              u.membership_level,
+             u.role as user_role,
              (SELECT is_active FROM subscriptions 
               WHERE user_id = u.id AND is_active = true 
               ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
@@ -155,6 +158,7 @@ export const forumModel = {
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
+        userRole: row.user_role || undefined, // 添加用戶角色
       };
     });
   },
@@ -169,6 +173,7 @@ export const forumModel = {
              u.user_name, 
              u.avatar_url, 
              u.membership_level,
+             u.role as user_role,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
       FROM forum_posts p
@@ -183,26 +188,27 @@ export const forumModel = {
     const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
     const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
     
-    return {
-      id: row.id,
-      userId: row.user_id,
-      title: row.title,
-      content: row.content,
-      category: row.category,
-      tags: row.tags ? JSON.parse(row.tags) : undefined,
-      images: row.images ? JSON.parse(row.images) : undefined,
-      views: row.views || 0,
-      likesCount: row.likes_count || 0,
-      repliesCount: row.replies_count || 0,
-      isPinned: Boolean(row.is_pinned),
-      isLocked: Boolean(row.is_locked),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-      membershipLevel: row.membership_level || 'tea_guest',
-      isVip: Boolean(isVip),
-    };
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        content: row.content,
+        category: row.category,
+        tags: row.tags ? JSON.parse(row.tags) : undefined,
+        images: row.images ? JSON.parse(row.images) : undefined,
+        views: row.views || 0,
+        likesCount: row.likes_count || 0,
+        repliesCount: row.replies_count || 0,
+        isPinned: Boolean(row.is_pinned),
+        isLocked: Boolean(row.is_locked),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        userName: row.user_name || undefined,
+        avatarUrl: row.avatar_url || undefined,
+        membershipLevel: row.membership_level || 'tea_guest',
+        isVip: Boolean(isVip),
+        userRole: row.user_role || undefined,
+      };
   },
 
   // 創建回覆
@@ -240,6 +246,7 @@ export const forumModel = {
              u.user_name, 
              u.avatar_url, 
              u.membership_level,
+             u.role as user_role,
              (SELECT is_active FROM subscriptions 
               WHERE user_id = u.id AND is_active = true 
               ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
@@ -269,6 +276,7 @@ export const forumModel = {
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
+        userRole: row.user_role || undefined,
         replies: [] as ForumReply[],
       };
     });
@@ -303,6 +311,7 @@ export const forumModel = {
              u.user_name, 
              u.avatar_url, 
              u.membership_level,
+             u.role as user_role,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
       FROM forum_replies r
@@ -330,6 +339,7 @@ export const forumModel = {
       avatarUrl: row.avatar_url || undefined,
       membershipLevel: row.membership_level || 'tea_guest',
       isVip: Boolean(isVip),
+      userRole: row.user_role || undefined,
     };
   },
 
