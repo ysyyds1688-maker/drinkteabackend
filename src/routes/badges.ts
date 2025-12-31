@@ -88,27 +88,8 @@ router.post('/purchase/:badgeId', async (req, res) => {
   }
 });
 
-// 檢查並自動解鎖符合條件的勳章
-router.post('/check', async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: '請先登入' });
-    }
-    
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-    if (!payload) {
-      return res.status(401).json({ error: 'Token 無效' });
-    }
-    
-    const unlocked = await badgeModel.checkAndUnlockBadges(payload.userId);
-    res.json({ unlocked, count: unlocked.length });
-  } catch (error: any) {
-    console.error('Check badges error:', error);
-    res.status(500).json({ error: error.message || '檢查勳章失敗' });
-  }
-});
+// 注意：勳章現在都是可購買的，不再需要自動解鎖功能
+// 如果需要檢查並解鎖勳章的功能，請通過成就系統來實現
 
 // 管理員授予勳章
 router.post('/grant/:userId/:badgeId', async (req, res) => {

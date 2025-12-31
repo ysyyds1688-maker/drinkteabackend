@@ -210,7 +210,7 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
               }
               
               // 如果是後宮佳麗的評價，檢查並自動解鎖佳麗的成就
-              if (profile.userId) {
+              if (profile && profile.userId) {
                 const providerUnlocked = await achievementModel.checkAndUnlockAchievements(profile.userId);
                 if (providerUnlocked.length > 0) {
                   console.log(`後宮佳麗 ${profile.userId} 自動解鎖了 ${providerUnlocked.length} 個成就:`, providerUnlocked.map(a => a.achievementName));
