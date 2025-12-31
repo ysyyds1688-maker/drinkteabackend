@@ -71,6 +71,24 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     experienceReward: 30,    // 經驗：較容易獲得（積分的 1.5 倍）
     category: 'daily',
   },
+  book_premium_tea: {
+    type: 'book_premium_tea',
+    name: '預約高級茶',
+    description: '預約嚴選好茶 1 次（需管理員確認赴約並評論）',
+    target: 1,
+    pointsReward: 50,        // 積分：較難獲得
+    experienceReward: 75,    // 經驗：較容易獲得（積分的 1.5 倍）
+    category: 'daily',       // 保持 daily，但可在 UI 上分類到「其他任務」
+  },
+  book_lady_booking: {
+    type: 'book_lady_booking',
+    name: '預約後宮佳麗',
+    description: '預約特選魚市後宮佳麗 1 次（需預約成功並評論）',
+    target: 1,
+    pointsReward: 50,        // 積分：較難獲得
+    experienceReward: 75,    // 經驗：較容易獲得（積分的 1.5 倍）
+    category: 'daily',       // 保持 daily，但可在 UI 上分類到「其他任務」
+  },
 };
 
 export const tasksModel = {

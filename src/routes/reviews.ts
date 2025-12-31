@@ -124,29 +124,114 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
       serviceType: serviceType || undefined,
     });
     
-    // 根據類別更新統計並檢查成就（嚴選好茶或特選魚市）
-    // 注意：前端需要在請求中傳遞 category 參數（'premium_tea' 或 'lady_booking'）
-    if (category === 'premium_tea' || category === 'lady_booking') {
+    // 根據 profile 類型自動判斷 category（如果前端沒有傳遞）
+    // 獲取 profile 信息來判斷是嚴選好茶還是特選魚市
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(profileId);
+    
+    // 判斷 category：嚴選好茶（userId 為空）還是特選魚市（userId 有值）
+    const determinedCategory = category || (
+      profile && (!profile.userId || profile.userId === null || profile.userId === '')
+        ? 'premium_tea'
+        : 'lady_booking'
+    );
+    
+    // ========================================================================
+    // ⚠️ 預約次數判斷機制（重要）
+    // ========================================================================
+    // 預約次數只在用戶發表評論時才計數，不在預約創建或狀態變更時計數。
+    // 
+    // 判斷標準：
+    // - 特選魚市：點擊預約按鈕成功（status='accepted'或'completed'） + 評論 = 才算一次
+    // - 嚴選好茶：點擊預約按鈕 + 內部管理者確認成功赴約（status='completed'） + 評論 = 才算一次
+    //
+    // 🔔 後續實作開放真正預約功能時，務必參考專案根目錄的「預約次數判斷機制說明.md」
+    // 確保邏輯一致性，不要改變「只在評論時計數」的機制。
+    // ========================================================================
+    if (determinedCategory === 'premium_tea' || determinedCategory === 'lady_booking') {
       try {
         const { userStatsModel } = await import('../models/UserStats.js');
         const { achievementModel } = await import('../models/Achievement.js');
+        const { bookingModel } = await import('../models/Booking.js');
         
-        if (category === 'premium_tea') {
-          // 嚴選好茶：更新高級茶預約計數
-          await userStatsModel.updateCounts(payload.userId, {
-            premiumTeaBookingsCount: 1,
-          });
-        } else if (category === 'lady_booking') {
-          // 特選魚市：更新個人小姐預約計數
-          await userStatsModel.updateCounts(payload.userId, {
-            ladyBookingsCount: 1,
-          });
-        }
+        // 檢查該用戶是否有該 profile 的預約記錄
+        const clientBookings = await bookingModel.getByClientId(payload.userId);
+        const profileBooking = clientBookings.find(b => b.profileId === profileId);
         
-        // 檢查並解鎖成就
-        const unlocked = await achievementModel.checkAndUnlockAchievements(payload.userId);
-        if (unlocked.length > 0) {
-          console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就`);
+        if (!profileBooking) {
+          // 如果沒有預約記錄，不計數（評論可以發表，但不計入預約次數）
+          console.log(`用戶 ${payload.userId} 評論 profile ${profileId} 但無預約記錄，不計入預約次數`);
+        } else {
+          if (determinedCategory === 'premium_tea') {
+            // 嚴選好茶：必須是管理員確認成功赴約（status='completed'）才計數
+            if (profileBooking.status === 'completed') {
+              await userStatsModel.updateCounts(payload.userId, {
+                premiumTeaBookingsCount: 1,
+              });
+              console.log(`用戶 ${payload.userId} 嚴選好茶預約計數 +1（管理員已確認赴約）`);
+            } else {
+              console.log(`用戶 ${payload.userId} 評論嚴選好茶但預約狀態為 ${profileBooking.status}，需等待管理員確認赴約`);
+            }
+          } else if (determinedCategory === 'lady_booking') {
+            // 特選魚市：預約成功（status='accepted' 或 'completed'）即可計數
+            if (profileBooking.status === 'accepted' || profileBooking.status === 'completed') {
+              await userStatsModel.updateCounts(payload.userId, {
+                ladyBookingsCount: 1,
+              });
+              
+              // 檢查是否為重複預約同一位後宮佳麗
+              const completedBookingsForSameProfile = clientBookings.filter(
+                b => b.profileId === profileId && 
+                     (b.status === 'accepted' || b.status === 'completed') &&
+                     b.id !== profileBooking.id
+              );
+              
+              if (completedBookingsForSameProfile.length > 0) {
+                // 如果這是重複預約，增加重複預約計數
+                await userStatsModel.updateCounts(payload.userId, {
+                  repeatLadyBookingsCount: 1,
+                });
+                console.log(`用戶 ${payload.userId} 重複預約特選魚市計數 +1`);
+              }
+              
+              console.log(`用戶 ${payload.userId} 特選魚市預約計數 +1（預約已成功）`);
+            } else {
+              console.log(`用戶 ${payload.userId} 評論特選魚市但預約狀態為 ${profileBooking.status}，需等待預約成功`);
+            }
+          }
+          
+          // 檢查並解鎖成就（只有在計數後才檢查）
+          const stats = await userStatsModel.getOrCreate(payload.userId);
+          if ((determinedCategory === 'premium_tea' && profileBooking.status === 'completed') ||
+              (determinedCategory === 'lady_booking' && (profileBooking.status === 'accepted' || profileBooking.status === 'completed'))) {
+            const unlocked = await achievementModel.checkAndUnlockAchievements(payload.userId);
+            if (unlocked.length > 0) {
+              console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));
+            }
+            
+            // 更新每日任務進度
+            const { tasksModel } = await import('../models/Tasks.js');
+            try {
+              if (determinedCategory === 'premium_tea' && profileBooking.status === 'completed') {
+                // 預約高級茶任務
+                const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'book_premium_tea', 1);
+                if (taskResult.completed) {
+                  await userStatsModel.addPoints(payload.userId, taskResult.pointsEarned, taskResult.experienceEarned);
+                  console.log(`用戶 ${payload.userId} 完成「預約高級茶」任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+                }
+              } else if (determinedCategory === 'lady_booking' && (profileBooking.status === 'accepted' || profileBooking.status === 'completed')) {
+                // 預約後宮佳麗任務
+                const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'book_lady_booking', 1);
+                if (taskResult.completed) {
+                  await userStatsModel.addPoints(payload.userId, taskResult.pointsEarned, taskResult.experienceEarned);
+                  console.log(`用戶 ${payload.userId} 完成「預約後宮佳麗」任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+                }
+              }
+            } catch (taskError) {
+              console.error('更新任務進度失敗:', taskError);
+              // 不影響評論創建，只記錄錯誤
+            }
+          }
         }
       } catch (error) {
         console.error('更新統計或檢查成就失敗:', error);

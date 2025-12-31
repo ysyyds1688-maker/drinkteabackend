@@ -98,11 +98,11 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     experienceReward: 400,
   },
   
-  // 🟦 特選魚市（預約/消費成就 - 個人小姐）
+  // 🟦 特選魚市（預約/消費成就 - 後宮佳麗）
   {
     type: 'lady_first_booking',
     name: '初次入席',
-    description: '首次預約個人小姐',
+    description: '首次預約後宮佳麗',
     icon: '💃',
     category: 'lady_booking',
     condition: (stats) => (stats.ladyBookingsCount || 0) >= 1,
