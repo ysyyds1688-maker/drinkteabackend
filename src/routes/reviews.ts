@@ -204,10 +204,18 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
           const stats = await userStatsModel.getOrCreate(payload.userId);
           if ((determinedCategory === 'premium_tea' && profileBooking.status === 'completed') ||
               (determinedCategory === 'lady_booking' && (profileBooking.status === 'accepted' || profileBooking.status === 'completed'))) {
-            const unlocked = await achievementModel.checkAndUnlockAchievements(payload.userId);
-            if (unlocked.length > 0) {
-              console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));
-            }
+              const unlocked = await achievementModel.checkAndUnlockAchievements(payload.userId);
+              if (unlocked.length > 0) {
+                console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));
+              }
+              
+              // 如果是後宮佳麗的評價，檢查並自動解鎖佳麗的成就
+              if (profile.userId) {
+                const providerUnlocked = await achievementModel.checkAndUnlockAchievements(profile.userId);
+                if (providerUnlocked.length > 0) {
+                  console.log(`後宮佳麗 ${profile.userId} 自動解鎖了 ${providerUnlocked.length} 個成就:`, providerUnlocked.map(a => a.achievementName));
+                }
+              }
             
             // 更新每日任務進度
             const { tasksModel } = await import('../models/Tasks.js');

@@ -1,4 +1,11 @@
 import { Pool, QueryResult } from 'pg';
+import dotenv from 'dotenv';
+import { join } from 'path';
+
+// 確保環境變數已加載（在模塊加載時執行）
+if (!process.env.DATABASE_URL && !process.env.PGHOST) {
+  dotenv.config({ path: join(process.cwd(), '.env') });
+}
 
 // 從環境變數獲取資料庫連接資訊
 const getDatabaseConfig = () => {

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { initDatabase } from './db/database.js';
 import { initTestUsers } from './scripts/initTestUsers.js';
 import profilesRouter from './routes/profiles.js';
@@ -25,8 +27,13 @@ import badgesRouter from './routes/badges.js';
 import achievementsRouter from './routes/achievements.js';
 import { schedulerService } from './services/schedulerService.js';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables - 明確指定 .env 文件路徑
+// 使用 process.cwd() 獲取當前工作目錄（backend 目錄）
+const envPath = join(process.cwd(), '.env');
+console.log(`[DEBUG] 加載環境變數文件: ${envPath}`);
+console.log(`[DEBUG] DATABASE_URL 是否存在: ${process.env.DATABASE_URL ? '是' : '否'}`);
+dotenv.config({ path: envPath });
+console.log(`[DEBUG] 加載後 DATABASE_URL 是否存在: ${process.env.DATABASE_URL ? '是' : '否'}`);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);

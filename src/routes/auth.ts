@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { userModel } from '../models/User.js';
 import { subscriptionModel } from '../models/Subscription.js';
 import { userStatsModel } from '../models/UserStats.js';
-import { achievementModel, ACHIEVEMENT_DEFINITIONS } from '../models/Achievement.js';
+import { achievementModel, ACHIEVEMENT_DEFINITIONS, LADY_ACHIEVEMENT_DEFINITIONS } from '../models/Achievement.js';
 import { badgeModel } from '../models/Badge.js';
 import { tasksModel } from '../models/Tasks.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
@@ -11,6 +11,8 @@ const router = Router();
 
 // 存储邮箱验证码（生产环境应使用 Redis）
 const emailVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
+// 存储手机验证码（生产环境应使用 Redis）
+const phoneVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
 
 // 生成6位数字验证码
 const generateVerificationCode = (): string => {
@@ -282,8 +284,14 @@ router.put('/me', async (req, res) => {
       return res.status(401).json({ error: 'Token 无效' });
     }
 
-    const { userName, avatarUrl } = req.body;
-    const updatedUser = await userModel.update(payload.userId, { userName, avatarUrl });
+    const { userName, avatarUrl, email, phoneNumber } = req.body;
+    const updateData: any = {};
+    if (userName !== undefined) updateData.userName = userName;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (email !== undefined) updateData.email = email;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    
+    const updatedUser = await userModel.update(payload.userId, updateData);
     
     if (!updatedUser) {
       return res.status(404).json({ error: '用户不存在' });
@@ -369,10 +377,12 @@ router.get('/users/:userId', async (req, res) => {
       repliesCount: stats.repliesCount,
       likesReceived: stats.likesReceived,
       achievements: achievements.map(a => {
-        // 從定義中查找對應的成就信息
-        const definition = ACHIEVEMENT_DEFINITIONS.find(d => d.type === a.achievementType);
+        // 根據用戶角色選擇正確的成就定義
+        const definitions = user.role === 'provider' ? LADY_ACHIEVEMENT_DEFINITIONS : ACHIEVEMENT_DEFINITIONS;
+        const definition = definitions.find(d => d.type === a.achievementType);
         return {
           id: a.id,
+          achievementType: a.achievementType, // 添加 achievementType 供前端使用
           name: definition?.name || a.achievementName,
           description: definition?.description || '',
           icon: definition?.icon || '🏆',
@@ -522,6 +532,138 @@ router.post('/verify-email', async (req, res) => {
   } catch (error: any) {
     console.error('Verify email error:', error);
     res.status(500).json({ error: error.message || '驗證郵箱失敗' });
+  }
+});
+
+// 發送手機驗證碼
+router.post('/send-verification-phone', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const user = await userModel.findById(payload.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    if (!user.phoneNumber) {
+      return res.status(400).json({ error: '用戶未綁定手機號碼' });
+    }
+    
+    if (user.phoneVerified) {
+      return res.status(400).json({ error: '手機號碼已驗證' });
+    }
+    
+    // 生成驗證碼
+    const code = generateVerificationCode();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10分鐘後過期
+    
+    // 存儲驗證碼
+    phoneVerificationCodes.set(user.id, { code, expiresAt });
+    
+    // TODO: 這裡應該發送真實的 SMS，目前先返回驗證碼（開發環境）
+    // 生產環境應該移除這個返回，只返回成功消息
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[開發環境] 用戶 ${user.phoneNumber} 的驗證碼: ${code}`);
+    }
+    
+    // TODO: 發送 SMS
+    // await sendSMS(user.phoneNumber, `您的驗證碼是: ${code}，有效期10分鐘`);
+    
+    res.json({ 
+      message: '驗證碼已發送',
+      // 開發環境返回驗證碼，生產環境不返回
+      ...(process.env.NODE_ENV === 'development' ? { code } : {})
+    });
+  } catch (error: any) {
+    console.error('Send verification phone error:', error);
+    res.status(500).json({ error: error.message || '發送驗證碼失敗' });
+  }
+});
+
+// 驗證手機號碼
+router.post('/verify-phone', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: '請提供驗證碼' });
+    }
+    
+    const user = await userModel.findById(payload.userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    if (user.phoneVerified) {
+      return res.status(400).json({ error: '手機號碼已驗證' });
+    }
+    
+    // 檢查驗證碼
+    const verificationData = phoneVerificationCodes.get(user.id);
+    if (!verificationData) {
+      return res.status(400).json({ error: '驗證碼不存在或已過期，請重新發送' });
+    }
+    
+    if (Date.now() > verificationData.expiresAt) {
+      phoneVerificationCodes.delete(user.id);
+      return res.status(400).json({ error: '驗證碼已過期，請重新發送' });
+    }
+    
+    if (verificationData.code !== code) {
+      return res.status(400).json({ error: '驗證碼錯誤' });
+    }
+    
+    // 驗證成功，更新用戶狀態
+    await userModel.updatePhoneVerified(user.id, true);
+    
+    // 刪除已使用的驗證碼
+    phoneVerificationCodes.delete(user.id);
+    
+    // 給用戶經驗值獎勵（+10經驗值）
+    try {
+      await userStatsModel.addPoints(user.id, 0, 10); // 只給經驗值，不給積分
+      console.log(`用戶 ${user.id} 驗證手機號碼成功，獲得 10 經驗值`);
+    } catch (error) {
+      console.error('給驗證手機號碼經驗值失敗:', error);
+    }
+    
+    // 獲取更新後的用戶信息
+    const updatedUser = await userModel.findById(user.id);
+    if (!updatedUser) {
+      return res.status(500).json({ error: '獲取用戶信息失敗' });
+    }
+    
+    res.json({ 
+      message: '手機號碼驗證成功',
+      user: {
+        id: updatedUser.id,
+        phoneNumber: updatedUser.phoneNumber,
+        phoneVerified: updatedUser.phoneVerified,
+      },
+      experienceEarned: 10,
+    });
+  } catch (error: any) {
+    console.error('Verify phone error:', error);
+    res.status(500).json({ error: error.message || '驗證手機號碼失敗' });
   }
 });
 

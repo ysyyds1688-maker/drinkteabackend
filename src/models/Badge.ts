@@ -1,5 +1,7 @@
 import { query } from '../db/database.js';
 
+export type BadgeUnlockType = 'purchasable' | 'auto_unlock' | 'admin_granted';
+
 export interface Badge {
   id: string;
   name: string;
@@ -7,6 +9,9 @@ export interface Badge {
   icon: string;
   pointsCost: number;
   category: string;
+  unlockType: BadgeUnlockType; // 解鎖類型
+  unlockCondition?: (stats: any, user?: any) => boolean; // 自動解鎖條件（僅用於 auto_unlock 類型）
+  requireCondition?: (stats: any, user?: any) => boolean; // 購買前置條件（僅用於 purchasable 類型）
 }
 
 export interface UserBadge {
@@ -21,7 +26,7 @@ export interface UserBadge {
 
 // 可兌換的勳章定義
 export const AVAILABLE_BADGES: Badge[] = [
-  // 🟨 身分稱號
+  // 🟨 身分稱號（可購買）
   {
     id: 'badge_guest',
     name: '茶客',
@@ -29,6 +34,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_guest',
     pointsCost: 50,
     category: 'identity',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_elegant_guest',
@@ -37,6 +43,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_elegant_guest',
     pointsCost: 150,
     category: 'identity',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_noble_guest',
@@ -45,6 +52,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_noble_guest',
     pointsCost: 300,
     category: 'identity',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_selected_guest',
@@ -53,9 +61,10 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_selected_guest',
     pointsCost: 800,
     category: 'identity',
+    unlockType: 'purchasable',
   },
   
-  // 🟨 品味風格
+  // 🟨 品味風格（可購買）
   {
     id: 'badge_taste_master',
     name: '品茶行家',
@@ -63,6 +72,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_taste_master',
     pointsCost: 200,
     category: 'taste',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_night_tea',
@@ -71,6 +81,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_night_tea',
     pointsCost: 200,
     category: 'taste',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_silent_taster',
@@ -79,6 +90,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_silent_taster',
     pointsCost: 200,
     category: 'taste',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_royal_taster',
@@ -87,6 +99,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_royal_taster',
     pointsCost: 500,
     category: 'taste',
+    unlockType: 'purchasable',
   },
   
   // 🟨 座上地位
@@ -97,6 +110,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_tea_regular',
     pointsCost: 400,
     category: 'status',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_lady_regular',
@@ -105,6 +119,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_lady_regular',
     pointsCost: 400,
     category: 'status',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_royal_seat',
@@ -113,6 +128,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_royal_seat',
     pointsCost: 800,
     category: 'status',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_tea_king_seat',
@@ -121,6 +137,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_tea_king_seat',
     pointsCost: 1500,
     category: 'status',
+    unlockType: 'purchasable',
   },
   
   // 🟨 皇室御印
@@ -131,6 +148,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_tea_king_confidant',
     pointsCost: 2000,
     category: 'royal',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_imperial_seal',
@@ -139,6 +157,7 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_imperial_seal',
     pointsCost: 3000,
     category: 'royal',
+    unlockType: 'purchasable',
   },
   {
     id: 'badge_national_master',
@@ -147,12 +166,162 @@ export const AVAILABLE_BADGES: Badge[] = [
     icon: 'badge_national_master',
     pointsCost: 5000,
     category: 'royal',
+    unlockType: 'purchasable',
+  },
+];
+
+// 後宮佳麗專屬勳章定義（所有勳章都可以用積分購買）
+export const LADY_AVAILABLE_BADGES: Badge[] = [
+  // 🟨 服務品質勳章
+  {
+    id: 'lady_star_service',
+    name: '星級服務',
+    description: '星級服務品質證明',
+    icon: 'lady_star_service',
+    pointsCost: 200,
+    category: 'quality',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_excellent_service',
+    name: '卓越服務',
+    description: '卓越服務品質證明',
+    icon: 'lady_excellent_service',
+    pointsCost: 500,
+    category: 'quality',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_diamond_service',
+    name: '鑽石服務',
+    description: '鑽石級服務品質證明',
+    icon: 'lady_diamond_service',
+    pointsCost: 800,
+    category: 'quality',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_royal_service',
+    name: '皇室服務',
+    description: '皇室級服務品質證明',
+    icon: 'lady_royal_service',
+    pointsCost: 1200,
+    category: 'quality',
+    unlockType: 'purchasable',
+  },
+  
+  // 🟨 服務資歷勳章
+  {
+    id: 'lady_experienced',
+    name: '經驗豐富',
+    description: '豐富服務經驗證明',
+    icon: 'lady_experienced',
+    pointsCost: 300,
+    category: 'experience',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_veteran_lady',
+    name: '資深佳麗',
+    description: '資深服務資歷證明',
+    icon: 'lady_veteran_lady',
+    pointsCost: 600,
+    category: 'experience',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_platinum',
+    name: '白金佳麗',
+    description: '白金級服務資歷證明',
+    icon: 'lady_platinum',
+    pointsCost: 1000,
+    category: 'experience',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_legendary',
+    name: '傳奇佳麗',
+    description: '傳奇級服務資歷證明',
+    icon: 'lady_legendary',
+    pointsCost: 2000,
+    category: 'experience',
+    unlockType: 'purchasable',
+  },
+  
+  // 🟨 客戶關係勳章
+  {
+    id: 'lady_popular',
+    name: '人氣佳麗',
+    description: '深受客戶喜愛證明',
+    icon: 'lady_popular',
+    pointsCost: 400,
+    category: 'client_relation',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_trusted',
+    name: '值得信賴',
+    description: '客戶信賴度證明',
+    icon: 'lady_trusted',
+    pointsCost: 600,
+    category: 'client_relation',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_beloved',
+    name: '深受寵愛',
+    description: '深受客戶寵愛證明',
+    icon: 'lady_beloved',
+    pointsCost: 800,
+    category: 'client_relation',
+    unlockType: 'purchasable',
+  },
+  
+  // 🟨 專業認證勳章
+  {
+    id: 'lady_professional',
+    name: '專業認證',
+    description: '平台專業認證證明',
+    icon: 'lady_professional',
+    pointsCost: 500,
+    category: 'certification',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_recommended',
+    name: '茶王愛妻',
+    description: '平台推薦佳麗證明',
+    icon: 'lady_recommended',
+    pointsCost: 1000,
+    category: 'certification',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_elite',
+    name: '菁英佳麗',
+    description: '平台菁英認證證明',
+    icon: 'lady_elite',
+    pointsCost: 1500,
+    category: 'certification',
+    unlockType: 'purchasable',
+  },
+  {
+    id: 'lady_crown',
+    name: '后冠佳麗',
+    description: '平台最高榮譽證明',
+    icon: 'lady_crown',
+    pointsCost: 3000,
+    category: 'certification',
+    unlockType: 'purchasable',
   },
 ];
 
 export const badgeModel = {
-  // 獲取所有可兌換的勳章
-  getAvailableBadges: (): Badge[] => {
+  // 獲取所有可兌換的勳章（根據角色）
+  getAvailableBadges: (role?: 'provider' | 'client' | 'admin'): Badge[] => {
+    if (role === 'provider') {
+      return LADY_AVAILABLE_BADGES;
+    }
     return AVAILABLE_BADGES;
   },
 
@@ -186,8 +355,10 @@ export const badgeModel = {
   },
 
   // 兌換勳章（扣除積分）
-  purchaseBadge: async (userId: string, badgeId: string): Promise<UserBadge> => {
-    const badge = AVAILABLE_BADGES.find(b => b.id === badgeId);
+  purchaseBadge: async (userId: string, badgeId: string, userRole?: 'provider' | 'client' | 'admin'): Promise<UserBadge> => {
+    // 根據用戶角色查找對應的勳章
+    const availableBadges = badgeModel.getAvailableBadges(userRole);
+    const badge = availableBadges.find(b => b.id === badgeId);
     if (!badge) {
       throw new Error('勳章不存在');
     }
@@ -201,6 +372,7 @@ export const badgeModel = {
     // 檢查積分是否足夠
     const { userStatsModel } = await import('./UserStats.js');
     const stats = await userStatsModel.getOrCreate(userId);
+    
     if (stats.currentPoints < badge.pointsCost) {
       throw new Error('積分不足，無法兌換此勳章');
     }
@@ -216,6 +388,56 @@ export const badgeModel = {
       INSERT INTO user_badges (id, user_id, badge_id, badge_name, badge_icon, points_cost)
       VALUES ($1, $2, $3, $4, $5, $6)
     `, [id, userId, badge.id, badge.name, badge.icon, badge.pointsCost]);
+
+    const result = await query('SELECT * FROM user_badges WHERE id = $1', [id]);
+    const row = result.rows[0];
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      badgeId: row.badge_id,
+      badgeName: row.badge_name,
+      badgeIcon: row.badge_icon || undefined,
+      pointsCost: row.points_cost,
+      unlockedAt: row.unlocked_at,
+    };
+  },
+
+  // 管理員授予勳章
+  grantBadge: async (userId: string, badgeId: string, adminUserId: string, userRole?: 'provider' | 'client' | 'admin'): Promise<UserBadge> => {
+    // 檢查管理員權限
+    const { userModel } = await import('./User.js');
+    const admin = await userModel.findById(adminUserId);
+    if (!admin || admin.role !== 'admin') {
+      throw new Error('只有管理員可以授予勳章');
+    }
+
+    // 根據用戶角色查找對應的勳章
+    const availableBadges = badgeModel.getAvailableBadges(userRole);
+    const badge = availableBadges.find(b => b.id === badgeId);
+    if (!badge) {
+      throw new Error('勳章不存在');
+    }
+
+    // 檢查是否為管理員授予類型
+    if (badge.unlockType !== 'admin_granted') {
+      throw new Error('此勳章不支援管理員授予');
+    }
+
+    // 檢查是否已擁有
+    const hasBadge = await badgeModel.hasBadge(userId, badgeId);
+    if (hasBadge) {
+      throw new Error('用戶已經擁有此勳章');
+    }
+
+    // 創建勳章記錄
+    const { v4: uuidv4 } = await import('uuid');
+    const id = `badge_${Date.now()}_${uuidv4().substring(0, 9)}`;
+
+    await query(`
+      INSERT INTO user_badges (id, user_id, badge_id, badge_name, badge_icon, points_cost)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [id, userId, badge.id, badge.name, badge.icon, 0]); // 管理員授予積分成本為0
 
     const result = await query('SELECT * FROM user_badges WHERE id = $1', [id]);
     const row = result.rows[0];

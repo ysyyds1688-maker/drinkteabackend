@@ -186,6 +186,23 @@ export const userModel = {
       return benefits[level] || benefits.tea_guest;
     },
 
+    // 獲取後宮佳麗會員等級權益
+    getLadyMembershipBenefits: (level: LadyMembershipLevel) => {
+      const benefits: Record<LadyMembershipLevel, string[]> = {
+        lady_trainee: ['基本功能'],
+        lady_apprentice: ['基本功能', '上架管理', '優先客服'],
+        lady_junior: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤'],
+        lady_senior: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章'],
+        lady_expert: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章', '優先推薦', '專屬服務'],
+        lady_master: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章', '優先推薦', '專屬服務', '御前特權', '專屬顧問'],
+        lady_elite: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章', '優先推薦', '專屬服務', '御前特權', '專屬顧問', '金牌特權', '優先曝光'],
+        lady_premium: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章', '優先推薦', '專屬服務', '御前特權', '專屬顧問', '金牌特權', '優先曝光', '鑽石推薦', '獨家展示'],
+        lady_royal: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章', '優先推薦', '專屬服務', '御前特權', '專屬顧問', '金牌特權', '優先曝光', '鑽石推薦', '獨家展示', '皇家特權', '尊貴服務'],
+        lady_empress: ['基本功能', '上架管理', '優先客服', '更多展示位', '專屬標籤', '數據分析', '專屬徽章', '優先推薦', '專屬服務', '御前特權', '專屬顧問', '金牌特權', '優先曝光', '鑽石推薦', '獨家展示', '皇家特權', '尊貴服務', '皇后級特權', '至尊服務', '無限權限'],
+      };
+      return benefits[level] || benefits.lady_trainee;
+    },
+
   // 更新驗證勳章
   updateVerificationBadge: async (userId: string, badge: string, add: boolean = true): Promise<void> => {
     const user = await userModel.findById(userId);
@@ -271,6 +288,18 @@ export const userModel = {
       fields.push(`avatar_url = $${paramIndex++}`);
       values.push(userData.avatarUrl || null);
     }
+    if (userData.email !== undefined) {
+      fields.push(`email = $${paramIndex++}`);
+      values.push(userData.email || null);
+      // 當 email 改變時，重置 email 驗證狀態
+      fields.push(`email_verified = FALSE`);
+    }
+    if (userData.phoneNumber !== undefined) {
+      fields.push(`phone_number = $${paramIndex++}`);
+      values.push(userData.phoneNumber || null);
+      // 當手機號碼改變時，重置手機驗證狀態
+      fields.push(`phone_verified = FALSE`);
+    }
 
     if (fields.length === 0) {
       return userModel.findById(id);
@@ -322,6 +351,17 @@ export const userModel = {
     await query(`
       UPDATE users
       SET email_verified = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [verified, id]);
+    
+    return userModel.findById(id);
+  },
+
+  // 更新手機驗證狀態
+  updatePhoneVerified: async (id: string, verified: boolean): Promise<User | null> => {
+    await query(`
+      UPDATE users
+      SET phone_verified = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [verified, id]);
     

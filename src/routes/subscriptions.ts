@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { userModel, MembershipLevel } from '../models/User.js';
+import { userModel, MembershipLevel, LadyMembershipLevel } from '../models/User.js';
 import { subscriptionModel } from '../models/Subscription.js';
 import { verifyToken } from '../services/authService.js';
 
@@ -179,12 +179,51 @@ router.post('/cancel', async (req, res) => {
 // 獲取等級權益列表
 router.get('/benefits', async (req, res) => {
   try {
-    const levels: MembershipLevel[] = ['tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer'];
-    const benefits = levels.map(level => ({
-      level,
-      benefits: userModel.getMembershipBenefits(level),
-    }));
+    // 嘗試從 Authorization header 獲取用戶角色
+    let userRole: 'provider' | 'client' | 'admin' = 'client'; // 默認為品茶客
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload) {
+          const user = await userModel.findById(payload.userId);
+          if (user) {
+            userRole = user.role;
+          }
+        }
+      }
+    } catch (e) {
+      // 如果獲取用戶信息失敗，使用默認值（品茶客）
+      console.log('無法獲取用戶角色，使用默認值（品茶客）');
+    }
+
+    let benefits: Array<{ level: string; benefits: string[] }> = [];
     
+    if (userRole === 'provider') {
+      // 後宮佳麗等級權益
+      const ladyLevels: Array<'lady_trainee' | 'lady_apprentice' | 'lady_junior' | 'lady_senior' | 'lady_expert' | 'lady_master' | 'lady_elite' | 'lady_premium' | 'lady_royal' | 'lady_empress'> = [
+        'lady_trainee', 'lady_apprentice', 'lady_junior', 'lady_senior', 'lady_expert', 
+        'lady_master', 'lady_elite', 'lady_premium', 'lady_royal', 'lady_empress'
+      ];
+      benefits = ladyLevels.map(level => ({
+        level,
+        benefits: userModel.getLadyMembershipBenefits(level),
+      }));
+    } else {
+      // 品茶客等級權益
+      const clientLevels: MembershipLevel[] = [
+        'tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 
+        'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 
+        'imperial_golden_seal_tea_officer', 'national_master_tea_officer'
+      ];
+      benefits = clientLevels.map(level => ({
+        level,
+        benefits: userModel.getMembershipBenefits(level),
+      }));
+    }
+    
+    console.log(`[benefits] 返回 ${userRole} 角色的權益列表，共 ${benefits.length} 個等級`);
     res.json({
       benefits,
     });

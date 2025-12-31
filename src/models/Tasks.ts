@@ -25,14 +25,15 @@ export interface TaskDefinition {
 // 任務定義
 // 設計原則：經驗值比積分更容易獲得（經驗是積分的 1.5 倍）
 // 積分用於兌換勳章，經驗值用於升級會員等級
+// 積分獎勵已調降，使勳章更有價值
 export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
   daily_login: {
     type: 'daily_login',
     name: '每日登入',
     description: '登入網站',
     target: 1,
-    pointsReward: 10,        // 積分：較難獲得
-    experienceReward: 15,    // 經驗：較容易獲得（積分的 1.5 倍）
+    pointsReward: 5,         // 積分：調降（原 10）
+    experienceReward: 8,     // 經驗：調降（原 15）
     category: 'daily',
   },
   create_post: {
@@ -40,8 +41,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '發表帖子',
     description: '在論壇發表 1 篇帖子',
     target: 1,
-    pointsReward: 20,        // 積分：較難獲得
-    experienceReward: 30,    // 經驗：較容易獲得（積分的 1.5 倍）
+    pointsReward: 10,        // 積分：調降（原 20）
+    experienceReward: 15,    // 經驗：調降（原 30）
     category: 'daily',
   },
   reply_post: {
@@ -49,8 +50,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '回覆帖子',
     description: '在論壇回覆 3 篇帖子',
     target: 3,
-    pointsReward: 30,        // 積分：較難獲得
-    experienceReward: 45,    // 經驗：較容易獲得（積分的 1.5 倍）
+    pointsReward: 15,        // 積分：調降（原 30）
+    experienceReward: 23,    // 經驗：調降（原 45）
     category: 'daily',
   },
   like_content: {
@@ -58,8 +59,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '互動任務',
     description: '點讚 5 個帖子/回覆',
     target: 5,
-    pointsReward: 25,        // 積分：較難獲得
-    experienceReward: 37,    // 經驗：較容易獲得（積分的 1.5 倍，四捨五入）
+    pointsReward: 10,        // 積分：調降（原 25）
+    experienceReward: 15,    // 經驗：調降（原 37）
     category: 'daily',
   },
   browse_profiles: {
@@ -67,8 +68,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '瀏覽任務',
     description: '瀏覽 10 個個人資料',
     target: 10,
-    pointsReward: 20,        // 積分：較難獲得
-    experienceReward: 30,    // 經驗：較容易獲得（積分的 1.5 倍）
+    pointsReward: 10,        // 積分：調降（原 20）
+    experienceReward: 15,    // 經驗：調降（原 30）
     category: 'daily',
   },
   book_premium_tea: {
@@ -76,8 +77,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '預約高級茶',
     description: '預約嚴選好茶 1 次（需管理員確認赴約並評論）',
     target: 1,
-    pointsReward: 50,        // 積分：較難獲得
-    experienceReward: 75,    // 經驗：較容易獲得（積分的 1.5 倍）
+    pointsReward: 30,        // 積分：調降（原 50）
+    experienceReward: 45,    // 經驗：調降（原 75）
     category: 'daily',       // 保持 daily，但可在 UI 上分類到「其他任務」
   },
   book_lady_booking: {
@@ -85,8 +86,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '預約後宮佳麗',
     description: '預約特選魚市後宮佳麗 1 次（需預約成功並評論）',
     target: 1,
-    pointsReward: 50,        // 積分：較難獲得
-    experienceReward: 75,    // 經驗：較容易獲得（積分的 1.5 倍）
+    pointsReward: 30,        // 積分：調降（原 50）
+    experienceReward: 45,    // 經驗：調降（原 75）
     category: 'daily',       // 保持 daily，但可在 UI 上分類到「其他任務」
   },
   // 後宮佳麗專屬任務
@@ -95,8 +96,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '完成預約',
     description: '完成 1 次預約服務（預約狀態變為 completed）',
     target: 1,
-    pointsReward: 50,
-    experienceReward: 75,
+    pointsReward: 25,        // 積分：調降（原 50）
+    experienceReward: 38,    // 經驗：調降（原 75）
     category: 'daily',
   },
   lady_receive_good_review: {
@@ -104,8 +105,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '獲得好評',
     description: '獲得 1 個 4-5 星評價',
     target: 1,
-    pointsReward: 50,
-    experienceReward: 75,
+    pointsReward: 25,        // 積分：調降（原 50）
+    experienceReward: 38,    // 經驗：調降（原 75）
     category: 'daily',
   },
   lady_respond_booking: {
@@ -113,8 +114,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '回應預約',
     description: '回應 3 個預約請求（接受或拒絕）',
     target: 3,
-    pointsReward: 30,
-    experienceReward: 45,
+    pointsReward: 15,        // 積分：調降（原 30）
+    experienceReward: 23,    // 經驗：調降（原 45）
     category: 'daily',
   },
   lady_update_profile: {
@@ -122,8 +123,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '更新資料',
     description: '更新個人上架資料 1 次',
     target: 1,
-    pointsReward: 20,
-    experienceReward: 30,
+    pointsReward: 10,        // 積分：調降（原 20）
+    experienceReward: 15,    // 經驗：調降（原 30）
     category: 'daily',
   },
   lady_forum_interaction: {
@@ -131,8 +132,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '論壇互動',
     description: '在論壇發表 1 篇帖子或回覆 3 篇',
     target: 1, // 1 篇帖子 或 3 篇回覆（需要特殊處理）
-    pointsReward: 25,
-    experienceReward: 37,
+    pointsReward: 12,        // 積分：調降（原 25）
+    experienceReward: 18,    // 經驗：調降（原 37）
     category: 'daily',
   },
   lady_maintain_quality: {
@@ -140,8 +141,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '維護品質',
     description: '連續 3 天都有獲得好評（4-5 星）',
     target: 3,
-    pointsReward: 100,
-    experienceReward: 150,
+    pointsReward: 50,        // 積分：調降（原 100）
+    experienceReward: 75,    // 經驗：調降（原 150）
     category: 'daily',
   },
   lady_boost_exposure: {
@@ -149,8 +150,8 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     name: '提升曝光',
     description: '個人資料被瀏覽 50 次',
     target: 50,
-    pointsReward: 30,
-    experienceReward: 45,
+    pointsReward: 15,        // 積分：調降（原 30）
+    experienceReward: 23,    // 經驗：調降（原 45）
     category: 'daily',
   },
 };
@@ -232,7 +233,7 @@ export const tasksModel = {
   getDailyTasks: async (userId: string, date: string = new Date().toISOString().split('T')[0]): Promise<DailyTask[]> => {
     // 獲取用戶角色
     const { userModel } = await import('./User.js');
-    const user = await userModel.getById(userId);
+    const user = await userModel.findById(userId);
     if (!user) return [];
     
     const tasks: DailyTask[] = [];

@@ -93,7 +93,7 @@ export const LEVEL_NAMES = CLIENT_LEVEL_NAMES;
 
 // 根據經驗值和角色獲取等級
 export const getLevelFromExperience = async (userId: string, experience: number): Promise<MembershipLevel | LadyMembershipLevel> => {
-  const user = await userModel.getById(userId);
+  const user = await userModel.findById(userId);
   if (!user) {
     console.log(`[getLevelFromExperience] 用戶 ${userId} 不存在，返回默認值 tea_guest`);
     return 'tea_guest'; // 默認值
@@ -216,7 +216,7 @@ export const userStatsModel = {
     
     // 如果升級，更新用戶表中的等級
     if (levelUp) {
-      const user = await userModel.getById(userId);
+      const user = await userModel.findById(userId);
       if (user) {
         await userModel.updateMembership(userId, newLevel as any, undefined);
       }

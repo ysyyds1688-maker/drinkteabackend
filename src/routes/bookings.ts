@@ -150,9 +150,16 @@ router.put('/:id/status', async (req, res) => {
         if (user.role === 'client' && booking.clientId === user.id) {
           await userStatsModel.addPoints(booking.clientId, 0, 25); // 只給經驗值，不給積分
         }
-        // 給供茶人經驗值（如果是供茶人完成的預約）
+        // 給後宮佳麗經驗值並檢查自動解鎖成就（如果是供茶人完成的預約）
         if (user.role === 'provider' && booking.providerId === user.id) {
           await userStatsModel.addPoints(booking.providerId, 0, 25); // 只給經驗值，不給積分
+          
+          // 檢查並自動解鎖符合條件的成就
+          const { achievementModel } = await import('../models/Achievement.js');
+          const unlocked = await achievementModel.checkAndUnlockAchievements(booking.providerId);
+          if (unlocked.length > 0) {
+            console.log(`後宮佳麗 ${booking.providerId} 自動解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));
+          }
         }
       } catch (error) {
         console.error('給完成預約者經驗值失敗:', error);

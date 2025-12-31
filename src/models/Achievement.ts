@@ -17,7 +17,7 @@ export interface AchievementDefinition {
   name: string;
   description: string;
   icon: string;
-  category: 'forum' | 'premium_tea' | 'lady_booking' | 'loyalty' | 'all';
+  category: 'forum' | 'premium_tea' | 'lady_booking' | 'loyalty' | 'all' | 'service_tenure' | 'service_quality' | 'client_loyalty' | 'service_efficiency' | 'platform_engagement';
   condition: (stats: any) => boolean;
   pointsReward: number;
   experienceReward: number;
@@ -179,7 +179,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '初入宮廷',
     description: '完成首次預約服務',
     icon: '💃',
-    category: 'all',
+    category: 'service_tenure',
     condition: (stats) => (stats.completedBookingsCount || 0) >= 1,
     pointsReward: 100,
     experienceReward: 50,
@@ -189,7 +189,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '服務新手',
     description: '完成 5 次預約服務',
     icon: '🌸',
-    category: 'all',
+    category: 'service_tenure',
     condition: (stats) => (stats.completedBookingsCount || 0) >= 5,
     pointsReward: 200,
     experienceReward: 100,
@@ -199,7 +199,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '穩定服務',
     description: '完成 20 次預約服務',
     icon: '⭐',
-    category: 'all',
+    category: 'service_tenure',
     condition: (stats) => (stats.completedBookingsCount || 0) >= 20,
     pointsReward: 500,
     experienceReward: 250,
@@ -209,7 +209,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '資深服務',
     description: '完成 50 次預約服務',
     icon: '👑',
-    category: 'all',
+    category: 'service_tenure',
     condition: (stats) => (stats.completedBookingsCount || 0) >= 50,
     pointsReward: 1000,
     experienceReward: 500,
@@ -219,7 +219,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '服務大師',
     description: '完成 100 次預約服務',
     icon: '🏆',
-    category: 'all',
+    category: 'service_tenure',
     condition: (stats) => (stats.completedBookingsCount || 0) >= 100,
     pointsReward: 2000,
     experienceReward: 1000,
@@ -231,7 +231,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '初次好評',
     description: '獲得第一個 5 星評價',
     icon: '✨',
-    category: 'all',
+    category: 'service_quality',
     condition: (stats) => (stats.fiveStarReviewsCount || 0) >= 1,
     pointsReward: 100,
     experienceReward: 50,
@@ -241,7 +241,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '好評如潮',
     description: '獲得 10 個 5 星評價',
     icon: '🌟',
-    category: 'all',
+    category: 'service_quality',
     condition: (stats) => (stats.fiveStarReviewsCount || 0) >= 10,
     pointsReward: 300,
     experienceReward: 150,
@@ -251,7 +251,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '完美評價',
     description: '獲得 50 個 5 星評價',
     icon: '💎',
-    category: 'all',
+    category: 'service_quality',
     condition: (stats) => (stats.fiveStarReviewsCount || 0) >= 50,
     pointsReward: 800,
     experienceReward: 400,
@@ -261,7 +261,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '品質保證',
     description: '平均評價達到 4.5 星以上（至少 20 個評價）',
     icon: '🎖️',
-    category: 'all',
+    category: 'service_quality',
     condition: (stats) => {
       const avgRating = stats.averageRating || 0;
       const totalReviews = stats.totalReviewsCount || 0;
@@ -277,7 +277,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '回頭客',
     description: '同一位客戶回顧 3 次',
     icon: '🔄',
-    category: 'all',
+    category: 'client_loyalty',
     condition: (stats) => (stats.repeatClientBookingsCount || 0) >= 3,
     pointsReward: 200,
     experienceReward: 100,
@@ -287,7 +287,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '熟客成群',
     description: '擁有 10 位以上的回頭客',
     icon: '👥',
-    category: 'all',
+    category: 'client_loyalty',
     condition: (stats) => (stats.uniqueReturningClientsCount || 0) >= 10,
     pointsReward: 500,
     experienceReward: 250,
@@ -299,7 +299,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '效率之星',
     description: '當日回應所有預約請求（響應時間 < 1 小時）',
     icon: '⚡',
-    category: 'all',
+    category: 'service_efficiency',
     condition: (stats) => {
       const responseTime = stats.averageResponseTime || 999;
       return responseTime < 60; // 60 分鐘
@@ -312,7 +312,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '準時達人',
     description: '連續 10 次預約都準時完成（無取消記錄）',
     icon: '⏰',
-    category: 'all',
+    category: 'service_efficiency',
     condition: (stats) => {
       const consecutive = stats.consecutiveCompletedBookings || 0;
       const cancelRate = stats.cancellationRate || 1;
@@ -328,7 +328,7 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '論壇新人',
     description: '在論壇發表第一篇帖子',
     icon: '📝',
-    category: 'all',
+    category: 'platform_engagement',
     condition: (stats) => (stats.postsCount || 0) >= 1,
     pointsReward: 50,
     experienceReward: 20,
@@ -338,10 +338,62 @@ export const LADY_ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     name: '活躍佳麗',
     description: '連續登入 7 天',
     icon: '🔥',
-    category: 'all',
+    category: 'platform_engagement',
     condition: (stats) => (stats.consecutiveLoginDays || 0) >= 7,
     pointsReward: 100,
     experienceReward: 50,
+  },
+  
+  // 🟦 服務品質成就（從勳章系統移過來）
+  {
+    type: 'lady_quality_service_achievement',
+    name: '優質服務',
+    description: '平均評價 4.5 星以上（至少 10 個評價）',
+    icon: 'lady_quality_service',
+    category: 'service_quality',
+    condition: (stats) => {
+      const avgRating = stats.averageRating || 0;
+      const totalReviews = stats.totalReviewsCount || 0;
+      return avgRating >= 4.5 && totalReviews >= 10;
+    },
+    pointsReward: 200,
+    experienceReward: 100,
+  },
+  {
+    type: 'lady_perfect_service_achievement',
+    name: '完美服務',
+    description: '平均評價 4.8 星以上（至少 50 個評價）',
+    icon: 'lady_perfect_service',
+    category: 'service_quality',
+    condition: (stats) => {
+      const avgRating = stats.averageRating || 0;
+      const totalReviews = stats.totalReviewsCount || 0;
+      return avgRating >= 4.8 && totalReviews >= 50;
+    },
+    pointsReward: 500,
+    experienceReward: 250,
+  },
+  
+  // 🟦 服務資歷成就（從勳章系統移過來）
+  {
+    type: 'lady_veteran_achievement',
+    name: '資深佳麗',
+    description: '完成 100 次以上預約',
+    icon: 'lady_veteran_badge',
+    category: 'service_tenure',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 100,
+    pointsReward: 300,
+    experienceReward: 150,
+  },
+  {
+    type: 'lady_gold_achievement',
+    name: '金牌佳麗',
+    description: '完成 500 次以上預約',
+    icon: 'lady_gold_badge',
+    category: 'service_tenure',
+    condition: (stats) => (stats.completedBookingsCount || 0) >= 500,
+    pointsReward: 1000,
+    experienceReward: 500,
   },
 ];
 

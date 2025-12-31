@@ -23,7 +23,7 @@ router.get('/me', async (req, res) => {
     
     // 獲取用戶信息以確定角色
     const { userModel } = await import('../models/User.js');
-    const user = await userModel.getById(payload.userId);
+    const user = await userModel.findById(payload.userId);
     
     const currentLevel = await getLevelFromExperience(payload.userId, stats.experiencePoints);
     console.log(`[user-stats] 用戶 ${payload.userId} (角色: ${user?.role}) 經驗值: ${stats.experiencePoints}, 計算等級: ${currentLevel}`);
