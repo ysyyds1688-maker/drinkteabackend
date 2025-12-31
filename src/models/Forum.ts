@@ -393,6 +393,42 @@ export const forumModel = {
     
     return result.rows.length > 0;
   },
+
+  // 刪除帖子（僅管理員）
+  deletePost: async (postId: string): Promise<boolean> => {
+    // 先刪除相關的回覆和點讚
+    await query('DELETE FROM forum_likes WHERE target_type = $1 AND target_id = $2', ['post', postId]);
+    await query('DELETE FROM forum_replies WHERE post_id = $1', [postId]);
+    
+    // 刪除帖子
+    const result = await query('DELETE FROM forum_posts WHERE id = $1', [postId]);
+    return (result.rowCount || 0) > 0;
+  },
+
+  // 刪除回覆（僅管理員）
+  deleteReply: async (replyId: string): Promise<boolean> => {
+    // 先刪除相關的子回覆和點讚
+    await query('DELETE FROM forum_likes WHERE target_type = $1 AND target_id = $2', ['reply', replyId]);
+    await query('DELETE FROM forum_replies WHERE parent_reply_id = $1', [replyId]);
+    
+    // 獲取帖子ID以更新回覆數
+    const postResult = await query('SELECT post_id FROM forum_replies WHERE id = $1', [replyId]);
+    const postId = postResult.rows.length > 0 ? postResult.rows[0].post_id : null;
+    
+    // 刪除回覆
+    const result = await query('DELETE FROM forum_replies WHERE id = $1', [replyId]);
+    
+    // 更新帖子的回覆數
+    if (postId && (result.rowCount || 0) > 0) {
+      await query(`
+        UPDATE forum_posts 
+        SET replies_count = GREATEST(0, replies_count - 1)
+        WHERE id = $1
+      `, [postId]);
+    }
+    
+    return (result.rowCount || 0) > 0;
+  },
 };
 
 

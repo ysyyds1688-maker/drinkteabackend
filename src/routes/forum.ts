@@ -278,5 +278,75 @@ router.post('/likes', async (req, res) => {
   }
 });
 
+// 刪除帖子（僅管理員）
+router.delete('/posts/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+
+    // 檢查是否為管理員
+    const { userModel } = await import('../models/User.js');
+    const user = await userModel.findById(payload.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: '僅管理員可執行此操作' });
+    }
+    
+    const { id } = req.params;
+    const deleted = await forumModel.deletePost(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: '帖子不存在' });
+    }
+    
+    res.json({ success: true, message: '帖子已刪除' });
+  } catch (error: any) {
+    console.error('Delete post error:', error);
+    res.status(500).json({ error: error.message || '刪除帖子失敗' });
+  }
+});
+
+// 刪除回覆（僅管理員）
+router.delete('/replies/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+
+    // 檢查是否為管理員
+    const { userModel } = await import('../models/User.js');
+    const user = await userModel.findById(payload.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: '僅管理員可執行此操作' });
+    }
+    
+    const { id } = req.params;
+    const deleted = await forumModel.deleteReply(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: '回覆不存在' });
+    }
+    
+    res.json({ success: true, message: '回覆已刪除' });
+  } catch (error: any) {
+    console.error('Delete reply error:', error);
+    res.status(500).json({ error: error.message || '刪除回覆失敗' });
+  }
+});
+
 export default router;
 

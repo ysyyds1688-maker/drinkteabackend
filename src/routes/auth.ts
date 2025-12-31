@@ -483,18 +483,29 @@ router.post('/send-verification-email', async (req, res) => {
     // 存儲驗證碼
     emailVerificationCodes.set(user.id, { code, expiresAt });
     
-    // TODO: 這裡應該發送真實的郵件，目前先返回驗證碼（開發環境）
-    // 生產環境應該移除這個返回，只返回成功消息
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[開發環境] 用戶 ${user.email} 的驗證碼: ${code}`);
+    // 發送郵件
+    try {
+      const { sendVerificationEmail } = await import('../services/emailService.js');
+      await sendVerificationEmail(user.email, code);
+    } catch (emailError: any) {
+      console.error('發送郵件失敗:', emailError);
+      // 如果是開發環境且未配置 SMTP，返回驗證碼供測試
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[開發環境] 用戶 ${user.email} 的驗證碼: ${code}`);
+        res.json({ 
+          message: '驗證碼已生成（開發環境，未配置 SMTP）',
+          code, // 開發環境返回驗證碼
+          warning: 'SMTP 未配置，郵件未實際發送'
+        });
+        return;
+      }
+      // 生產環境發送失敗則返回錯誤
+      return res.status(500).json({ error: '發送驗證碼失敗，請稍後再試' });
     }
     
-    // TODO: 發送郵件
-    // await sendEmail(user.email, '郵箱驗證', `您的驗證碼是: ${code}，有效期10分鐘`);
-    
     res.json({ 
-      message: '驗證碼已發送',
-      // 開發環境返回驗證碼，生產環境不返回
+      message: '驗證碼已發送到您的郵箱',
+      // 開發環境且已配置 SMTP 時，也返回驗證碼方便測試
       ...(process.env.NODE_ENV === 'development' ? { code } : {})
     });
   } catch (error: any) {
