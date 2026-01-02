@@ -14,12 +14,28 @@ router.get('/posts', async (req, res) => {
     
     const posts = await forumModel.getPosts({
       category: category as string,
-      sortBy: sortBy as 'latest' | 'hot' | 'replies' | 'views',
+      sortBy: sortBy as 'latest' | 'hot' | 'replies' | 'views' | 'favorites',
       limit: limit ? parseInt(limit as string) : undefined,
       offset: offset ? parseInt(offset as string) : undefined,
     });
     
-    res.json({ posts });
+    // 檢查是否已收藏（如果已登入）
+    let favoritedPosts: Set<string> = new Set();
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      if (payload) {
+        for (const post of posts) {
+          const isFavorited = await forumModel.isFavorited(payload.userId, post.id);
+          if (isFavorited) {
+            favoritedPosts.add(post.id);
+          }
+        }
+      }
+    }
+    
+    res.json({ posts, favoritedPostIds: Array.from(favoritedPosts) });
   } catch (error: any) {
     console.error('Get posts error:', error);
     res.status(500).json({ error: error.message || '獲取帖子失敗' });
@@ -39,18 +55,20 @@ router.get('/posts/:id', async (req, res) => {
     // 獲取回覆
     const replies = await forumModel.getRepliesByPostId(id);
     
-    // 檢查是否已點讚（如果已登入）
+    // 檢查是否已點讚和已收藏（如果已登入）
     let isLiked = false;
+    let isFavorited = false;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const payload = verifyToken(token);
       if (payload) {
         isLiked = await forumModel.isLiked(payload.userId, 'post', id);
+        isFavorited = await forumModel.isFavorited(payload.userId, id);
       }
     }
     
-    res.json({ post, replies, isLiked });
+    res.json({ post, replies, isLiked, isFavorited });
   } catch (error: any) {
     console.error('Get post error:', error);
     res.status(500).json({ error: error.message || '獲取帖子失敗' });
@@ -71,10 +89,19 @@ router.post('/posts', async (req, res) => {
       return res.status(401).json({ error: 'Token 無效' });
     }
     
-    const { title, content, category, tags, images } = req.body;
+    const { title, content, category, tags, images, relatedProfileId, relatedReviewId } = req.body;
     
     if (!title || !content || !category) {
       return res.status(400).json({ error: '標題、內容和分類為必填項' });
+    }
+    
+    // 檢查後宮佳麗宣傳區的發帖權限
+    if (category === 'lady_promotion') {
+      const { userModel } = await import('../models/User.js');
+      const user = await userModel.findById(payload.userId);
+      if (!user || user.role !== 'provider') {
+        return res.status(403).json({ error: '此版區僅限後宮佳麗（Provider）發帖宣傳' });
+      }
     }
     
     const post = await forumModel.createPost({
@@ -84,6 +111,8 @@ router.post('/posts', async (req, res) => {
       category,
       tags,
       images,
+      relatedProfileId,
+      relatedReviewId,
     });
     
     // 更新統計和任務
@@ -346,6 +375,102 @@ router.delete('/replies/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Delete reply error:', error);
     res.status(500).json({ error: error.message || '刪除回覆失敗' });
+  }
+});
+
+// 切換收藏
+router.post('/favorites', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const { postId } = req.body;
+    
+    if (!postId) {
+      return res.status(400).json({ error: '帖子ID為必填項' });
+    }
+    
+    const result = await forumModel.toggleFavorite(payload.userId, postId);
+    
+    res.json(result);
+  } catch (error: any) {
+    console.error('Toggle favorite error:', error);
+    res.status(500).json({ error: error.message || '操作失敗' });
+  }
+});
+
+// 獲取用戶收藏列表
+router.get('/favorites', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const { limit, offset } = req.query;
+    
+    const posts = await forumModel.getFavoritesByUserId(
+      payload.userId,
+      limit ? parseInt(limit as string) : undefined,
+      offset ? parseInt(offset as string) : undefined
+    );
+    
+    res.json({ posts });
+  } catch (error: any) {
+    console.error('Get favorites error:', error);
+    res.status(500).json({ error: error.message || '獲取收藏列表失敗' });
+  }
+});
+
+// 創建舉報
+router.post('/reports', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    const { postId, replyId, reason } = req.body;
+    
+    if (!postId && !replyId) {
+      return res.status(400).json({ error: '帖子ID或回覆ID至少需要一個' });
+    }
+    
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: '舉報原因為必填項' });
+    }
+    
+    const report = await forumModel.createReport({
+      reporterId: payload.userId,
+      postId,
+      replyId,
+      reason: reason.trim(),
+    });
+    
+    res.status(201).json({ success: true, reportId: report.id, message: '舉報已提交，管理員將盡快處理' });
+  } catch (error: any) {
+    console.error('Create report error:', error);
+    res.status(500).json({ error: error.message || '提交舉報失敗' });
   }
 });
 

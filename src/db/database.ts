@@ -667,6 +667,51 @@ export const initDatabase = async () => {
       )
     `);
 
+    // 添加新欄位到 forum_posts 表（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE forum_posts 
+        ADD COLUMN IF NOT EXISTS related_profile_id VARCHAR(255) REFERENCES profiles(id) ON DELETE SET NULL
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 related_profile_id 欄位時出錯:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE forum_posts 
+        ADD COLUMN IF NOT EXISTS related_review_id VARCHAR(255) REFERENCES reviews(id) ON DELETE SET NULL
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 related_review_id 欄位時出錯:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE forum_posts 
+        ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 is_featured 欄位時出錯:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE forum_posts 
+        ADD COLUMN IF NOT EXISTS favorites_count INTEGER DEFAULT 0
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 favorites_count 欄位時出錯:', error.message);
+      }
+    }
+
     // Forum replies table (論壇回覆表)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS forum_replies (
@@ -690,6 +735,32 @@ export const initDatabase = async () => {
         target_id VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, target_type, target_id)
+      )
+    `);
+
+    // Forum favorites table (論壇收藏表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS forum_favorites (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        post_id VARCHAR(255) NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, post_id)
+      )
+    `);
+
+    // Forum reports table (論壇舉報表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS forum_reports (
+        id VARCHAR(255) PRIMARY KEY,
+        reporter_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        post_id VARCHAR(255) REFERENCES forum_posts(id) ON DELETE CASCADE,
+        reply_id VARCHAR(255) REFERENCES forum_replies(id) ON DELETE CASCADE,
+        reason VARCHAR(255) NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending' CHECK(status IN ('pending', 'reviewed', 'resolved', 'rejected')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CHECK((post_id IS NOT NULL AND reply_id IS NULL) OR (post_id IS NULL AND reply_id IS NOT NULL))
       )
     `);
 
@@ -781,6 +852,24 @@ export const initDatabase = async () => {
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_forum_likes_target ON forum_likes(target_type, target_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_posts_profile ON forum_posts(related_profile_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_posts_featured ON forum_posts(is_featured)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_favorites_user ON forum_favorites(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_favorites_post ON forum_favorites(post_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_reports_status ON forum_reports(status)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_forum_reports_created ON forum_reports(created_at DESC)
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_daily_tasks_user_date ON daily_tasks(user_id, task_date)

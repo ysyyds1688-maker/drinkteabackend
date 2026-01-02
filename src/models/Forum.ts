@@ -11,8 +11,12 @@ export interface ForumPost {
   views: number;
   likesCount: number;
   repliesCount: number;
+  favoritesCount?: number; // 收藏數
   isPinned: boolean;
   isLocked: boolean;
+  isFeatured?: boolean; // 是否為精華帖
+  relatedProfileId?: string; // 關聯的 Profile ID
+  relatedReviewId?: string; // 關聯的 Review ID
   createdAt: string;
   updatedAt: string;
   userName?: string;
@@ -20,6 +24,7 @@ export interface ForumPost {
   membershipLevel?: string;
   isVip?: boolean;
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
+  relatedProfileName?: string; // 關聯的 Profile 名稱（用於顯示）
 }
 
 export interface ForumReply {
@@ -46,6 +51,8 @@ export interface CreatePostData {
   category: string;
   tags?: string[];
   images?: string[]; // 圖片 URL 數組
+  relatedProfileId?: string; // 關聯的 Profile ID
+  relatedReviewId?: string; // 關聯的 Review ID
 }
 
 export interface CreateReplyData {
@@ -62,8 +69,8 @@ export const forumModel = {
     const id = `post_${Date.now()}_${uuidv4().substring(0, 9)}`;
     
     await query(`
-      INSERT INTO forum_posts (id, user_id, title, content, category, tags, images)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO forum_posts (id, user_id, title, content, category, tags, images, related_profile_id, related_review_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `, [
       id,
       data.userId,
@@ -72,6 +79,8 @@ export const forumModel = {
       data.category,
       data.tags ? JSON.stringify(data.tags) : null,
       data.images && data.images.length > 0 ? JSON.stringify(data.images) : null,
+      data.relatedProfileId || null,
+      data.relatedReviewId || null,
     ]);
     
     const post = await forumModel.getPostById(id);
@@ -82,7 +91,7 @@ export const forumModel = {
   // 獲取帖子列表
   getPosts: async (options: {
     category?: string;
-    sortBy?: 'latest' | 'hot' | 'replies' | 'views';
+    sortBy?: 'latest' | 'hot' | 'replies' | 'views' | 'favorites';
     limit?: number;
     offset?: number;
   } = {}): Promise<ForumPost[]> => {
@@ -92,6 +101,7 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             pr.name as related_profile_name,
              (SELECT is_active FROM subscriptions 
               WHERE user_id = u.id AND is_active = true 
               ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
@@ -100,6 +110,7 @@ export const forumModel = {
               ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_expires_at
       FROM forum_posts p
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN profiles pr ON p.related_profile_id = pr.id
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -121,8 +132,11 @@ export const forumModel = {
       case 'views':
         sql += ` ORDER BY p.views DESC, p.created_at DESC`;
         break;
+      case 'favorites':
+        sql += ` ORDER BY p.favorites_count DESC, p.created_at DESC`;
+        break;
       default:
-        sql += ` ORDER BY p.is_pinned DESC, p.created_at DESC`;
+        sql += ` ORDER BY p.is_pinned DESC, p.is_featured DESC, p.created_at DESC`;
     }
     
     if (options.limit) {
@@ -150,15 +164,20 @@ export const forumModel = {
         views: row.views || 0,
         likesCount: row.likes_count || 0,
         repliesCount: row.replies_count || 0,
+        favoritesCount: row.favorites_count || 0,
         isPinned: Boolean(row.is_pinned),
         isLocked: Boolean(row.is_locked),
+        isFeatured: Boolean(row.is_featured),
+        relatedProfileId: row.related_profile_id || undefined,
+        relatedReviewId: row.related_review_id || undefined,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         userName: row.user_name || undefined,
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
-        userRole: row.user_role || undefined, // 添加用戶角色
+        userRole: row.user_role || undefined,
+        relatedProfileName: row.related_profile_name || undefined,
       };
     });
   },
@@ -174,10 +193,12 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             pr.name as related_profile_name,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
       FROM forum_posts p
       LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN profiles pr ON p.related_profile_id = pr.id
       LEFT JOIN subscriptions s ON u.id = s.user_id AND s.is_active = true
       WHERE p.id = $1
     `, [id]);
@@ -199,8 +220,12 @@ export const forumModel = {
         views: row.views || 0,
         likesCount: row.likes_count || 0,
         repliesCount: row.replies_count || 0,
+        favoritesCount: row.favorites_count || 0,
         isPinned: Boolean(row.is_pinned),
         isLocked: Boolean(row.is_locked),
+        isFeatured: Boolean(row.is_featured),
+        relatedProfileId: row.related_profile_id || undefined,
+        relatedReviewId: row.related_review_id || undefined,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         userName: row.user_name || undefined,
@@ -208,6 +233,7 @@ export const forumModel = {
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
         userRole: row.user_role || undefined,
+        relatedProfileName: row.related_profile_name || undefined,
       };
   },
 
@@ -443,6 +469,152 @@ export const forumModel = {
     }
     
     return (result.rowCount || 0) > 0;
+  },
+
+  // 切換收藏
+  toggleFavorite: async (userId: string, postId: string): Promise<{ favorited: boolean }> => {
+    // 檢查是否已收藏
+    const checkResult = await query(`
+      SELECT id FROM forum_favorites 
+      WHERE user_id = $1 AND post_id = $2
+    `, [userId, postId]);
+    
+    if (checkResult.rows.length > 0) {
+      // 取消收藏
+      await query(`
+        DELETE FROM forum_favorites 
+        WHERE user_id = $1 AND post_id = $2
+      `, [userId, postId]);
+      
+      // 更新收藏數
+      await query(`
+        UPDATE forum_posts 
+        SET favorites_count = GREATEST(0, favorites_count - 1)
+        WHERE id = $1
+      `, [postId]);
+      
+      return { favorited: false };
+    } else {
+      // 添加收藏
+      const { v4: uuidv4 } = await import('uuid');
+      const id = `fav_${Date.now()}_${uuidv4().substring(0, 9)}`;
+      
+      await query(`
+        INSERT INTO forum_favorites (id, user_id, post_id)
+        VALUES ($1, $2, $3)
+      `, [id, userId, postId]);
+      
+      // 更新收藏數
+      await query(`
+        UPDATE forum_posts 
+        SET favorites_count = favorites_count + 1
+        WHERE id = $1
+      `, [postId]);
+      
+      return { favorited: true };
+    }
+  },
+
+  // 檢查是否已收藏
+  isFavorited: async (userId: string, postId: string): Promise<boolean> => {
+    const result = await query(`
+      SELECT id FROM forum_favorites 
+      WHERE user_id = $1 AND post_id = $2
+    `, [userId, postId]);
+    
+    return result.rows.length > 0;
+  },
+
+  // 獲取用戶收藏的帖子列表
+  getFavoritesByUserId: async (userId: string, limit?: number, offset?: number): Promise<ForumPost[]> => {
+    let sql = `
+      SELECT p.*, 
+             u.user_name, 
+             u.avatar_url, 
+             u.membership_level,
+             u.role as user_role,
+             pr.name as related_profile_name,
+             (SELECT is_active FROM subscriptions 
+              WHERE user_id = u.id AND is_active = true 
+              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
+             (SELECT expires_at FROM subscriptions 
+              WHERE user_id = u.id AND is_active = true 
+              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_expires_at
+      FROM forum_favorites f
+      JOIN forum_posts p ON f.post_id = p.id
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN profiles pr ON p.related_profile_id = pr.id
+      WHERE f.user_id = $1
+      ORDER BY f.created_at DESC
+    `;
+    const params: any[] = [userId];
+    let paramIndex = 2;
+    
+    if (limit) {
+      sql += ` LIMIT $${paramIndex++}`;
+      params.push(limit);
+      if (offset) {
+        sql += ` OFFSET $${paramIndex++}`;
+        params.push(offset);
+      }
+    }
+    
+    const result = await query(sql, params);
+    return result.rows.map(row => {
+      const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+      const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+      
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        content: row.content,
+        category: row.category,
+        tags: row.tags ? JSON.parse(row.tags) : undefined,
+        images: row.images ? JSON.parse(row.images) : undefined,
+        views: row.views || 0,
+        likesCount: row.likes_count || 0,
+        repliesCount: row.replies_count || 0,
+        favoritesCount: row.favorites_count || 0,
+        isPinned: Boolean(row.is_pinned),
+        isLocked: Boolean(row.is_locked),
+        isFeatured: Boolean(row.is_featured),
+        relatedProfileId: row.related_profile_id || undefined,
+        relatedReviewId: row.related_review_id || undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        userName: row.user_name || undefined,
+        avatarUrl: row.avatar_url || undefined,
+        membershipLevel: row.membership_level || 'tea_guest',
+        isVip: Boolean(isVip),
+        userRole: row.user_role || undefined,
+        relatedProfileName: row.related_profile_name || undefined,
+      };
+    });
+  },
+
+  // 創建舉報
+  createReport: async (data: {
+    reporterId: string;
+    postId?: string;
+    replyId?: string;
+    reason: string;
+  }): Promise<{ id: string }> => {
+    const { v4: uuidv4 } = await import('uuid');
+    const id = `report_${Date.now()}_${uuidv4().substring(0, 9)}`;
+    
+    await query(`
+      INSERT INTO forum_reports (id, reporter_id, post_id, reply_id, reason)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [
+      id,
+      data.reporterId,
+      data.postId || null,
+      data.replyId || null,
+      data.reason,
+    ]);
+    
+    return { id };
   },
 };
 
