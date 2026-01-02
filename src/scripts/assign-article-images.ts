@@ -32,7 +32,8 @@ async function assignArticleImages() {
     await initDatabase();
 
     // 获取所有文章
-    const articles = await articleModel.getAll();
+    const articlesResult = await articleModel.getAll();
+    const articles = articlesResult.articles;
     console.log(`📰 找到 ${articles.length} 篇文章\n`);
 
     if (articles.length === 0) {

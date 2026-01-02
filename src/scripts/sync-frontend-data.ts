@@ -410,7 +410,8 @@ async function syncData() {
 
   // 同步 Profiles
   console.log('📝 同步 Profiles...');
-  const existingProfiles = await profileModel.getAll();
+  const existingProfilesResult = await profileModel.getAll();
+  const existingProfiles = existingProfilesResult.profiles;
   let profilesAdded = 0;
   let profilesUpdated = 0;
 
@@ -431,7 +432,8 @@ async function syncData() {
 
   // 同步 Articles
   console.log('📝 同步 Articles...');
-  const existingArticles = await articleModel.getAll();
+  const existingArticlesResult = await articleModel.getAll();
+  const existingArticles = existingArticlesResult.articles;
   let articlesAdded = 0;
   let articlesUpdated = 0;
 

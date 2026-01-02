@@ -70,7 +70,8 @@ const MOCK_ARTICLES = [
 console.log('🌱 Seeding database with initial data...');
 
 // Seed profiles
-    const existingProfiles = await profileModel.getAll();
+    const existingProfilesResult = await profileModel.getAll();
+    const existingProfiles = existingProfilesResult.profiles;
 if (existingProfiles.length === 0) {
   console.log('📝 Adding mock profiles...');
       for (const profile of MOCK_PROFILES) {
@@ -86,7 +87,8 @@ if (existingProfiles.length === 0) {
 }
 
 // Seed articles
-    const existingArticles = await articleModel.getAll();
+    const existingArticlesResult = await articleModel.getAll();
+    const existingArticles = existingArticlesResult.articles;
 if (existingArticles.length === 0) {
   console.log('📝 Adding mock articles...');
       for (const article of MOCK_ARTICLES) {
