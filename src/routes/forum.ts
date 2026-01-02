@@ -289,7 +289,7 @@ router.post('/posts', async (req, res) => {
       return res.status(401).json({ error: 'Token 無效' });
     }
     
-    const { title, content, category, tags, images, relatedProfileId, relatedReviewId } = req.body;
+    const { title, content, category, tags, images, videos, relatedProfileId, relatedReviewId } = req.body;
     
     if (!title || !content || !category) {
       return res.status(400).json({ error: '標題、內容和分類為必填項' });
@@ -311,6 +311,7 @@ router.post('/posts', async (req, res) => {
       category,
       tags,
       images,
+      videos,
       relatedProfileId,
       relatedReviewId,
     });
@@ -693,7 +694,7 @@ router.put('/posts/:id', async (req, res) => {
     }
 
     // 提取可更新的字段
-    const { title, content, category, tags, images, relatedProfileId, relatedReviewId } = req.body;
+    const { title, content, category, tags, images, videos, relatedProfileId, relatedReviewId } = req.body;
     
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
@@ -701,6 +702,7 @@ router.put('/posts/:id', async (req, res) => {
     if (category !== undefined) updateData.category = category;
     if (tags !== undefined) updateData.tags = tags;
     if (images !== undefined) updateData.images = images;
+    if (videos !== undefined) updateData.videos = videos;
     if (relatedProfileId !== undefined) updateData.relatedProfileId = relatedProfileId;
     if (relatedReviewId !== undefined) updateData.relatedReviewId = relatedReviewId;
 

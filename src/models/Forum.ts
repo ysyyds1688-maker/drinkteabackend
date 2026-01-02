@@ -8,6 +8,7 @@ export interface ForumPost {
   category: string;
   tags?: string[];
   images?: string[]; // 圖片 URL 數組
+  videos?: string[]; // 影片 URL 數組
   views: number;
   likesCount: number;
   repliesCount: number;
@@ -51,6 +52,7 @@ export interface CreatePostData {
   category: string;
   tags?: string[];
   images?: string[]; // 圖片 URL 數組
+  videos?: string[]; // 影片 URL 數組
   relatedProfileId?: string; // 關聯的 Profile ID
   relatedReviewId?: string; // 關聯的 Review ID
 }
@@ -69,8 +71,8 @@ export const forumModel = {
     const id = `post_${Date.now()}_${uuidv4().substring(0, 9)}`;
     
     await query(`
-      INSERT INTO forum_posts (id, user_id, title, content, category, tags, images, related_profile_id, related_review_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO forum_posts (id, user_id, title, content, category, tags, images, videos, related_profile_id, related_review_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `, [
       id,
       data.userId,
@@ -79,6 +81,7 @@ export const forumModel = {
       data.category,
       data.tags ? JSON.stringify(data.tags) : null,
       data.images && data.images.length > 0 ? JSON.stringify(data.images) : null,
+      data.videos && data.videos.length > 0 ? JSON.stringify(data.videos) : null,
       data.relatedProfileId || null,
       data.relatedReviewId || null,
     ]);
@@ -113,6 +116,10 @@ export const forumModel = {
     if (data.images !== undefined) {
       updates.push(`images = $${paramIndex++}`);
       values.push(data.images && data.images.length > 0 ? JSON.stringify(data.images) : null);
+    }
+    if (data.videos !== undefined) {
+      updates.push(`videos = $${paramIndex++}`);
+      values.push(data.videos && data.videos.length > 0 ? JSON.stringify(data.videos) : null);
     }
     if (data.relatedProfileId !== undefined) {
       updates.push(`related_profile_id = $${paramIndex++}`);
@@ -217,6 +224,7 @@ export const forumModel = {
         category: row.category,
         tags: row.tags ? JSON.parse(row.tags) : undefined,
         images: row.images ? JSON.parse(row.images) : undefined,
+        videos: row.videos ? JSON.parse(row.videos) : undefined,
         views: row.views || 0,
         likesCount: row.likes_count || 0,
         repliesCount: row.replies_count || 0,
@@ -273,6 +281,7 @@ export const forumModel = {
         category: row.category,
         tags: row.tags ? JSON.parse(row.tags) : undefined,
         images: row.images ? JSON.parse(row.images) : undefined,
+        videos: row.videos ? JSON.parse(row.videos) : undefined,
         views: row.views || 0,
         likesCount: row.likes_count || 0,
         repliesCount: row.replies_count || 0,
@@ -641,6 +650,7 @@ export const forumModel = {
         category: row.category,
         tags: row.tags ? JSON.parse(row.tags) : undefined,
         images: row.images ? JSON.parse(row.images) : undefined,
+        videos: row.videos ? JSON.parse(row.videos) : undefined,
         views: row.views || 0,
         likesCount: row.likes_count || 0,
         repliesCount: row.replies_count || 0,

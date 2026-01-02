@@ -712,6 +712,17 @@ export const initDatabase = async () => {
       }
     }
 
+    try {
+      await pool.query(`
+        ALTER TABLE forum_posts 
+        ADD COLUMN IF NOT EXISTS videos TEXT
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 videos 欄位時出錯:', error.message);
+      }
+    }
+
     // Forum replies table (論壇回覆表)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS forum_replies (
