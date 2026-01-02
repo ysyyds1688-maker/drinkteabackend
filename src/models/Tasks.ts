@@ -158,7 +158,10 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
 
 export const tasksModel = {
   // 獲取或創建每日任務
-  getOrCreateDailyTask: async (userId: string, taskType: string, date: string = new Date().toISOString().split('T')[0]): Promise<DailyTask> => {
+  getOrCreateDailyTask: async (userId: string, taskType: string, date?: string): Promise<DailyTask> => {
+    if (!date) {
+      date = tasksModel.getLocalDateString();
+    }
     let result = await query(`
       SELECT * FROM daily_tasks 
       WHERE user_id = $1 AND task_type = $2 AND task_date = $3
@@ -198,9 +201,18 @@ export const tasksModel = {
     };
   },
 
+  // 獲取本地日期字符串（使用本地時區，避免 UTC 時區問題）
+  getLocalDateString: (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
   // 更新任務進度
   updateTaskProgress: async (userId: string, taskType: string, increment: number = 1): Promise<{ task: DailyTask; completed: boolean; pointsEarned: number; experienceEarned: number }> => {
-    const date = new Date().toISOString().split('T')[0];
+    const date = tasksModel.getLocalDateString();
     const task = await tasksModel.getOrCreateDailyTask(userId, taskType, date);
     
     if (task.isCompleted) {
@@ -230,7 +242,10 @@ export const tasksModel = {
   },
 
   // 獲取用戶的每日任務（根據角色過濾）
-  getDailyTasks: async (userId: string, date: string = new Date().toISOString().split('T')[0]): Promise<DailyTask[]> => {
+  getDailyTasks: async (userId: string, date?: string): Promise<DailyTask[]> => {
+    if (!date) {
+      date = tasksModel.getLocalDateString();
+    }
     // 獲取用戶角色
     const { userModel } = await import('./User.js');
     const user = await userModel.findById(userId);

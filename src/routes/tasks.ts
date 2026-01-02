@@ -22,7 +22,7 @@ router.get('/daily', async (req, res) => {
     const { date } = req.query;
     const tasks = await tasksModel.getDailyTasks(
       payload.userId,
-      date as string || new Date().toISOString().split('T')[0]
+      date as string || undefined // 如果沒有提供日期，使用 Tasks 模型中的本地日期計算
     );
     
     const definitions = tasksModel.getTaskDefinitions();

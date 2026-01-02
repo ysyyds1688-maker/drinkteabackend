@@ -172,7 +172,17 @@ router.post('/login', async (req, res) => {
     
     // 更新每日登入任務
     try {
+      console.log(`[登入任務] 開始更新用戶 ${user.id} 的每日登入任務`);
       const taskResult = await tasksModel.updateTaskProgress(user.id, 'daily_login');
+      console.log(`[登入任務] 任務更新結果:`, {
+        completed: taskResult.completed,
+        pointsEarned: taskResult.pointsEarned,
+        experienceEarned: taskResult.experienceEarned,
+        taskProgress: taskResult.task.progress,
+        taskTarget: taskResult.task.target,
+        taskIsCompleted: taskResult.task.isCompleted,
+      });
+      
       if (taskResult.completed && taskResult.pointsEarned > 0) {
         // 任務完成，添加積分和經驗值
         await userStatsModel.addPoints(
@@ -180,7 +190,7 @@ router.post('/login', async (req, res) => {
           taskResult.pointsEarned,
           taskResult.experienceEarned
         );
-        console.log(`用戶 ${user.id} 完成每日登入任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
+        console.log(`[登入任務] 用戶 ${user.id} 完成每日登入任務，獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值`);
         
         // 創建任務完成通知
         try {
@@ -202,12 +212,20 @@ router.post('/login', async (req, res) => {
             });
           }
         } catch (error) {
-          console.error('創建任務完成通知失敗:', error);
+          console.error('[登入任務] 創建任務完成通知失敗:', error);
         }
+      } else if (taskResult.task.isCompleted) {
+        console.log(`[登入任務] 用戶 ${user.id} 今日已完成登入任務，無需重複獎勵`);
+      } else {
+        console.log(`[登入任務] 用戶 ${user.id} 登入任務進度: ${taskResult.task.progress}/${taskResult.task.target}`);
       }
-    } catch (error) {
-      // 任務更新失敗不影響登入流程
-      console.error('更新每日登入任務失敗:', error);
+    } catch (error: any) {
+      // 任務更新失敗不影響登入流程，但記錄詳細錯誤
+      console.error('[登入任務] 更新每日登入任務失敗:', {
+        userId: user.id,
+        error: error.message,
+        stack: error.stack,
+      });
     }
     
     // 檢查並解鎖忠誠成就（守席之人、老茶客、茶王舊識）

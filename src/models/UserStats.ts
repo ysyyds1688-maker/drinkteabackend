@@ -406,10 +406,19 @@ export const userStatsModel = {
     }
   },
 
+  // 獲取本地日期字符串（使用本地時區，避免 UTC 時區問題）
+  getLocalDateString: (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
   // 更新連續登入天數
   updateLoginStreak: async (userId: string): Promise<void> => {
     const stats = await userStatsModel.getOrCreate(userId);
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = userStatsModel.getLocalDateString(); // 使用本地時區
     
     if (!stats.lastLoginDate) {
       // 首次登入
@@ -421,11 +430,20 @@ export const userStatsModel = {
         WHERE user_id = $2
       `, [today, userId]);
     } else {
+      // 將 lastLoginDate 轉換為本地日期字符串
       const lastLogin = new Date(stats.lastLoginDate);
-      const lastLoginDateStr = lastLogin.toISOString().split('T')[0];
+      const lastLoginYear = lastLogin.getFullYear();
+      const lastLoginMonth = String(lastLogin.getMonth() + 1).padStart(2, '0');
+      const lastLoginDay = String(lastLogin.getDate()).padStart(2, '0');
+      const lastLoginDateStr = `${lastLoginYear}-${lastLoginMonth}-${lastLoginDay}`;
+      
+      // 計算昨天的本地日期
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const yesterdayYear = yesterday.getFullYear();
+      const yesterdayMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+      const yesterdayDay = String(yesterday.getDate()).padStart(2, '0');
+      const yesterdayStr = `${yesterdayYear}-${yesterdayMonth}-${yesterdayDay}`;
       
       if (lastLoginDateStr === today) {
         // 今天已經登入過，不更新
