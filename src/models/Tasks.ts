@@ -84,7 +84,7 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
   book_lady_booking: {
     type: 'book_lady_booking',
     name: '預約後宮佳麗',
-    description: '預約特選魚市後宮佳麗 1 次（需預約成功並評論）',
+    description: '預約特選魚市後宮佳麗 1 次（需預約成功並在特選魚市版區發文）',
     target: 1,
     pointsReward: 30,        // 積分：調降（原 50）
     experienceReward: 45,    // 經驗：調降（原 75）

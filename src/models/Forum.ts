@@ -525,6 +525,19 @@ export const forumModel = {
     return result.rows.length > 0;
   },
 
+  // 批量獲取收藏狀態（優化性能，避免 N+1 查詢）
+  getFavoritesByPostIds: async (userId: string, postIds: string[]): Promise<string[]> => {
+    if (postIds.length === 0) return [];
+    
+    // 使用 ANY 或 IN 子句批量查詢
+    const result = await query(`
+      SELECT post_id FROM forum_favorites 
+      WHERE user_id = $1 AND post_id = ANY($2::text[])
+    `, [userId, postIds]);
+    
+    return result.rows.map(row => row.post_id);
+  },
+
   // 獲取用戶收藏的帖子列表
   getFavoritesByUserId: async (userId: string, limit?: number, offset?: number): Promise<ForumPost[]> => {
     let sql = `

@@ -4,8 +4,178 @@ import { userStatsModel } from '../models/UserStats.js';
 import { tasksModel } from '../models/Tasks.js';
 import { achievementModel } from '../models/Achievement.js';
 import { verifyToken } from '../services/authService.js';
+import { query } from '../db/database.js';
 
 const router = Router();
+
+// 版規內容定義（與前端保持一致）
+const getRulesContent = (category: string): { title: string; content: string; images: string[] } | null => {
+  const rulesMap: Record<string, { title: string; rules: string[]; image: string }> = {
+    '': {
+      title: '御茶室通用版規',
+      rules: [
+        '尊重他人，禁止人身攻擊、惡意中傷或歧視性言論',
+        '禁止涉及未成年人的內容或相關討論',
+        '禁止在公開討論中直接拉客、推銷或發布個人聯絡方式（Line、電話等）',
+        '禁止重複發帖、刷屏或惡意灌水',
+        '禁止發布假資訊、詐騙訊息或誤導性內容',
+        '發帖前請先搜尋是否有相關討論，避免重複發問',
+        '請使用適當的標題和分類，方便其他用戶查找',
+        '鼓勵友善交流，分享真實經驗，幫助其他茶友',
+        '討論時請保持理性，尊重不同觀點和選擇',
+        '違規內容將被刪除，嚴重者將被禁言或封號'
+      ],
+      image: '/images/茶訊公告/teaking_compressed_84mgy1wxt.jpg'
+    },
+    'general': {
+      title: '綜合討論版規',
+      rules: [
+        '本版為綜合討論區，歡迎討論各種相關話題',
+        '發帖前請選擇合適的分類，避免內容與其他專版重複',
+        '禁止發布與平台無關的內容（如政治、宗教等敏感話題）',
+        '討論時請保持理性，尊重不同觀點和選擇',
+        '鼓勵分享有價值的資訊和真實經驗',
+        '提問前請先搜尋相關討論，避免重複問題',
+        '回覆時請言之有物，避免無意義的回覆',
+        '禁止在討論中直接發布聯絡方式或進行私下交易'
+      ],
+      image: '/images/tea_king_jp_3qb1pmafm.jpg'
+    },
+    'premium_tea': {
+      title: '嚴選好茶版規',
+      rules: [
+        '本版專門討論嚴選好茶相關話題，歡迎分享經驗和心得',
+        '發帖時建議關聯相關的茶茶 Profile，方便其他用戶參考',
+        '分享經驗時請保持真實客觀，避免過度誇大或惡意貶低',
+        '禁止在討論中直接發布聯絡方式、拉客或進行私下交易',
+        '討論價格時請尊重市場行情，避免惡意壓價或哄抬',
+        '鼓勵分享真實的預約和服務經驗，幫助其他茶友做選擇',
+        '禁止發布茶茶的個人隱私資訊（如真實姓名、住址、身份證等）',
+        '禁止發布未經同意的照片或影片',
+        '如有糾紛，請透過平台客服處理，勿在版上公開爭執或人身攻擊'
+      ],
+      image: '/images/tea_king_jp_civgdeba2.jpg'
+    },
+    'fish_market': {
+      title: '特選魚市版規',
+      rules: [
+        '本版專門討論特選魚市相關話題，歡迎分享經驗和心得',
+        '發帖時建議關聯相關的茶茶 Profile，方便其他用戶參考',
+        '分享經驗時請保持真實，避免虛假宣傳或惡意中傷',
+        '討論時請尊重所有參與者，避免歧視性言論或人身攻擊',
+        '禁止在討論中直接發布聯絡方式、拉客或進行私下交易',
+        '鼓勵分享真實的預約和服務經驗，幫助其他用戶做選擇',
+        '禁止發布茶茶的個人隱私資訊（如真實姓名、住址等）',
+        '禁止發布未經同意的照片或影片',
+        '如有問題或糾紛，請透過平台客服處理，勿在版上公開爭執'
+      ],
+      image: '/images/tea_king_jp_6lx9ajxz4.jpg'
+    },
+    'booking': {
+      title: '預約交流版規',
+      rules: [
+        '本版專門討論預約流程、注意事項和經驗分享',
+        '發帖時可關聯相關的預約記錄（系統會自動驗證真實性）',
+        '分享預約經驗時請保持真實，幫助其他用戶了解流程',
+        '禁止發布虛假的預約經驗或誤導性資訊',
+        '討論預約流程時請尊重平台規則，遵守預約流程',
+        '禁止在版上進行預約交易、拉客或私下聯絡',
+        '如有預約問題，請先查看平台說明或聯繫客服',
+        '鼓勵分享預約技巧、注意事項和避坑經驗',
+        '禁止發布茶茶或客戶的個人隱私資訊',
+        '預約相關糾紛請透過平台客服處理，勿在版上公開爭執或人身攻擊'
+      ],
+      image: '/images/tea_king_jp_uumox9yah.jpg'
+    },
+    'experience': {
+      title: '經驗分享版規',
+      rules: [
+        '本版鼓勵分享真實的服務經驗和心得，幫助其他茶友',
+        '分享時請保持客觀真實，避免過度誇大或惡意貶低',
+        '禁止發布虛假經驗、廣告宣傳或誤導性內容',
+        '分享時請尊重他人，避免使用不當言詞或人身攻擊',
+        '鼓勵詳細描述服務過程和感受，幫助其他用戶做選擇',
+        '禁止在經驗分享中直接發布聯絡方式或拉客',
+        '禁止發布個人隱私資訊或未經同意的照片、影片',
+        '如有負面經驗，請保持理性客觀，避免惡意攻擊或造謠',
+        '鼓勵分享正面經驗，但請保持真實，避免過度美化'
+      ],
+      image: '/images/tea_king_jp_pmeposdv7.jpg'
+    },
+    'question': {
+      title: '問題求助版規',
+      rules: [
+        '提問前請先搜尋相關討論，避免重複發問',
+        '提問時請清楚描述問題，方便其他用戶回答',
+        '禁止發布與平台無關的問題（如政治、宗教等）',
+        '提問時請保持禮貌，尊重回答者的時間和建議',
+        '鼓勵回答者提供有價值的建議和真實資訊',
+        '禁止在問題中直接詢問聯絡方式、拉客或進行交易',
+        '問題解決後，建議更新帖子標記已解決，幫助其他用戶',
+        '禁止發布涉及個人隱私的問題（如真實姓名、住址等）',
+        '如有緊急問題或糾紛，請直接聯繫平台客服處理'
+      ],
+      image: '/images/tea_king_jp_vrzcszolm.jpg'
+    },
+    'chat': {
+      title: '閒聊區版規',
+      rules: [
+        '本版為輕鬆交流區，歡迎友善的閒聊話題',
+        '請保持友善和尊重，禁止人身攻擊或惡意中傷',
+        '禁止涉及未成年人的內容或相關討論',
+        '禁止廣告、推銷、拉客或商業推廣',
+        '禁止重複發帖或惡意刷屏',
+        '討論時請避免涉及過於敏感的話題（如政治、宗教等）',
+        '鼓勵分享生活趣事、心情交流等輕鬆話題',
+        '請勿在閒聊區發布正式的求助或經驗分享（請使用對應專版）',
+        '禁止在閒聊中直接發布聯絡方式或進行私下交易'
+      ],
+      image: '/images/tea_king_jp_2u8qtiwms.jpg'
+    },
+    'lady_promotion': {
+      title: '後宮佳麗宣傳區版規',
+      rules: [
+        '本版專為後宮佳麗（Provider）提供宣傳平台，僅限 Provider 角色發帖',
+        '歡迎發布個人宣傳、服務介紹、優惠活動等內容',
+        '可以發布聯絡方式（Line、電話、Telegram 等）',
+        '可以發布個人照片、服務照片（需確保已成年且為本人）',
+        '可以發布價格資訊、服務項目、營業時間等',
+        '鼓勵詳細介紹個人特色、服務內容和優勢',
+        '禁止發布涉及未成年人的內容',
+        '禁止發布虛假資訊、詐騙訊息或誤導性內容',
+        '禁止惡意攻擊其他後宮佳麗或客戶',
+        '禁止發布違法內容或涉及非法交易',
+        '建議定期更新帖子，保持內容新鮮度',
+        '客戶可在帖子下回覆詢問，請友善回應'
+      ],
+      image: '/images/tea_king_jp_at1x02l7e.jpg'
+    },
+    'announcement': {
+      title: '官方公告版規',
+      rules: [
+        '本版僅供管理員發布官方公告',
+        '一般用戶無法在此版發帖',
+        '請定期關注官方公告，了解平台最新資訊',
+        '公告內容具有權威性，請遵守相關規定',
+        '如有疑問，請透過客服管道詢問',
+        '禁止在公告下發布無關回覆或惡意評論',
+        '重要公告請務必仔細閱讀'
+      ],
+      image: '/images/茶訊公告/teaking_compressed_rsybynlwm.jpg'
+    }
+  };
+
+  const rules = rulesMap[category];
+  if (!rules) return null;
+
+  const rulesContent = rules.rules.map((rule, index) => `${index + 1}. ${rule}`).join('\n\n');
+  
+  return {
+    title: rules.title,
+    content: rulesContent + '\n\n---\n\n**📝 請在下方留言簽到，表示您已閱讀並同意遵守以上版規。**',
+    images: [rules.image]
+  };
+};
 
 // 獲取帖子列表
 router.get('/posts', async (req, res) => {
@@ -19,19 +189,17 @@ router.get('/posts', async (req, res) => {
       offset: offset ? parseInt(offset as string) : undefined,
     });
     
-    // 檢查是否已收藏（如果已登入）
+    // 檢查是否已收藏（如果已登入）- 優化：批量查詢而不是逐個查詢
     let favoritedPosts: Set<string> = new Set();
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const payload = verifyToken(token);
-      if (payload) {
-        for (const post of posts) {
-          const isFavorited = await forumModel.isFavorited(payload.userId, post.id);
-          if (isFavorited) {
-            favoritedPosts.add(post.id);
-          }
-        }
+      if (payload && posts.length > 0) {
+        // 批量查詢所有收藏狀態，避免 N+1 查詢問題
+        const postIds = posts.map(p => p.id);
+        const favorites = await forumModel.getFavoritesByPostIds(payload.userId, postIds);
+        favorites.forEach(fav => favoritedPosts.add(fav));
       }
     }
     
@@ -46,6 +214,38 @@ router.get('/posts', async (req, res) => {
 router.get('/posts/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 如果是版規帖子且不存在，先創建
+    if (id.startsWith('rules_')) {
+      let category = id.replace('rules_', '');
+      if (category === 'all') {
+        category = '';
+      }
+      
+      const existingPost = await query('SELECT id FROM forum_posts WHERE id = $1', [id]);
+      if (existingPost.rows.length === 0) {
+        const rulesContent = getRulesContent(category);
+        if (rulesContent) {
+          const adminUsers = await query('SELECT id FROM users WHERE role = $1 LIMIT 1', ['admin']);
+          const systemUserId = adminUsers.rows.length > 0 ? adminUsers.rows[0].id : 'system';
+          
+          await query(`
+            INSERT INTO forum_posts (id, user_id, title, content, category, images, is_pinned, is_locked)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [
+            id,
+            systemUserId,
+            `【版規】${rulesContent.title}`,
+            rulesContent.content,
+            category || '',
+            JSON.stringify(rulesContent.images),
+            true,
+            false,
+          ]);
+        }
+      }
+    }
+    
     const post = await forumModel.getPostById(id);
     
     if (!post) {
@@ -152,6 +352,50 @@ router.post('/posts', async (req, res) => {
       }
     }
     
+    // 檢查特選魚市預約任務（在特選魚市版區發文時）
+    if (category === 'fish_market' && relatedProfileId) {
+      try {
+        const { bookingModel } = await import('../models/Booking.js');
+        const clientBookings = await bookingModel.getByClientId(payload.userId);
+        const profileBooking = clientBookings.find(b => b.profileId === relatedProfileId);
+        
+        if (profileBooking && (profileBooking.status === 'accepted' || profileBooking.status === 'completed')) {
+          // 預約後宮佳麗任務
+          const bookingTaskResult = await tasksModel.updateTaskProgress(payload.userId, 'book_lady_booking', 1);
+          if (bookingTaskResult.completed) {
+            await userStatsModel.addPoints(payload.userId, bookingTaskResult.pointsEarned, bookingTaskResult.experienceEarned);
+            console.log(`用戶 ${payload.userId} 完成「預約後宮佳麗」任務，獲得 ${bookingTaskResult.pointsEarned} 積分和 ${bookingTaskResult.experienceEarned} 經驗值`);
+            
+            // 創建任務完成通知
+            try {
+              const { notificationModel } = await import('../models/Notification.js');
+              const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'book_lady_booking');
+              if (definition) {
+                await notificationModel.create({
+                  userId: payload.userId,
+                  type: 'task',
+                  title: '任務完成',
+                  content: `恭喜您完成了「${definition.name}」任務！獲得 ${bookingTaskResult.pointsEarned} 積分和 ${bookingTaskResult.experienceEarned} 經驗值。`,
+                  link: `/user-profile?tab=points`,
+                  metadata: {
+                    taskType: 'book_lady_booking',
+                    taskName: definition.name,
+                    pointsEarned: bookingTaskResult.pointsEarned,
+                    experienceEarned: bookingTaskResult.experienceEarned,
+                  },
+                });
+              }
+            } catch (error) {
+              console.error('創建任務完成通知失敗:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('檢查特選魚市預約任務失敗:', error);
+        // 不影響帖子創建，只記錄錯誤
+      }
+    }
+    
     // 檢查並解鎖成就
     const unlockedAchievements = await achievementModel.checkAndUnlockAchievements(payload.userId);
     
@@ -191,6 +435,54 @@ router.post('/posts/:postId/replies', async (req, res) => {
       return res.status(400).json({ error: '回覆內容不能為空' });
     }
     
+    // 檢查是否為版規帖子，如果是且不存在，則先創建
+    if (postId.startsWith('rules_')) {
+      let category = postId.replace('rules_', '');
+      if (category === 'all') {
+        category = '';
+      }
+      
+      // 檢查帖子是否存在
+      const existingPost = await query('SELECT id FROM forum_posts WHERE id = $1', [postId]);
+      if (existingPost.rows.length === 0) {
+        // 創建版規帖子
+        const rulesContent = getRulesContent(category);
+        if (rulesContent) {
+          // 嘗試找到管理員用戶
+          const adminUsers = await query('SELECT id FROM users WHERE role = $1 LIMIT 1', ['admin']);
+          const systemUserId = adminUsers.rows.length > 0 ? adminUsers.rows[0].id : payload.userId;
+          
+          // 直接插入版規帖子，使用指定的 ID
+          await query(`
+            INSERT INTO forum_posts (id, user_id, title, content, category, images, is_pinned, is_locked)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [
+            postId,
+            systemUserId,
+            `【版規】${rulesContent.title}`,
+            rulesContent.content,
+            category || '',
+            JSON.stringify(rulesContent.images),
+            true, // 置頂
+            false, // 不鎖定，允許回覆簽到
+          ]);
+        }
+      }
+    }
+    
+    // 檢查是否為版規簽到
+    const isRulesCheckIn = postId.startsWith('rules_');
+    let hasCheckedInBefore = false;
+    
+    if (isRulesCheckIn) {
+      // 檢查用戶是否已經在這個版規帖子簽到過
+      const existingReplies = await query(
+        'SELECT id FROM forum_replies WHERE post_id = $1 AND user_id = $2',
+        [postId, payload.userId]
+      );
+      hasCheckedInBefore = existingReplies.rows.length > 0;
+    }
+    
     const reply = await forumModel.createReply({
       postId,
       userId: payload.userId,
@@ -202,10 +494,49 @@ router.post('/posts/:postId/replies', async (req, res) => {
     await userStatsModel.updateCounts(payload.userId, { repliesCount: 1 });
     const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'reply_post');
     
-    // 發表評論直接給經驗值獎勵（+8經驗值/次）
+    // 發表評論經驗值獎勵邏輯
     let pointsResult = null;
+    let checkInBonus = { points: 0, experience: 0 };
+    let baseExperience = 8; // 基礎回覆經驗值（僅用於非版規帖子）
+    
     try {
-      pointsResult = await userStatsModel.addPoints(payload.userId, 0, 8); // 只給經驗值，不給積分
+      // 如果是版規簽到
+      if (isRulesCheckIn) {
+        // 只有首次簽到才給獎勵
+        if (!hasCheckedInBefore) {
+          // 版規首次簽到獎勵：+20 積分 + 15 經驗值
+          checkInBonus = { points: 20, experience: 15 };
+          // 版規首次簽到：只給簽到獎勵，不給回覆獎勵
+          pointsResult = await userStatsModel.addPoints(
+            payload.userId,
+            20, // 積分
+            15  // 經驗值（僅簽到獎勵，不含回覆獎勵）
+          );
+          
+          // 創建簽到獎勵通知
+          try {
+            const { notificationModel } = await import('../models/Notification.js');
+            await notificationModel.create({
+              userId: payload.userId,
+              type: 'system',
+              title: '版規簽到獎勵',
+              content: `感謝您閱讀並簽到版規！獲得 ${checkInBonus.points} 積分和 ${checkInBonus.experience} 經驗值獎勵。`,
+              link: `/user-profile?tab=points`,
+              metadata: {
+                type: 'rules_checkin',
+                pointsEarned: checkInBonus.points,
+                experienceEarned: checkInBonus.experience,
+              },
+            });
+          } catch (error) {
+            console.error('創建簽到獎勵通知失敗:', error);
+          }
+        }
+        // 版規後續回覆：不給任何經驗值或積分
+      } else {
+        // 普通帖子回覆獎勵（+8經驗值/次）
+        pointsResult = await userStatsModel.addPoints(payload.userId, 0, baseExperience);
+      }
     } catch (error) {
       console.error('給評論者經驗值失敗:', error);
     }
@@ -249,11 +580,33 @@ router.post('/posts/:postId/replies', async (req, res) => {
     // 檢查並解鎖成就
     const unlockedAchievements = await achievementModel.checkAndUnlockAchievements(payload.userId);
     
+    // 計算總獎勵
+    let totalPointsEarned = taskResult.completed ? taskResult.pointsEarned : 0;
+    let totalExperienceEarned = taskResult.completed ? taskResult.experienceEarned : 0;
+    
+    if (isRulesCheckIn) {
+      // 版規帖子：只有首次簽到才有獎勵
+      if (!hasCheckedInBefore) {
+        totalPointsEarned += checkInBonus.points;
+        totalExperienceEarned += checkInBonus.experience;
+      }
+      // 版規後續回覆：不給任何獎勵
+    } else {
+      // 普通帖子：回覆給經驗值
+      totalExperienceEarned += baseExperience;
+    }
+    
     res.status(201).json({
       reply,
       taskCompleted: taskResult.completed,
-      pointsEarned: taskResult.completed ? taskResult.pointsEarned : 0,
-      experienceEarned: taskResult.completed ? taskResult.experienceEarned : 0,
+      pointsEarned: totalPointsEarned,
+      experienceEarned: totalExperienceEarned,
+      checkInBonus: isRulesCheckIn && !hasCheckedInBefore ? {
+        points: checkInBonus.points,
+        experience: checkInBonus.experience
+      } : undefined,
+      isFirstCheckIn: isRulesCheckIn && !hasCheckedInBefore,
+      isRulesPost: isRulesCheckIn,
       levelUp: pointsResult?.levelUp || false,
       newLevel: pointsResult?.newLevel,
       unlockedAchievements: unlockedAchievements.length > 0 ? unlockedAchievements : undefined,
