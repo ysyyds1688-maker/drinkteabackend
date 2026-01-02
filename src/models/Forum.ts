@@ -180,35 +180,39 @@ export const forumModel = {
     let paramIndex = 1;
     
     if (options.category && options.category.trim() !== '') {
-      sql += ` AND p.category = $${paramIndex++}`;
+      // 嚴格過濾：只返回完全匹配的分類，排除 null 和空字符串
+      sql += ` AND p.category IS NOT NULL AND p.category != '' AND p.category = $${paramIndex++}`;
       params.push(options.category.trim());
     }
     
     // 排序
     switch (options.sortBy) {
       case 'hot':
-        sql += ` ORDER BY p.likes_count DESC, p.replies_count DESC, p.created_at DESC`;
+        sql += ` ORDER BY p.is_pinned DESC, p.likes_count DESC, p.replies_count DESC, p.created_at DESC`;
         break;
       case 'replies':
-        sql += ` ORDER BY p.replies_count DESC, p.created_at DESC`;
+        sql += ` ORDER BY p.is_pinned DESC, p.replies_count DESC, p.created_at DESC`;
         break;
       case 'views':
-        sql += ` ORDER BY p.views DESC, p.created_at DESC`;
+        sql += ` ORDER BY p.is_pinned DESC, p.views DESC, p.created_at DESC`;
         break;
       case 'favorites':
-        sql += ` ORDER BY p.favorites_count DESC, p.created_at DESC`;
+        sql += ` ORDER BY p.is_pinned DESC, p.favorites_count DESC, p.created_at DESC`;
         break;
+      case 'latest':
       default:
-        sql += ` ORDER BY p.is_pinned DESC, p.is_featured DESC, p.created_at DESC`;
+        // 最新發布：置頂帖子在最前面，然後按創建時間排序
+        sql += ` ORDER BY p.is_pinned DESC, p.created_at DESC`;
+        break;
     }
     
-    if (options.limit) {
-      sql += ` LIMIT $${paramIndex++}`;
-      params.push(options.limit);
-      if (options.offset) {
-        sql += ` OFFSET $${paramIndex++}`;
-        params.push(options.offset);
-      }
+    // 預設限制為 50，避免一次載入過多數據
+    const limit = options.limit || 50;
+    sql += ` LIMIT $${paramIndex++}`;
+    params.push(limit);
+    if (options.offset) {
+      sql += ` OFFSET $${paramIndex++}`;
+      params.push(options.offset);
     }
     
     const result = await query(sql, params);

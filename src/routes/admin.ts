@@ -13,8 +13,10 @@ const router = Router();
 router.get('/stats', async (req, res) => {
   try {
     console.log('GET /api/admin/stats');
-    const profiles = await profileModel.getAll();
-    const articles = await articleModel.getAll();
+    const profilesResult = await profileModel.getAll();
+    const articlesResult = await articleModel.getAll();
+    const profiles = profilesResult.profiles;
+    const articles = articlesResult.articles;
     
     const stats = {
       profiles: {
@@ -90,8 +92,8 @@ router.get('/stats', async (req, res) => {
 router.get('/profiles', async (req, res) => {
   try {
     console.log('GET /api/admin/profiles');
-    const profiles = await profileModel.getAll();
-    res.json(profiles);
+    const result = await profileModel.getAll();
+    res.json(result.profiles);
   } catch (error: any) {
     console.error('GET /api/admin/profiles error:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
@@ -351,8 +353,8 @@ router.post('/profiles/batch', async (req, res) => {
 // GET /api/admin/articles - 取得所有 articles（管理用）
 router.get('/articles', async (req, res) => {
   try {
-    const articles = await articleModel.getAll();
-    res.json(articles);
+    const result = await articleModel.getAll();
+    res.json(result.articles);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

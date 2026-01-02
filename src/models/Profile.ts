@@ -2,24 +2,54 @@ import { query } from '../db/database.js';
 import { Profile } from '../types.js';
 
 export const profileModel = {
-  getAll: async (userId?: string): Promise<Profile[]> => {
+  getAll: async (userId?: string, options?: { limit?: number; offset?: number }): Promise<{ profiles: Profile[]; total: number }> => {
     try {
+      console.log('[Profile.getAll] 開始查詢數據庫...', options);
+      const queryStartTime = Date.now();
+      
+      // 先獲取總數
+      let countSql = `SELECT COUNT(*) as total FROM profiles`;
+      const countParams: any[] = [];
+      
+      if (userId) {
+        countSql += ' WHERE "userId" = $1';
+        countParams.push(userId);
+      }
+      
+      const countResult = await query(countSql, countParams);
+      const total = parseInt(countResult.rows[0].total, 10);
+      
       // 明确指定所有列名，确保正确获取userId字段
       let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                  type, "imageUrl", gallery, albums, price, prices, tags, 
                  "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
                  "createdAt", "updatedAt" FROM profiles`;
       const params: any[] = [];
+      let paramIndex = 1;
       
       if (userId) {
-        sql += ' WHERE "userId" = $1';
+        sql += ` WHERE "userId" = $${paramIndex++}`;
         params.push(userId);
       }
       
       sql += ' ORDER BY "createdAt" DESC';
       
+      // 添加分頁
+      if (options?.limit) {
+        sql += ` LIMIT $${paramIndex++}`;
+        params.push(options.limit);
+      }
+      
+      if (options?.offset) {
+        sql += ` OFFSET $${paramIndex++}`;
+        params.push(options.offset);
+      }
+      
       const result = await query(sql, params);
-      return result.rows.map((row: any) => {
+      const queryDuration = Date.now() - queryStartTime;
+      console.log(`[Profile.getAll] 數據庫查詢完成，返回 ${result.rows.length} 行（總共 ${total} 行），耗時 ${queryDuration}ms`);
+      
+      const parsedProfiles = result.rows.map((row: any) => {
         // PostgreSQL 列名大小写敏感，明确使用 row["userId"] 获取
         const rawUserId = row["userId"];
         // 将 null、空字符串转换为 undefined（高级茶）
@@ -62,6 +92,8 @@ export const profileModel = {
           };
         }
       });
+      
+      return { profiles: parsedProfiles, total };
     } catch (error: any) {
       console.error('Profile.getAll error:', error);
       throw new Error(`取得 Profiles 失敗: ${error.message || '資料庫錯誤'}`);

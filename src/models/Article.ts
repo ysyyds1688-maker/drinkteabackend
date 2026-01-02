@@ -2,9 +2,28 @@ import { query } from '../db/database.js';
 import { Article } from '../types.js';
 
 export const articleModel = {
-  getAll: async (): Promise<Article[]> => {
-    const result = await query('SELECT * FROM articles ORDER BY date DESC, "createdAt" DESC');
-    return result.rows.map((row: any) => ({
+  getAll: async (options?: { limit?: number; offset?: number }): Promise<{ articles: Article[]; total: number }> => {
+    // 先獲取總數
+    const countResult = await query('SELECT COUNT(*) as total FROM articles');
+    const total = parseInt(countResult.rows[0].total, 10);
+    
+    // 構建查詢
+    let sql = 'SELECT * FROM articles ORDER BY date DESC, "createdAt" DESC';
+    const params: any[] = [];
+    let paramIndex = 1;
+    
+    if (options?.limit) {
+      sql += ` LIMIT $${paramIndex++}`;
+      params.push(options.limit);
+    }
+    
+    if (options?.offset) {
+      sql += ` OFFSET $${paramIndex++}`;
+      params.push(options.offset);
+    }
+    
+    const result = await query(sql, params);
+    const articles = result.rows.map((row: any) => ({
       id: row.id,
       title: row.title,
       summary: row.summary,
@@ -14,6 +33,8 @@ export const articleModel = {
       views: row.views || 0,
       content: row.content || undefined,
     }));
+    
+    return { articles, total };
   },
 
   getById: async (id: string): Promise<Article | null> => {

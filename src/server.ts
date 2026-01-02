@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -52,6 +53,19 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// 啟用 gzip 壓縮（優化 API 響應大小）
+app.use(compression({
+  filter: (req, res) => {
+    // 只壓縮 JSON 和文本響應
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // 壓縮級別 1-9，6 是平衡速度和壓縮率的良好選擇
+  threshold: 1024, // 只壓縮大於 1KB 的響應
+}));
 
 // 明確處理 OPTIONS 請求（確保預檢請求通過）
 app.options('*', cors(corsOptions));

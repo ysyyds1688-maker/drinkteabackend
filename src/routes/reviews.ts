@@ -215,6 +215,45 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
                 if (providerUnlocked.length > 0) {
                   console.log(`後宮佳麗 ${profile.userId} 自動解鎖了 ${providerUnlocked.length} 個成就:`, providerUnlocked.map(a => a.achievementName));
                 }
+                
+                // 如果評分是 4-5 星，更新佳麗的「獲得好評」任務進度
+                if (rating >= 4) {
+                  try {
+                    const { tasksModel } = await import('../models/Tasks.js');
+                    const { userStatsModel } = await import('../models/UserStats.js');
+                    const providerTaskResult = await tasksModel.updateTaskProgress(profile.userId, 'lady_receive_good_review', 1);
+                    if (providerTaskResult.completed) {
+                      await userStatsModel.addPoints(profile.userId, providerTaskResult.pointsEarned, providerTaskResult.experienceEarned);
+                      console.log(`後宮佳麗 ${profile.userId} 完成「獲得好評」任務，獲得 ${providerTaskResult.pointsEarned} 積分和 ${providerTaskResult.experienceEarned} 經驗值`);
+                      
+                      // 創建任務完成通知
+                      try {
+                        const { notificationModel } = await import('../models/Notification.js');
+                        const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_receive_good_review');
+                        if (definition) {
+                          await notificationModel.create({
+                            userId: profile.userId,
+                            type: 'task',
+                            title: '任務完成',
+                            content: `恭喜您完成了「${definition.name}」任務！獲得 ${providerTaskResult.pointsEarned} 積分和 ${providerTaskResult.experienceEarned} 經驗值。`,
+                            link: `/user-profile?tab=points`,
+                            metadata: {
+                              taskType: 'lady_receive_good_review',
+                              taskName: definition.name,
+                              pointsEarned: providerTaskResult.pointsEarned,
+                              experienceEarned: providerTaskResult.experienceEarned,
+                            },
+                          });
+                        }
+                      } catch (error) {
+                        console.error('創建佳麗任務完成通知失敗:', error);
+                      }
+                    }
+                  } catch (providerTaskError) {
+                    console.error('更新佳麗任務進度失敗:', providerTaskError);
+                    // 不影響評論創建，只記錄錯誤
+                  }
+                }
               }
             
             // 更新每日任務進度

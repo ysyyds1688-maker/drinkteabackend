@@ -5,11 +5,22 @@ import { Article } from '../types.js';
 
 const router = Router();
 
-// GET /api/articles - Get all articles
+// GET /api/articles - Get all articles (支持分頁)
 router.get('/', async (req, res) => {
   try {
-    const articles = await articleModel.getAll();
-    res.json(articles);
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+    
+    const result = await articleModel.getAll({ limit, offset });
+    
+    // 返回分頁結果
+    res.json({
+      articles: result.articles,
+      total: result.total,
+      limit: limit || result.total,
+      offset: offset || 0,
+      hasMore: offset !== undefined && limit !== undefined ? (offset + limit) < result.total : false
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

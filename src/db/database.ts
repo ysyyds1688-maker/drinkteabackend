@@ -411,7 +411,15 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(location)
     `);
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_profiles_available ON profiles("isAvailable")
+      CREATE INDEX IF NOT EXISTS idx_profiles_available ON profiles("isAvailable");
+      
+      -- 優化排序查詢的索引
+      CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles("createdAt" DESC);
+      CREATE INDEX IF NOT EXISTS idx_profiles_updated_at ON profiles("updatedAt" DESC);
+      
+      -- 複合索引優化常用查詢
+      CREATE INDEX IF NOT EXISTS idx_profiles_available_created ON profiles("isAvailable", "createdAt" DESC);
+      CREATE INDEX IF NOT EXISTS idx_profiles_type_available ON profiles(type, "isAvailable", "createdAt" DESC);
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_articles_date ON articles(date)

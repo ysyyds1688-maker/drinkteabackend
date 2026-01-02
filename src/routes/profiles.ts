@@ -8,13 +8,29 @@ import { userStatsModel } from '../models/UserStats.js';
 
 const router = Router();
 
-// GET /api/profiles - Get all profiles
+// GET /api/profiles - Get all profiles (支持分頁)
 router.get('/', async (req, res) => {
   try {
-    const profiles = await profileModel.getAll();
-    res.json(profiles);
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+    const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+    
+    console.log('[Profiles] 開始獲取 profiles...', { limit, offset });
+    const startTime = Date.now();
+    const result = await profileModel.getAll(undefined, { limit, offset });
+    const duration = Date.now() - startTime;
+    console.log(`[Profiles] 成功獲取 ${result.profiles.length} 個 profiles（總共 ${result.total} 個），耗時 ${duration}ms`);
+    
+    // 返回分頁結果
+    res.json({
+      profiles: result.profiles,
+      total: result.total,
+      limit: limit || result.total,
+      offset: offset || 0,
+      hasMore: offset !== undefined && limit !== undefined ? (offset + limit) < result.total : false
+    });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('[Profiles] 獲取 profiles 失敗:', error);
+    res.status(500).json({ error: error.message || '獲取 Profiles 失敗' });
   }
 });
 
