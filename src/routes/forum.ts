@@ -182,8 +182,13 @@ router.get('/posts', async (req, res) => {
   try {
     const { category, sortBy = 'latest', limit, offset } = req.query;
     
+    // 如果 category 是空字符串，轉換為 undefined
+    const categoryParam = category && (category as string).trim() !== '' 
+      ? (category as string).trim() 
+      : undefined;
+    
     const posts = await forumModel.getPosts({
-      category: category as string,
+      category: categoryParam,
       sortBy: sortBy as 'latest' | 'hot' | 'replies' | 'views' | 'favorites',
       limit: limit ? parseInt(limit as string) : undefined,
       offset: offset ? parseInt(offset as string) : undefined,

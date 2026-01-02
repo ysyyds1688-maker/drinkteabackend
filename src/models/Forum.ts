@@ -179,9 +179,9 @@ export const forumModel = {
     const params: any[] = [];
     let paramIndex = 1;
     
-    if (options.category) {
+    if (options.category && options.category.trim() !== '') {
       sql += ` AND p.category = $${paramIndex++}`;
-      params.push(options.category);
+      params.push(options.category.trim());
     }
     
     // 排序
