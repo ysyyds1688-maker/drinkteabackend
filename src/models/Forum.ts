@@ -88,6 +88,57 @@ export const forumModel = {
     return post;
   },
 
+  // 更新帖子
+  updatePost: async (id: string, data: Partial<CreatePostData>): Promise<ForumPost | null> => {
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (data.title !== undefined) {
+      updates.push(`title = $${paramIndex++}`);
+      values.push(data.title);
+    }
+    if (data.content !== undefined) {
+      updates.push(`content = $${paramIndex++}`);
+      values.push(data.content);
+    }
+    if (data.category !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      values.push(data.category);
+    }
+    if (data.tags !== undefined) {
+      updates.push(`tags = $${paramIndex++}`);
+      values.push(data.tags ? JSON.stringify(data.tags) : null);
+    }
+    if (data.images !== undefined) {
+      updates.push(`images = $${paramIndex++}`);
+      values.push(data.images && data.images.length > 0 ? JSON.stringify(data.images) : null);
+    }
+    if (data.relatedProfileId !== undefined) {
+      updates.push(`related_profile_id = $${paramIndex++}`);
+      values.push(data.relatedProfileId || null);
+    }
+    if (data.relatedReviewId !== undefined) {
+      updates.push(`related_review_id = $${paramIndex++}`);
+      values.push(data.relatedReviewId || null);
+    }
+
+    if (updates.length === 0) {
+      return await forumModel.getPostById(id);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
+    await query(`
+      UPDATE forum_posts 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+    `, values);
+    
+    return await forumModel.getPostById(id);
+  },
+
   // 獲取帖子列表
   getPosts: async (options: {
     category?: string;
@@ -95,6 +146,8 @@ export const forumModel = {
     limit?: number;
     offset?: number;
   } = {}): Promise<ForumPost[]> => {
+    // 優化：使用 LEFT JOIN 替代子查詢，大幅提升性能
+    // 使用 LATERAL JOIN 獲取每個用戶最新的有效訂閱（比子查詢快很多）
     let sql = `
       SELECT p.*, 
              u.user_name, 
@@ -102,15 +155,18 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              pr.name as related_profile_name,
-             (SELECT is_active FROM subscriptions 
-              WHERE user_id = u.id AND is_active = true 
-              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
-             (SELECT expires_at FROM subscriptions 
-              WHERE user_id = u.id AND is_active = true 
-              ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_expires_at
+             s.is_active as subscription_active,
+             s.expires_at as subscription_expires_at
       FROM forum_posts p
       LEFT JOIN users u ON p.user_id = u.id
       LEFT JOIN profiles pr ON p.related_profile_id = pr.id
+      LEFT JOIN LATERAL (
+        SELECT is_active, expires_at 
+        FROM subscriptions 
+        WHERE user_id = u.id AND is_active = true 
+        ORDER BY expires_at DESC NULLS LAST 
+        LIMIT 1
+      ) s ON true
       WHERE 1=1
     `;
     const params: any[] = [];

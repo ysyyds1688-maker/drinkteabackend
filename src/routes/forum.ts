@@ -662,6 +662,60 @@ router.post('/likes', async (req, res) => {
 });
 
 // 刪除帖子（僅管理員）
+// PUT /api/forum/posts/:id - 更新帖子
+router.put('/posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+
+    // 獲取帖子信息
+    const post = await forumModel.getPostById(id);
+    if (!post) {
+      return res.status(404).json({ error: '帖子不存在' });
+    }
+
+    // 檢查權限：管理員或帖子作者可以編輯
+    const isAdmin = payload.role === 'admin';
+    const isAuthor = post.userId === payload.userId;
+    
+    if (!isAdmin && !isAuthor) {
+      return res.status(403).json({ error: '您沒有權限編輯此帖子' });
+    }
+
+    // 提取可更新的字段
+    const { title, content, category, tags, images, relatedProfileId, relatedReviewId } = req.body;
+    
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (category !== undefined) updateData.category = category;
+    if (tags !== undefined) updateData.tags = tags;
+    if (images !== undefined) updateData.images = images;
+    if (relatedProfileId !== undefined) updateData.relatedProfileId = relatedProfileId;
+    if (relatedReviewId !== undefined) updateData.relatedReviewId = relatedReviewId;
+
+    const updatedPost = await forumModel.updatePost(id, updateData);
+    if (!updatedPost) {
+      return res.status(404).json({ error: '更新失敗' });
+    }
+
+    res.json(updatedPost);
+  } catch (error: any) {
+    console.error('Update post error:', error);
+    res.status(500).json({ error: error.message || '更新帖子失敗' });
+  }
+});
+
 router.delete('/posts/:id', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
