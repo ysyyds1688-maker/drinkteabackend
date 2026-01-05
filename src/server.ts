@@ -221,7 +221,37 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Initialize database and start server
 initDatabase()
   .then(() => initTestUsers())
-  .then(() => {
+  .then(async () => {
+    // 确保自动取消预约任务存在
+    const { query } = await import('./db/database.js');
+    const { v4: uuidv4 } = await import('uuid');
+    
+    try {
+      const existingTask = await query(
+        "SELECT * FROM scheduled_tasks WHERE task_type = 'booking_auto_cancel'"
+      );
+      
+      if (existingTask.rows.length === 0) {
+        // 创建自动取消预约任务（每小时执行一次）
+        const taskId = uuidv4();
+        await query(
+          `INSERT INTO scheduled_tasks (id, name, task_type, cron_expression, config, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            taskId,
+            '自动取消过期预约',
+            'booking_auto_cancel',
+            '0 * * * *', // 每小时执行一次
+            JSON.stringify({}),
+            1
+          ]
+        );
+        console.log('✅ 创建了自动取消预约定时任务');
+      }
+    } catch (error: any) {
+      console.warn('创建自动取消预约任务时出现警告:', error.message);
+    }
+    
     // 启动定时任务
     schedulerService.startAllTasks();
     

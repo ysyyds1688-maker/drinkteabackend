@@ -42,11 +42,13 @@ router.post('/', async (req, res) => {
     // 获取profile的providerId（如果有）
     const { profileModel } = await import('../models/Profile.js');
     const profile = await profileModel.getById(profileId);
-    let providerId: string | undefined;
     
-    // 如果profile有userId字段，使用它作为providerId
-    // 这里假设profile可能关联到某个provider用户
-    // 暂时设为null，后续可以扩展
+    if (!profile) {
+      return res.status(404).json({ error: '茶茶檔案不存在' });
+    }
+    
+    // 如果profile有userId字段，使用它作为providerId（特選魚市）
+    const providerId = profile.userId || undefined;
     
     const booking = await bookingModel.create({
       providerId,
@@ -59,7 +61,43 @@ router.post('/', async (req, res) => {
       notes,
     });
     
-    res.status(201).json(booking);
+    // 如果是特選魚市（有providerId），給佳麗發送預約通知
+    if (providerId) {
+      try {
+        const { notificationModel } = await import('../models/Notification.js');
+        const clientName = user.userName || user.email || user.phoneNumber || '一位茶客';
+        const bookingDateTime = `${bookingDate} ${bookingTime}`;
+        
+        await notificationModel.create({
+          userId: providerId,
+          type: 'booking',
+          title: '新的預約請求',
+          content: `${clientName} 預約了您的服務\n預約時間：${bookingDateTime}${location ? `\n地點：${location}` : ''}${notes ? `\n備註：${notes}` : ''}\n\n請在24小時內確認預約。`,
+          link: `/user-profile?tab=bookings`,
+          metadata: {
+            bookingId: booking.id,
+            clientId: user.id,
+            profileId: profileId,
+            bookingDate: bookingDate,
+            bookingTime: bookingTime,
+          },
+        });
+        console.log(`已發送預約通知給佳麗 ${providerId}`);
+      } catch (error) {
+        console.error('發送預約通知失敗:', error);
+        // 不阻止預約創建，只記錄錯誤
+      }
+    }
+    
+    // 返回预约信息，包括对方的联络方式（如果已预约）
+    const bookingResponse: any = { ...booking };
+    
+    // 如果是特選魚市（有providerId），返回佳麗的聯絡方式
+    if (providerId && profile.contactInfo) {
+      bookingResponse.providerContactInfo = profile.contactInfo;
+    }
+    
+    res.status(201).json(bookingResponse);
   } catch (error: any) {
     console.error('Create booking error:', error);
     res.status(500).json({ error: error.message || '创建预约失败' });
@@ -131,6 +169,73 @@ router.put('/:id/status', async (req, res) => {
       return res.status(403).json({ error: '無权修改此預約' });
     }
     
+    // 發送狀態變更通知
+    try {
+      const { notificationModel } = await import('../models/Notification.js');
+      const { profileModel } = await import('../models/Profile.js');
+      
+      if (user.role === 'provider' && booking.providerId === user.id) {
+        // 佳麗更新狀態，通知茶客
+        const client = await userModel.findById(booking.clientId);
+        const profile = await profileModel.getById(booking.profileId);
+        const clientName = client?.userName || client?.email || client?.phoneNumber || '茶客';
+        const providerName = user.userName || user.email || user.phoneNumber || '佳麗';
+        
+        let notificationTitle = '';
+        let notificationContent = '';
+        
+        if (status === 'accepted') {
+          notificationTitle = '預約已確認';
+          notificationContent = `${providerName} 已確認您的預約\n預約時間：${booking.bookingDate} ${booking.bookingTime}${booking.location ? `\n地點：${booking.location}` : ''}`;
+        } else if (status === 'rejected') {
+          notificationTitle = '預約已拒絕';
+          notificationContent = `${providerName} 已拒絕您的預約請求`;
+        } else if (status === 'completed') {
+          notificationTitle = '預約已完成';
+          notificationContent = `您的預約已完成，請記得給予評論！`;
+        } else if (status === 'cancelled') {
+          notificationTitle = '預約已取消';
+          notificationContent = `${providerName} 已取消您的預約`;
+        }
+        
+        if (notificationTitle) {
+          await notificationModel.create({
+            userId: booking.clientId,
+            type: 'booking',
+            title: notificationTitle,
+            content: notificationContent,
+            link: `/user-profile?tab=bookings`,
+            metadata: {
+              bookingId: booking.id,
+              status: status,
+            },
+          });
+        }
+      } else if (user.role === 'client' && booking.clientId === user.id) {
+        // 茶客更新狀態，通知佳麗（如果有）
+        if (booking.providerId) {
+          const clientName = user.userName || user.email || user.phoneNumber || '茶客';
+          
+          if (status === 'cancelled') {
+            await notificationModel.create({
+              userId: booking.providerId,
+              type: 'booking',
+              title: '預約已取消',
+              content: `${clientName} 已取消預約`,
+              link: `/user-profile?tab=bookings`,
+              metadata: {
+                bookingId: booking.id,
+                status: status,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('發送預約狀態變更通知失敗:', error);
+      // 不阻止狀態更新，只記錄錯誤
+    }
+    
     // ========================================================================
     // ⚠️ 預約完成處理（重要：不更新預約次數統計）
     // ========================================================================
@@ -193,6 +298,104 @@ router.delete('/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Delete booking error:', error);
     res.status(500).json({ error: error.message || '删除预约失败' });
+  }
+});
+
+// 更新评论状态
+router.put('/:id/review-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewed } = req.body;
+    
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: '请先登录' });
+    }
+    
+    const booking = await bookingModel.getById(id);
+    if (!booking) {
+      return res.status(404).json({ error: '預約不存在' });
+    }
+    
+    // 检查权限
+    if (user.role === 'client' && booking.clientId !== user.id) {
+      return res.status(403).json({ error: '無权修改此預約' });
+    }
+    if (user.role === 'provider' && booking.providerId !== user.id) {
+      return res.status(403).json({ error: '無权修改此預約' });
+    }
+    
+    const updatedBooking = await bookingModel.updateReviewStatus(
+      id,
+      user.role as 'client' | 'provider',
+      reviewed === true
+    );
+    
+    res.json(updatedBooking);
+  } catch (error: any) {
+    console.error('Update review status error:', error);
+    res.status(500).json({ error: error.message || '更新评论状态失败' });
+  }
+});
+
+// 获取预约详情（包括对方联络方式）
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await getUserFromRequest(req);
+    
+    if (!user) {
+      return res.status(401).json({ error: '请先登录' });
+    }
+    
+    const booking = await bookingModel.getById(id);
+    if (!booking) {
+      return res.status(404).json({ error: '預約不存在' });
+    }
+    
+    // 检查权限
+    if (user.role !== 'admin') {
+      if (user.role === 'client' && booking.clientId !== user.id) {
+        return res.status(403).json({ error: '無权查看此預約' });
+      }
+      if (user.role === 'provider' && booking.providerId !== user.id) {
+        return res.status(403).json({ error: '無权查看此預約' });
+      }
+    }
+    
+    // 获取profile信息
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(booking.profileId);
+    
+    // 获取对方信息
+    const { userModel } = await import('../models/User.js');
+    let otherUser = null;
+    if (user.role === 'client' && booking.providerId) {
+      otherUser = await userModel.findById(booking.providerId);
+    } else if (user.role === 'provider' && booking.clientId) {
+      otherUser = await userModel.findById(booking.clientId);
+    }
+    
+    const response: any = { ...booking };
+    
+    // 只有在有预约记录时才返回对方联络方式
+    if (profile) {
+      if (user.role === 'client' && booking.providerId && profile.contactInfo) {
+        // 茶客查看佳麗聯絡方式
+        response.providerContactInfo = profile.contactInfo;
+      } else if (user.role === 'provider' && booking.clientId && otherUser) {
+        // 佳麗查看茶客聯絡方式（如果有）
+        response.clientContactInfo = {
+          phone: otherUser.phoneNumber,
+          email: otherUser.email
+        };
+      }
+    }
+    
+    res.json(response);
+  } catch (error: any) {
+    console.error('Get booking detail error:', error);
+    res.status(500).json({ error: error.message || '获取预约详情失败' });
   }
 });
 

@@ -456,10 +456,26 @@ export const initDatabase = async () => {
         location VARCHAR(255),
         status VARCHAR(20) DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected', 'completed', 'cancelled')),
         notes TEXT,
+        client_reviewed BOOLEAN DEFAULT FALSE,
+        provider_reviewed BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // 添加评论状态字段（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE bookings 
+        ADD COLUMN IF NOT EXISTS client_reviewed BOOLEAN DEFAULT FALSE
+      `);
+      await pool.query(`
+        ALTER TABLE bookings 
+        ADD COLUMN IF NOT EXISTS provider_reviewed BOOLEAN DEFAULT FALSE
+      `);
+    } catch (error: any) {
+      console.warn('添加评论状态字段时出现警告:', error.message);
+    }
 
     // Create indexes for bookings
     await pool.query(`

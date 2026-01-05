@@ -12,6 +12,8 @@ export interface Booking {
   location?: string;
   status: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
   notes?: string;
+  clientReviewed?: boolean; // 茶客是否已評論
+  providerReviewed?: boolean; // 佳麗是否已評論
   createdAt: string;
   updatedAt: string;
 }
@@ -69,6 +71,8 @@ export const bookingModel = {
       location: row.location || undefined,
       status: row.status,
       notes: row.notes || undefined,
+      clientReviewed: row.client_reviewed || false,
+      providerReviewed: row.provider_reviewed || false,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -93,6 +97,8 @@ export const bookingModel = {
       location: row.location || undefined,
       status: row.status,
       notes: row.notes || undefined,
+      clientReviewed: row.client_reviewed || false,
+      providerReviewed: row.provider_reviewed || false,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -117,6 +123,8 @@ export const bookingModel = {
       location: row.location || undefined,
       status: row.status,
       notes: row.notes || undefined,
+      clientReviewed: row.client_reviewed || false,
+      providerReviewed: row.provider_reviewed || false,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -140,9 +148,50 @@ export const bookingModel = {
       location: row.location || undefined,
       status: row.status,
       notes: row.notes || undefined,
+      clientReviewed: row.client_reviewed || false,
+      providerReviewed: row.provider_reviewed || false,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
+  },
+
+  // 获取24小时内未确认的预约（用于自动取消）
+  getPendingExpired: async (): Promise<Booking[]> => {
+    const result = await query(`
+      SELECT * FROM bookings 
+      WHERE status = 'pending' 
+      AND created_at < NOW() - INTERVAL '24 hours'
+      ORDER BY created_at ASC
+    `);
+    
+    return result.rows.map(row => ({
+      id: row.id,
+      providerId: row.provider_id || undefined,
+      clientId: row.client_id,
+      profileId: row.profile_id,
+      serviceType: row.service_type || undefined,
+      bookingDate: row.booking_date,
+      bookingTime: row.booking_time,
+      location: row.location || undefined,
+      status: row.status,
+      notes: row.notes || undefined,
+      clientReviewed: row.client_reviewed || false,
+      providerReviewed: row.provider_reviewed || false,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  },
+
+  // 更新评论状态
+  updateReviewStatus: async (id: string, userRole: 'client' | 'provider', reviewed: boolean): Promise<Booking | null> => {
+    const field = userRole === 'client' ? 'client_reviewed' : 'provider_reviewed';
+    await query(`
+      UPDATE bookings 
+      SET ${field} = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [reviewed, id]);
+    
+    return await bookingModel.getById(id);
   },
 
   // 更新预约状态

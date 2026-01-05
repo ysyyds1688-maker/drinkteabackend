@@ -358,46 +358,40 @@ router.post('/posts', async (req, res) => {
       }
     }
     
-    // 檢查特選魚市預約任務（在特選魚市版區發文時）
-    if (category === 'fish_market' && relatedProfileId) {
+    // 檢查特選魚市版區發文任務（在特選魚市版區發文時）
+    if (category === 'fish_market') {
       try {
-        const { bookingModel } = await import('../models/Booking.js');
-        const clientBookings = await bookingModel.getByClientId(payload.userId);
-        const profileBooking = clientBookings.find(b => b.profileId === relatedProfileId);
-        
-        if (profileBooking && (profileBooking.status === 'accepted' || profileBooking.status === 'completed')) {
-          // 預約後宮佳麗任務
-          const bookingTaskResult = await tasksModel.updateTaskProgress(payload.userId, 'book_lady_booking', 1);
-          if (bookingTaskResult.completed) {
-            await userStatsModel.addPoints(payload.userId, bookingTaskResult.pointsEarned, bookingTaskResult.experienceEarned);
-            console.log(`用戶 ${payload.userId} 完成「預約後宮佳麗」任務，獲得 ${bookingTaskResult.pointsEarned} 積分和 ${bookingTaskResult.experienceEarned} 經驗值`);
-            
-            // 創建任務完成通知
-            try {
-              const { notificationModel } = await import('../models/Notification.js');
-              const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'book_lady_booking');
-              if (definition) {
-                await notificationModel.create({
-                  userId: payload.userId,
-                  type: 'task',
-                  title: '任務完成',
-                  content: `恭喜您完成了「${definition.name}」任務！獲得 ${bookingTaskResult.pointsEarned} 積分和 ${bookingTaskResult.experienceEarned} 經驗值。`,
-                  link: `/user-profile?tab=points`,
-                  metadata: {
-                    taskType: 'book_lady_booking',
-                    taskName: definition.name,
-                    pointsEarned: bookingTaskResult.pointsEarned,
-                    experienceEarned: bookingTaskResult.experienceEarned,
-                  },
-                });
-              }
-            } catch (error) {
-              console.error('創建任務完成通知失敗:', error);
+        // 更新特選魚市版區發文任務進度
+        const forumTaskResult = await tasksModel.updateTaskProgress(payload.userId, 'post_in_lady_forum', 1);
+        if (forumTaskResult.completed) {
+          await userStatsModel.addPoints(payload.userId, forumTaskResult.pointsEarned, forumTaskResult.experienceEarned);
+          console.log(`用戶 ${payload.userId} 完成「特選魚市分享」任務，獲得 ${forumTaskResult.pointsEarned} 積分和 ${forumTaskResult.experienceEarned} 經驗值`);
+          
+          // 創建任務完成通知
+          try {
+            const { notificationModel } = await import('../models/Notification.js');
+            const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'post_in_lady_forum');
+            if (definition) {
+              await notificationModel.create({
+                userId: payload.userId,
+                type: 'task',
+                title: '任務完成',
+                content: `恭喜您完成了「${definition.name}」任務！獲得 ${forumTaskResult.pointsEarned} 積分和 ${forumTaskResult.experienceEarned} 經驗值。`,
+                link: `/user-profile?tab=points`,
+                metadata: {
+                  taskType: 'post_in_lady_forum',
+                  taskName: definition.name,
+                  pointsEarned: forumTaskResult.pointsEarned,
+                  experienceEarned: forumTaskResult.experienceEarned,
+                },
+              });
             }
+          } catch (error) {
+            console.error('創建任務完成通知失敗:', error);
           }
         }
       } catch (error) {
-        console.error('檢查特選魚市預約任務失敗:', error);
+        console.error('檢查特選魚市版區發文任務失敗:', error);
         // 不影響帖子創建，只記錄錯誤
       }
     }

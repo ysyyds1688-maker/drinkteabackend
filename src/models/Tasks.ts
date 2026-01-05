@@ -84,10 +84,19 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
   book_lady_booking: {
     type: 'book_lady_booking',
     name: '預約後宮佳麗',
-    description: '預約特選魚市後宮佳麗 1 次（需預約成功並在特選魚市版區發文）',
+    description: '預約特選魚市後宮佳麗 1 次（需預約成功並評論）',
     target: 1,
     pointsReward: 30,        // 積分：調降（原 50）
     experienceReward: 45,    // 經驗：調降（原 75）
+    category: 'daily',       // 保持 daily，但可在 UI 上分類到「其他任務」
+  },
+  post_in_lady_forum: {
+    type: 'post_in_lady_forum',
+    name: '特選魚市分享',
+    description: '在特選魚市版區發茶帖 1 則',
+    target: 1,
+    pointsReward: 20,        // 積分
+    experienceReward: 30,    // 經驗
     category: 'daily',       // 保持 daily，但可在 UI 上分類到「其他任務」
   },
   // 後宮佳麗專屬任務
@@ -262,10 +271,18 @@ export const tasksModel = {
       'browse_profiles',
       'book_premium_tea',
       'book_lady_booking',
+      'post_in_lady_forum',
     ];
     
+    // 佳麗的每日任務與茶客一樣，預約相關任務移到其他任務
     const providerTaskTypes = [
+      // 每日任務（與茶客一樣）
       'daily_login',
+      'create_post',
+      'reply_post',
+      'like_content',
+      'browse_profiles',
+      // 預約相關任務（移到其他任務）
       'lady_complete_booking',
       'lady_receive_good_review',
       'lady_respond_booking',

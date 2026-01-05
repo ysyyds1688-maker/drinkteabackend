@@ -124,6 +124,21 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
       serviceType: serviceType || undefined,
     });
     
+    // 更新预约的评论状态
+    try {
+      const { bookingModel } = await import('../models/Booking.js');
+      const userBookings = await bookingModel.getByClientId(payload.userId);
+      const profileBooking = userBookings.find(b => b.profileId === profileId);
+      
+      if (profileBooking) {
+        // 更新茶客评论状态
+        await bookingModel.updateReviewStatus(profileBooking.id, 'client', true);
+      }
+    } catch (error) {
+      console.error('更新预约评论状态失败:', error);
+      // 不阻止评论创建，只记录错误
+    }
+    
     // 根據 profile 類型自動判斷 category（如果前端沒有傳遞）
     // 獲取 profile 信息來判斷是嚴選好茶還是特選魚市
     const { profileModel } = await import('../models/Profile.js');

@@ -132,6 +132,21 @@ export const schedulerService = {
           // 可以添加清理逻辑
           console.log(`Executing cleanup task: ${task.name}`);
           break;
+
+        case 'booking_auto_cancel':
+          // 自动取消24小时内未确认的预约
+          const { bookingModel } = await import('../models/Booking.js');
+          const expiredBookings = await bookingModel.getPendingExpired();
+          
+          for (const booking of expiredBookings) {
+            await bookingModel.updateStatus(booking.id, 'cancelled', 'system', 'admin');
+            console.log(`自动取消预约: ${booking.id} (创建于 ${booking.createdAt})`);
+          }
+          
+          if (expiredBookings.length > 0) {
+            console.log(`✅ 自动取消了 ${expiredBookings.length} 个过期预约`);
+          }
+          break;
       }
     } catch (error: any) {
       await query(
