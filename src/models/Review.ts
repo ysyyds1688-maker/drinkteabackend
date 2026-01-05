@@ -94,6 +94,91 @@ export const reviewModel = {
     return reviews;
   },
 
+  // 根據用戶ID獲取評論（顯示其他用戶對該用戶的評論）
+  // 對於provider：獲取其他人對該provider的profile的評論
+  // 對於client：獲取其他人對該client的評論（通過profile關聯，但評論的client_id不等於該client）
+  getByUserId: async (userId: string, userRole: 'provider' | 'client', currentUserId?: string): Promise<Review[]> => {
+    if (userRole === 'provider') {
+      // 如果是provider，獲取其他人對該provider的profile的評論
+      // 即：profile屬於該provider，但client_id不等於該provider（其他人評論該provider）
+      const { profileModel } = await import('./Profile.js');
+      const profilesResult = await profileModel.getAll(userId);
+      const profileIds = profilesResult.profiles.map(p => p.id);
+      
+      if (profileIds.length === 0) return [];
+      
+      // 獲取所有這些profile的評論，但排除該provider自己給出的評論（如果有的話）
+      const result = await query(`
+        SELECT r.*, 
+          u.avatar_url as client_avatar_url,
+          COUNT(rl.id) as likes_count,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM review_likes rl2 
+            WHERE rl2.review_id = r.id AND rl2.user_id = $3
+          ) THEN TRUE ELSE FALSE END as user_liked
+        FROM reviews r
+        LEFT JOIN users u ON r.client_id = u.id
+        LEFT JOIN review_likes rl ON r.id = rl.review_id
+        WHERE r.profile_id = ANY($1::text[]) 
+          AND r.is_visible = TRUE
+          AND r.client_id != $2
+        GROUP BY r.id, u.avatar_url
+        ORDER BY r.created_at DESC
+      `, [profileIds, userId, currentUserId || null]);
+      
+      const reviews: Review[] = [];
+      for (const row of result.rows) {
+        const repliesResult = await query(`
+          SELECT * FROM review_replies 
+          WHERE review_id = $1 
+          ORDER BY created_at ASC
+        `, [row.id]);
+        
+        reviews.push({
+          id: row.id,
+          profileId: row.profile_id,
+          clientId: row.client_id,
+          clientName: row.client_name || undefined,
+          clientAvatarUrl: row.client_avatar_url || undefined,
+          rating: row.rating,
+          comment: row.comment,
+          serviceType: row.service_type || undefined,
+          isVerified: Boolean(row.is_verified),
+          isVisible: Boolean(row.is_visible),
+          likes: parseInt(row.likes_count) || 0,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          userLiked: Boolean(row.user_liked),
+          replies: repliesResult.rows.map(rr => ({
+            id: rr.id,
+            reviewId: rr.review_id,
+            replyType: rr.reply_type,
+            authorId: rr.author_id || undefined,
+            content: rr.content,
+            createdAt: rr.created_at,
+          })),
+        });
+      }
+      
+      return reviews;
+    } else {
+      // 如果是client，獲取其他人對該client的評論
+      // 由於評論系統主要針對profile，我們需要查找：
+      // 1. 該client作為被評論者的評論（但reviews表中沒有直接存儲被評論的client）
+      // 2. 實際上，評論是針對profile的，所以對於client，我們可能需要查找：
+      //    - 該client創建的profile（如果client也是provider）
+      //    - 或者，查找該client作為client_id的評論，但這些是該client評論別人的
+      // 
+      // 根據用戶需求，應該是顯示其他人對該client的評論
+      // 但由於評論系統主要針對profile，對於純client，可能沒有直接的評論
+      // 目前先返回空數組，或者可以考慮擴展評論系統來支持client對client的評論
+      
+      // 暫時返回空數組，因為評論系統主要針對profile
+      // 如果未來需要支持client對client的評論，需要擴展reviews表結構
+      return [];
+    }
+  },
+
   // 创建评论
   create: async (data: CreateReviewData): Promise<Review> => {
     const id = `review_${Date.now()}_${uuidv4().substring(0, 9)}`;

@@ -348,22 +348,70 @@ export const userModel = {
 
   // 更新邮箱验证状态
   updateEmailVerified: async (id: string, verified: boolean): Promise<User | null> => {
+    // 先獲取當前用戶信息
+    const user = await userModel.findById(id);
+    if (!user) return null;
+    
+    // 更新驗證狀態
     await query(`
       UPDATE users
       SET email_verified = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [verified, id]);
     
+    // 更新驗證勳章
+    let badges = user.verificationBadges || [];
+    if (verified) {
+      // 添加 email_verified 勳章（如果還沒有）
+      if (!badges.includes('email_verified')) {
+        badges.push('email_verified');
+      }
+    } else {
+      // 移除 email_verified 勳章
+      badges = badges.filter(b => b !== 'email_verified');
+    }
+    
+    // 更新驗證勳章到資料庫
+    await query(`
+      UPDATE users
+      SET verification_badges = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [JSON.stringify(badges), id]);
+    
     return userModel.findById(id);
   },
 
   // 更新手機驗證狀態
   updatePhoneVerified: async (id: string, verified: boolean): Promise<User | null> => {
+    // 先獲取當前用戶信息
+    const user = await userModel.findById(id);
+    if (!user) return null;
+    
+    // 更新驗證狀態
     await query(`
       UPDATE users
       SET phone_verified = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [verified, id]);
+    
+    // 更新驗證勳章
+    let badges = user.verificationBadges || [];
+    if (verified) {
+      // 添加 phone_verified 勳章（如果還沒有）
+      if (!badges.includes('phone_verified')) {
+        badges.push('phone_verified');
+      }
+    } else {
+      // 移除 phone_verified 勳章
+      badges = badges.filter(b => b !== 'phone_verified');
+    }
+    
+    // 更新驗證勳章到資料庫
+    await query(`
+      UPDATE users
+      SET verification_badges = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [JSON.stringify(badges), id]);
     
     return userModel.findById(id);
   },

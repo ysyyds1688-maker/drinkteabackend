@@ -42,6 +42,7 @@ export interface ForumReply {
   membershipLevel?: string;
   isVip?: boolean;
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
+  verificationBadges?: string[]; // 驗證勳章
   replies?: ForumReply[];
 }
 
@@ -161,6 +162,7 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             u.verification_badges,
              pr.name as related_profile_name,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
@@ -261,6 +263,7 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             u.verification_badges,
              pr.name as related_profile_name,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
@@ -276,6 +279,15 @@ export const forumModel = {
     const row = result.rows[0];
     const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
     const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+    
+    let verificationBadges: string[] = [];
+    if (row.verification_badges) {
+      try {
+        verificationBadges = JSON.parse(row.verification_badges);
+      } catch (e) {
+        verificationBadges = [];
+      }
+    }
     
       return {
         id: row.id,
@@ -303,6 +315,7 @@ export const forumModel = {
         isVip: Boolean(isVip),
         userRole: row.user_role || undefined,
         relatedProfileName: row.related_profile_name || undefined,
+        verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       };
   },
 
@@ -342,6 +355,7 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             u.verification_badges,
              (SELECT is_active FROM subscriptions 
               WHERE user_id = u.id AND is_active = true 
               ORDER BY expires_at DESC NULLS LAST LIMIT 1) as subscription_active,
@@ -358,6 +372,15 @@ export const forumModel = {
       const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
       const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
       
+      let verificationBadges: string[] = [];
+      if (row.verification_badges) {
+        try {
+          verificationBadges = JSON.parse(row.verification_badges);
+        } catch (e) {
+          verificationBadges = [];
+        }
+      }
+      
       return {
         id: row.id,
         postId: row.post_id,
@@ -372,6 +395,7 @@ export const forumModel = {
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
         userRole: row.user_role || undefined,
+        verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
         replies: [] as ForumReply[],
       };
     });
@@ -407,6 +431,7 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             u.verification_badges,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
       FROM forum_replies r
@@ -420,6 +445,15 @@ export const forumModel = {
     const row = result.rows[0];
     const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
     const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+    
+    let verificationBadges: string[] = [];
+    if (row.verification_badges) {
+      try {
+        verificationBadges = JSON.parse(row.verification_badges);
+      } catch (e) {
+        verificationBadges = [];
+      }
+    }
     
     return {
       id: row.id,
@@ -435,6 +469,7 @@ export const forumModel = {
       membershipLevel: row.membership_level || 'tea_guest',
       isVip: Boolean(isVip),
       userRole: row.user_role || undefined,
+      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
     };
   },
 
@@ -607,6 +642,88 @@ export const forumModel = {
     return result.rows.map(row => row.post_id);
   },
 
+  // 獲取特定用戶的帖子列表
+  getPostsByUserId: async (userId: string, limit?: number, offset?: number): Promise<ForumPost[]> => {
+    let sql = `
+      SELECT p.*, 
+             u.user_name, 
+             u.avatar_url, 
+             u.membership_level,
+             u.role as user_role,
+             u.verification_badges,
+             pr.name as related_profile_name,
+             s.is_active as subscription_active,
+             s.expires_at as subscription_expires_at
+      FROM forum_posts p
+      LEFT JOIN users u ON p.user_id = u.id
+      LEFT JOIN profiles pr ON p.related_profile_id = pr.id
+      LEFT JOIN LATERAL (
+        SELECT is_active, expires_at 
+        FROM subscriptions 
+        WHERE user_id = u.id AND is_active = true 
+        ORDER BY expires_at DESC NULLS LAST 
+        LIMIT 1
+      ) s ON true
+      WHERE p.user_id = $1
+      ORDER BY p.created_at DESC
+    `;
+    const params: any[] = [userId];
+    let paramIndex = 2;
+    
+    if (limit) {
+      sql += ` LIMIT $${paramIndex++}`;
+      params.push(limit);
+    }
+    if (offset) {
+      sql += ` OFFSET $${paramIndex++}`;
+      params.push(offset);
+    }
+    
+    const result = await query(sql, params);
+    return result.rows.map(row => {
+      const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
+      const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
+      
+      let verificationBadges: string[] = [];
+      if (row.verification_badges) {
+        try {
+          verificationBadges = JSON.parse(row.verification_badges);
+        } catch (e) {
+          verificationBadges = [];
+        }
+      }
+      
+      return {
+        id: row.id,
+        userId: row.user_id,
+        title: row.title,
+        content: row.content,
+        category: row.category,
+        tags: row.tags ? JSON.parse(row.tags) : undefined,
+        images: row.images ? JSON.parse(row.images) : undefined,
+        videos: row.videos ? JSON.parse(row.videos) : undefined,
+        views: row.views || 0,
+        likesCount: row.likes_count || 0,
+        repliesCount: row.replies_count || 0,
+        favoritesCount: row.favorites_count || 0,
+        isPinned: Boolean(row.is_pinned),
+        isLocked: Boolean(row.is_locked),
+        isFeatured: Boolean(row.is_featured),
+        relatedProfileId: row.related_profile_id || undefined,
+        relatedReviewId: row.related_review_id || undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        userName: row.user_name || undefined,
+        avatarUrl: row.avatar_url || undefined,
+        membershipLevel: row.membership_level || 'tea_guest',
+        isVip: Boolean(isVip),
+        userRole: row.user_role || undefined,
+        relatedProfileName: row.related_profile_name || undefined,
+        verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
+      };
+    });
+  },
+
   // 獲取用戶收藏的帖子列表
   getFavoritesByUserId: async (userId: string, limit?: number, offset?: number): Promise<ForumPost[]> => {
     let sql = `
@@ -615,6 +732,7 @@ export const forumModel = {
              u.avatar_url, 
              u.membership_level,
              u.role as user_role,
+             u.verification_badges,
              pr.name as related_profile_name,
              (SELECT is_active FROM subscriptions 
               WHERE user_id = u.id AND is_active = true 
@@ -646,6 +764,15 @@ export const forumModel = {
       const subscriptionExpiresAt = row.subscription_expires_at ? new Date(row.subscription_expires_at) : null;
       const isVip = row.subscription_active && (!subscriptionExpiresAt || subscriptionExpiresAt > new Date());
       
+      let verificationBadges: string[] = [];
+      if (row.verification_badges) {
+        try {
+          verificationBadges = JSON.parse(row.verification_badges);
+        } catch (e) {
+          verificationBadges = [];
+        }
+      }
+      
       return {
         id: row.id,
         userId: row.user_id,
@@ -672,6 +799,7 @@ export const forumModel = {
         isVip: Boolean(isVip),
         userRole: row.user_role || undefined,
         relatedProfileName: row.related_profile_name || undefined,
+        verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
       };
     });
   },

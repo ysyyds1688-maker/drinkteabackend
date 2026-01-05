@@ -601,6 +601,7 @@ router.post('/verify-email', async (req, res) => {
         id: updatedUser.id,
         email: updatedUser.email,
         emailVerified: updatedUser.emailVerified,
+        verificationBadges: updatedUser.verificationBadges || [],
       },
       experienceEarned: 10,
     });
@@ -733,6 +734,7 @@ router.post('/verify-phone', async (req, res) => {
         id: updatedUser.id,
         phoneNumber: updatedUser.phoneNumber,
         phoneVerified: updatedUser.phoneVerified,
+        verificationBadges: updatedUser.verificationBadges || [],
       },
       experienceEarned: 10,
     });

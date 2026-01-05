@@ -638,6 +638,10 @@ router.get('/', (req, res) => {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2>預約管理</h2>
                 </div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #e0e0e0;">
+                    <button class="tab" data-booking-tab="premium" onclick="showBookingTab(event, 'premium')" style="padding: 0.75rem 1.5rem; background: none; border: none; cursor: pointer; font-size: 0.875rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px;">嚴選好茶的預約</button>
+                    <button class="tab" data-booking-tab="fish-market" onclick="showBookingTab(event, 'fish-market')" style="padding: 0.75rem 1.5rem; background: none; border: none; cursor: pointer; font-size: 0.875rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px;">特選魚市的預約</button>
+                </div>
                 <div id="bookings-list"></div>
             </div>
         </div>
@@ -1178,7 +1182,22 @@ router.get('/', (req, res) => {
             if (tab === 'provider-profiles') loadProviderProfiles();
             if (tab === 'articles') loadArticles();
             if (tab === 'users') loadUsers();
-            if (tab === 'bookings') loadBookings();
+            if (tab === 'bookings') {
+                // 初始化預約標籤頁
+                currentBookingTab = 'premium';
+                document.querySelectorAll('[data-booking-tab]').forEach((t, index) => {
+                    if (index === 0) {
+                        t.classList.add('active');
+                        t.style.color = '#1a1a1a';
+                        t.style.borderBottomColor = '#1a1a1a';
+                    } else {
+                        t.classList.remove('active');
+                        t.style.color = '#666';
+                        t.style.borderBottomColor = 'transparent';
+                    }
+                });
+                loadBookings();
+            }
         }
 
         // 刪除 Profile
@@ -2392,7 +2411,18 @@ router.get('/', (req, res) => {
                         'tea_king_confidant': '🤝 茶王心腹',
                         'tea_king_personal_selection': '⭐ 茶王親選',
                         'imperial_golden_seal_tea_officer': '🏆 御賜金印茶官',
-                        'national_master_tea_officer': '🌟 國師級茶官'
+                        'national_master_tea_officer': '🌟 國師級茶官',
+                        // 後宮佳麗等級
+                        'lady_trainee': '🌸 初級佳麗',
+                        'lady_apprentice': '🌺 見習佳麗',
+                        'lady_junior': '🌷 中級佳麗',
+                        'lady_senior': '🌹 高級佳麗',
+                        'lady_expert': '🌻 專家佳麗',
+                        'lady_master': '🌼 大師佳麗',
+                        'lady_elite': '🌺 精英佳麗',
+                        'lady_premium': '🌹 高級佳麗',
+                        'lady_royal': '👑 皇家佳麗',
+                        'lady_empress': '👸 皇后佳麗'
                     };
                     return labels[level] || level;
                 };
@@ -2406,7 +2436,7 @@ router.get('/', (req, res) => {
                 };
                 list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
                     users.map(u => {
-                        const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 供茶人' : '👑 管理員';
+                        const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
                         const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
                         const badges = getVerificationBadges(u.verificationBadges);
                         const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
@@ -2465,7 +2495,7 @@ router.get('/', (req, res) => {
                         }).join('') + '</tbody></table>';
                 }
                 
-                const roleText = user.role === 'client' ? '品茶客' : user.role === 'provider' ? '供茶人' : '管理員';
+                const roleText = user.role === 'client' ? '品茶客' : user.role === 'provider' ? '後宮佳麗' : '管理員';
                 const membershipLabels = {
                     'tea_guest': '茶客',
                     'tea_scholar': '入門茶士',
@@ -2524,7 +2554,7 @@ router.get('/', (req, res) => {
                 const rows = users.map(u => [
                     u.email || '',
                     u.phoneNumber || '',
-                    u.role === 'client' ? '品茶客' : u.role === 'provider' ? '供茶人' : '管理員',
+                    u.role === 'client' ? '品茶客' : u.role === 'provider' ? '後宮佳麗' : '管理員',
                     membershipLabels[u.membershipLevel] || u.membershipLevel || '免費會員',
                     u.membershipExpiresAt ? new Date(u.membershipExpiresAt).toLocaleString('zh-TW') : '無',
                     (u.verificationBadges && u.verificationBadges.length > 0) ? u.verificationBadges.join(', ') : '無',
@@ -2557,6 +2587,24 @@ router.get('/', (req, res) => {
             }
         }
 
+        let currentBookingTab = 'premium';
+        
+        // 切換預約標籤頁
+        function showBookingTab(evt, tab) {
+            currentBookingTab = tab;
+            document.querySelectorAll('[data-booking-tab]').forEach(t => {
+                t.classList.remove('active');
+                t.style.color = '#666';
+                t.style.borderBottomColor = 'transparent';
+            });
+            if (evt && evt.target) {
+                evt.target.classList.add('active');
+                evt.target.style.color = '#1a1a1a';
+                evt.target.style.borderBottomColor = '#1a1a1a';
+            }
+            loadBookings();
+        }
+
         // 載入預約列表
         async function loadBookings() {
             try {
@@ -2574,20 +2622,46 @@ router.get('/', (req, res) => {
                 const bookings = await res.json();
                 const list = document.getElementById('bookings-list');
                 
-                if (bookings.length === 0) {
-                    list.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">目前沒有預約記錄</div>';
+                // 獲取所有 profiles 以判斷是嚴選好茶還是特選魚市
+                const profilesRes = await fetch(API_BASE + '/api/admin/profiles', {
+                    headers: getAuthHeaders()
+                });
+                const profiles = await profilesRes.json();
+                const profileMap = {};
+                profiles.forEach(p => {
+                    profileMap[p.id] = p;
+                });
+                
+                // 根據標籤頁過濾預約
+                let filteredBookings = bookings;
+                if (currentBookingTab === 'premium') {
+                    // 嚴選好茶：profile 的 userId 為空或 null
+                    filteredBookings = bookings.filter(b => {
+                        const profile = profileMap[b.profileId];
+                        return profile && (!profile.userId || profile.userId === '' || profile.userId === null);
+                    });
+                } else if (currentBookingTab === 'fish-market') {
+                    // 特選魚市：profile 的 userId 不為空
+                    filteredBookings = bookings.filter(b => {
+                        const profile = profileMap[b.profileId];
+                        return profile && profile.userId && profile.userId !== '' && profile.userId !== null;
+                    });
+                }
+                
+                if (filteredBookings.length === 0) {
+                    list.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">目前沒有' + (currentBookingTab === 'premium' ? '嚴選好茶' : '特選魚市') + '的預約記錄</div>';
                     return;
                 }
                 
                 list.innerHTML = '<table><thead><tr><th>預約ID</th><th>品茶客ID</th><th>供茶人ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
-                    bookings.map(b => {
+                    filteredBookings.map(b => {
                         const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
                         const providerId = b.providerId ? b.providerId.substring(0, 8) + '...' : '-';
                         return '<tr>' +
                             '<td>' + b.id.substring(0, 8) + '...</td>' +
-                            '<td>' + b.clientId.substring(0, 8) + '...</td>' +
+                            '<td>' + b.clientId.substring(0, 8) + '...' + '</td>' +
                             '<td>' + providerId + '</td>' +
-                            '<td>' + b.profileId.substring(0, 8) + '...</td>' +
+                            '<td>' + b.profileId.substring(0, 8) + '...' + '</td>' +
                             '<td>' + b.bookingDate + '</td>' +
                             '<td>' + b.bookingTime + '</td>' +
                             '<td>' + statusText + '</td>' +

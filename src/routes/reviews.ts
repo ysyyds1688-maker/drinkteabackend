@@ -115,6 +115,38 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
       return res.status(400).json({ error: '请输入评论内容' });
     }
     
+    // 根據 profile 類型自動判斷 category（如果前端沒有傳遞）
+    // 獲取 profile 信息來判斷是嚴選好茶還是特選魚市
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(profileId);
+    
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    
+    // 判斷 category：嚴選好茶（userId 為空）還是特選魚市（userId 有值）
+    const determinedCategory = category || (
+      (!profile.userId || profile.userId === null || profile.userId === '')
+        ? 'premium_tea'
+        : 'lady_booking'
+    );
+    
+    // 特選魚市：必須有預約記錄且狀態為 accepted 或 completed 才能評論
+    let profileBooking = null;
+    if (determinedCategory === 'lady_booking') {
+      const { bookingModel } = await import('../models/Booking.js');
+      const userBookings = await bookingModel.getByClientId(payload.userId);
+      profileBooking = userBookings.find(b => b.profileId === profileId);
+      
+      if (!profileBooking) {
+        return res.status(403).json({ error: '請先預約此佳麗的服務後才能評論' });
+      }
+      
+      if (profileBooking.status !== 'accepted' && profileBooking.status !== 'completed') {
+        return res.status(403).json({ error: '預約尚未確認，請等待佳麗確認預約後再評論' });
+      }
+    }
+    
     const review = await reviewModel.create({
       profileId,
       clientId: payload.userId,
@@ -125,31 +157,28 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
     });
     
     // 更新预约的评论状态
-    try {
-      const { bookingModel } = await import('../models/Booking.js');
-      const userBookings = await bookingModel.getByClientId(payload.userId);
-      const profileBooking = userBookings.find(b => b.profileId === profileId);
-      
-      if (profileBooking) {
-        // 更新茶客评论状态
+    if (profileBooking) {
+      try {
+        const { bookingModel } = await import('../models/Booking.js');
         await bookingModel.updateReviewStatus(profileBooking.id, 'client', true);
+      } catch (error) {
+        console.error('更新预约评论状态失败:', error);
+        // 不阻止评论创建，只记录错误
       }
-    } catch (error) {
-      console.error('更新预约评论状态失败:', error);
-      // 不阻止评论创建，只记录错误
+    } else if (determinedCategory !== 'lady_booking') {
+      // 嚴選好茶或其他類型，也嘗試更新預約評論狀態
+      try {
+        const { bookingModel } = await import('../models/Booking.js');
+        const userBookings = await bookingModel.getByClientId(payload.userId);
+        const booking = userBookings.find(b => b.profileId === profileId);
+        if (booking) {
+          await bookingModel.updateReviewStatus(booking.id, 'client', true);
+        }
+      } catch (error) {
+        console.error('更新预约评论状态失败:', error);
+        // 不阻止评论创建，只记录错误
+      }
     }
-    
-    // 根據 profile 類型自動判斷 category（如果前端沒有傳遞）
-    // 獲取 profile 信息來判斷是嚴選好茶還是特選魚市
-    const { profileModel } = await import('../models/Profile.js');
-    const profile = await profileModel.getById(profileId);
-    
-    // 判斷 category：嚴選好茶（userId 為空）還是特選魚市（userId 有值）
-    const determinedCategory = category || (
-      profile && (!profile.userId || profile.userId === null || profile.userId === '')
-        ? 'premium_tea'
-        : 'lady_booking'
-    );
     
     // ========================================================================
     // ⚠️ 預約次數判斷機制（重要）
@@ -444,6 +473,65 @@ router.post('/reviews/:reviewId/like', async (req, res) => {
   } catch (error: any) {
     console.error('Like review error:', error);
     res.status(500).json({ error: error.message || '点赞失败' });
+  }
+});
+
+// 獲取特定用戶的評論
+router.get('/users/:userId/reviews', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const authHeader = req.headers.authorization;
+    
+    // 獲取當前用戶ID（如果已登入）
+    let currentUserId: string | undefined;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      if (payload) {
+        currentUserId = payload.userId;
+      }
+    }
+    
+    // 獲取用戶信息以確定角色
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 獲取評論
+    const reviews = await reviewModel.getByUserId(userId, user.role as 'provider' | 'client', currentUserId);
+    
+    // 計算平均評分（僅對provider有效）
+    let averageRating = 0;
+    if (user.role === 'provider') {
+      const { profileModel } = await import('../models/Profile.js');
+      const profilesResult = await profileModel.getAll(userId);
+      if (profilesResult.profiles.length > 0) {
+        const profileIds = profilesResult.profiles.map(p => p.id);
+        // 計算所有profile的平均評分
+        let totalRating = 0;
+        let count = 0;
+        for (const profileId of profileIds) {
+          const avg = await reviewModel.getAverageRating(profileId);
+          if (avg > 0) {
+            totalRating += avg;
+            count++;
+          }
+        }
+        if (count > 0) {
+          averageRating = totalRating / count;
+        }
+      }
+    }
+    
+    res.json({
+      reviews,
+      total: reviews.length,
+      averageRating: Math.round(averageRating * 10) / 10,
+    });
+  } catch (error: any) {
+    console.error('Get user reviews error:', error);
+    res.status(500).json({ error: error.message || '獲取用戶評論失敗' });
   }
 });
 
