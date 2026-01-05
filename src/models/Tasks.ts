@@ -74,7 +74,7 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
   },
   browse_provider_profiles: {
     type: 'browse_provider_profiles',
-    name: '瀏覽茶茶資料',
+    name: '瀏覽佳麗資料',
     description: '瀏覽 10 個特選魚市或嚴選好茶資料',
     target: 10,
     pointsReward: 10,

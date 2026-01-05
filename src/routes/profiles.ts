@@ -42,7 +42,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Profile not found' });
     }
     
-    // 如果用户已登录且是茶客，更新瀏覽茶茶資料任務進度（僅限茶客）
+    // 如果用户已登录且是茶客，更新瀏覽佳麗資料任務進度（僅限茶客）
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
@@ -53,7 +53,7 @@ router.get('/:id', async (req, res) => {
           const { userModel } = await import('../models/User.js');
           const currentUser = await userModel.findById(payload.userId);
           if (currentUser && currentUser.role === 'client') {
-            // 更新瀏覽茶茶資料任務進度（茶客專屬）
+            // 更新瀏覽佳麗資料任務進度（茶客專屬）
             const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'browse_provider_profiles');
             // 如果任务完成，添加积分和经验值
             if (taskResult.completed) {
@@ -90,7 +90,7 @@ router.get('/:id', async (req, res) => {
         }
       } catch (error) {
         // 忽略验证错误，不影响返回profile
-        console.error('更新瀏覽茶茶資料任務失敗:', error);
+        console.error('更新瀏覽佳麗資料任務失敗:', error);
       }
     }
     

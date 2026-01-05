@@ -509,6 +509,69 @@ router.post('/posts/:postId/replies', async (req, res) => {
       parentReplyId,
     });
     
+    // 發送回覆通知
+    try {
+      const { notificationModel } = await import('../models/Notification.js');
+      const { userModel } = await import('../models/User.js');
+      
+      // 獲取帖子信息
+      const post = await forumModel.getPostById(postId);
+      
+      // 如果回覆的是某個留言（有 parentReplyId）
+      if (parentReplyId) {
+        // 獲取被回覆的留言信息
+        const parentReply = await forumModel.getReplyById(parentReplyId);
+        if (parentReply && parentReply.userId !== payload.userId) {
+          // 獲取回覆者的用戶名
+          const replyUser = await userModel.findById(payload.userId);
+          const replyUserName = replyUser?.userName || '某位用戶';
+          
+          // 發送通知給被回覆的用戶
+          await notificationModel.create({
+            userId: parentReply.userId,
+            type: 'message',
+            title: '有人回覆了您的留言',
+            content: `${replyUserName} 回覆了您在「${post?.title || '帖子'}」中的留言：${content.trim().substring(0, 50)}${content.trim().length > 50 ? '...' : ''}`,
+            link: `/forum/post/${postId}`,
+            metadata: {
+              type: 'reply_to_reply',
+              postId,
+              replyId: reply.id,
+              parentReplyId,
+              replyUserId: payload.userId,
+              replyUserName,
+            },
+          });
+        }
+      } else {
+        // 如果回覆的是帖子本身（不是回覆留言），通知帖子作者
+        if (post && post.userId !== payload.userId) {
+          // 獲取回覆者的用戶名
+          const replyUser = await userModel.findById(payload.userId);
+          const replyUserName = replyUser?.userName || '某位用戶';
+          
+          // 發送通知給帖子作者
+          await notificationModel.create({
+            userId: post.userId,
+            type: 'message',
+            title: '有人回覆了您的帖子',
+            content: `${replyUserName} 回覆了您的帖子「${post.title}」：${content.trim().substring(0, 50)}${content.trim().length > 50 ? '...' : ''}`,
+            link: `/forum/post/${postId}`,
+            metadata: {
+              type: 'reply_to_post',
+              postId,
+              replyId: reply.id,
+              replyUserId: payload.userId,
+              replyUserName,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('發送回覆通知失敗:', error);
+      // 不阻止回覆創建，只記錄錯誤
+    }
+    
     // 更新統計和任務
     await userStatsModel.updateCounts(payload.userId, { repliesCount: 1 });
     const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'reply_post');
