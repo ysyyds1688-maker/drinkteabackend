@@ -53,9 +53,13 @@ export interface Profile {
   
   price: number;
   prices: {
-    oneShot: { price: number; desc: string };
-    twoShot: { price: number; desc: string };
+    oneShot?: { price: number; desc: string };
+    twoShot?: { price: number; desc: string };
     threeShot?: { price: number; desc: string };
+    overnight?: { price: number; desc: string }; // 過夜
+    dating?: { price: number; desc: string }; // 約會
+    escort?: { price: number; desc: string }; // 伴遊
+    [key: string]: { price: number; desc: string } | undefined; // 允許其他自定義服務類型
   };
 
   tags: string[];
@@ -93,6 +97,7 @@ export interface Profile {
   
   isNew?: boolean;
   isAvailable?: boolean;
+  views?: number; // 瀏覽次數
 
   availableTimes: {
     today: string;

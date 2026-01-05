@@ -188,6 +188,18 @@ export const userStatsModel = {
       repeatLadyBookingsCount: row.repeat_lady_bookings_count || 0,
       consecutiveLoginDays: row.consecutive_login_days || 0,
       lastLoginDate: row.last_login_date || null,
+      // 後宮佳麗專屬統計字段
+      completedBookingsCount: row.completed_bookings_count || 0,
+      acceptedBookingsCount: row.accepted_bookings_count || 0,
+      fiveStarReviewsCount: row.five_star_reviews_count || 0,
+      fourStarReviewsCount: row.four_star_reviews_count || 0,
+      totalReviewsCount: row.total_reviews_count || 0,
+      averageRating: row.average_rating ? parseFloat(row.average_rating) : undefined,
+      repeatClientBookingsCount: row.repeat_client_bookings_count || 0,
+      uniqueReturningClientsCount: row.unique_returning_clients_count || 0,
+      cancellationRate: row.cancellation_rate ? parseFloat(row.cancellation_rate) : undefined,
+      averageResponseTime: row.average_response_time || undefined,
+      consecutiveCompletedBookings: row.consecutive_completed_bookings || 0,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

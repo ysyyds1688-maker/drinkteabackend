@@ -133,9 +133,9 @@ const getRulesContent = (category: string): { title: string; content: string; im
       image: '/images/tea_king_jp_2u8qtiwms.jpg'
     },
     'lady_promotion': {
-      title: '後宮佳麗宣傳區版規',
+      title: '佳麗御選名鑑版規',
       rules: [
-        '本版專為後宮佳麗（Provider）提供宣傳平台，僅限 Provider 角色發帖',
+        '本版專為佳麗提供宣傳平台，僅限佳麗角色發帖',
         '歡迎發布個人宣傳、服務介紹、優惠活動等內容',
         '可以發布聯絡方式（Line、電話、Telegram 等）',
         '可以發布個人照片、服務照片（需確保已成年且為本人）',
@@ -143,7 +143,7 @@ const getRulesContent = (category: string): { title: string; content: string; im
         '鼓勵詳細介紹個人特色、服務內容和優勢',
         '禁止發布涉及未成年人的內容',
         '禁止發布虛假資訊、詐騙訊息或誤導性內容',
-        '禁止惡意攻擊其他後宮佳麗或客戶',
+        '禁止惡意攻擊其他佳麗或客戶',
         '禁止發布違法內容或涉及非法交易',
         '建議定期更新帖子，保持內容新鮮度',
         '客戶可在帖子下回覆詢問，請友善回應'
@@ -377,6 +377,61 @@ router.post('/posts', async (req, res) => {
       }
     }
     
+    // 如果是佳麗，更新「論壇互動」任務（發表 1 篇帖子即可完成）
+    try {
+      const { userModel } = await import('../models/User.js');
+      const user = await userModel.findById(payload.userId);
+      if (user && user.role === 'provider') {
+        // 發表帖子時，直接設置進度為 target 來完成任務
+        const date = tasksModel.getLocalDateString();
+        const task = await tasksModel.getOrCreateDailyTask(payload.userId, 'lady_forum_interaction', date);
+        
+        if (!task.isCompleted) {
+          const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_forum_interaction');
+          if (definition) {
+            // 直接設置進度為 target，完成任務
+            const { query } = await import('../db/database.js');
+            await query(`
+              UPDATE daily_tasks 
+              SET progress = $1, 
+                  is_completed = TRUE,
+                  points_earned = $2
+              WHERE id = $3
+            `, [definition.target, definition.pointsReward, task.id]);
+            
+            // 添加積分和經驗值
+            await userStatsModel.addPoints(
+              payload.userId,
+              definition.pointsReward,
+              definition.experienceReward
+            );
+            
+            // 創建任務完成通知
+            try {
+              const { notificationModel } = await import('../models/Notification.js');
+              await notificationModel.create({
+                userId: payload.userId,
+                type: 'task',
+                title: '任務完成',
+                content: `恭喜您完成了「${definition.name}」任務！獲得 ${definition.pointsReward} 積分和 ${definition.experienceReward} 經驗值。`,
+                link: `/user-profile?tab=points`,
+                metadata: {
+                  taskType: 'lady_forum_interaction',
+                  taskName: definition.name,
+                  pointsEarned: definition.pointsReward,
+                  experienceEarned: definition.experienceReward,
+                },
+              });
+            } catch (error) {
+              console.error('創建佳麗論壇互動任務完成通知失敗:', error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('更新佳麗論壇互動任務失敗:', error);
+    }
+    
     // 檢查特選魚市版區發文任務（在特選魚市版區發文時）
     if (category === 'fish_market') {
       try {
@@ -575,6 +630,47 @@ router.post('/posts/:postId/replies', async (req, res) => {
     // 更新統計和任務
     await userStatsModel.updateCounts(payload.userId, { repliesCount: 1 });
     const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'reply_post');
+    
+    // 如果是佳麗，更新「論壇互動」任務（回覆 3 篇完成）
+    try {
+      const { userModel } = await import('../models/User.js');
+      const user = await userModel.findById(payload.userId);
+      if (user && user.role === 'provider') {
+        const forumInteractionResult = await tasksModel.updateTaskProgress(payload.userId, 'lady_forum_interaction', 1);
+        if (forumInteractionResult.completed) {
+          await userStatsModel.addPoints(
+            payload.userId,
+            forumInteractionResult.pointsEarned,
+            forumInteractionResult.experienceEarned
+          );
+          
+          // 創建任務完成通知
+          try {
+            const { notificationModel } = await import('../models/Notification.js');
+            const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_forum_interaction');
+            if (definition) {
+              await notificationModel.create({
+                userId: payload.userId,
+                type: 'task',
+                title: '任務完成',
+                content: `恭喜您完成了「${definition.name}」任務！獲得 ${forumInteractionResult.pointsEarned} 積分和 ${forumInteractionResult.experienceEarned} 經驗值。`,
+                link: `/user-profile?tab=points`,
+                metadata: {
+                  taskType: 'lady_forum_interaction',
+                  taskName: definition.name,
+                  pointsEarned: forumInteractionResult.pointsEarned,
+                  experienceEarned: forumInteractionResult.experienceEarned,
+                },
+              });
+            }
+          } catch (error) {
+            console.error('創建佳麗論壇互動任務完成通知失敗:', error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('更新佳麗論壇互動任務失敗:', error);
+    }
     
     // 發表評論經驗值獎勵邏輯
     let pointsResult = null;

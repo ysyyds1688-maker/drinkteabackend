@@ -34,6 +34,16 @@ export interface User {
   violationLevel?: number; // 違規級別：0=無, 1=初次, 2=累犯1, 3=累犯2, 4=嚴重
   warningBadge?: boolean; // 警示戶頭標記
   noShowBadge?: boolean; // 放鳥標記徽章
+  // 佳麗檢舉相關欄位
+  providerReportCount?: number; // 被檢舉次數
+  providerScamReportCount?: number; // 詐騙檢舉次數
+  providerNotRealPersonCount?: number; // 非本人檢舉次數
+  providerFakeProfileCount?: number; // 假檔案檢舉次數
+  providerViolationLevel?: number; // 違規級別（0-4）
+  providerWarningBadge?: boolean; // 警示標記
+  providerFrozen?: boolean; // 是否被凍結
+  providerFrozenAt?: string; // 凍結時間
+  providerAutoUnfreezeAt?: string; // 自動解凍時間
 }
 
 export interface CreateUserData {
@@ -99,6 +109,15 @@ export const userModel = {
       warningBadge: Boolean(row.warning_badge),
       noShowBadge: Boolean(row.no_show_badge),
       bookingWarning: Boolean(row.booking_warning),
+      providerReportCount: row.provider_report_count || 0,
+      providerScamReportCount: row.provider_scam_report_count || 0,
+      providerNotRealPersonCount: row.provider_not_real_person_count || 0,
+      providerFakeProfileCount: row.provider_fake_profile_count || 0,
+      providerViolationLevel: row.provider_violation_level || 0,
+      providerWarningBadge: Boolean(row.provider_warning_badge),
+      providerFrozen: Boolean(row.provider_frozen),
+      providerFrozenAt: row.provider_frozen_at || undefined,
+      providerAutoUnfreezeAt: row.provider_auto_unfreeze_at || undefined,
     };
   },
 
@@ -140,6 +159,15 @@ export const userModel = {
       warningBadge: Boolean(row.warning_badge),
       noShowBadge: Boolean(row.no_show_badge),
       bookingWarning: Boolean(row.booking_warning),
+      providerReportCount: row.provider_report_count || 0,
+      providerScamReportCount: row.provider_scam_report_count || 0,
+      providerNotRealPersonCount: row.provider_not_real_person_count || 0,
+      providerFakeProfileCount: row.provider_fake_profile_count || 0,
+      providerViolationLevel: row.provider_violation_level || 0,
+      providerWarningBadge: Boolean(row.provider_warning_badge),
+      providerFrozen: Boolean(row.provider_frozen),
+      providerFrozenAt: row.provider_frozen_at || undefined,
+      providerAutoUnfreezeAt: row.provider_auto_unfreeze_at || undefined,
     };
   },
 
@@ -473,6 +501,59 @@ export const userModel = {
     `, [newCount, userId]);
     
     return { count: newCount };
+  },
+
+  // 增加佳麗檢舉次數（根據檢舉類型）
+  incrementProviderReportCount: async (userId: string, reportType: 'scam' | 'not_real_person' | 'fake_profile' | 'other'): Promise<{ totalCount: number; scamCount: number; notRealPersonCount: number; fakeProfileCount: number }> => {
+    const user = await userModel.findById(userId);
+    if (!user) throw new Error('用戶不存在');
+    
+    const currentTotal = user.providerReportCount || 0;
+    const currentScam = user.providerScamReportCount || 0;
+    const currentNotRealPerson = user.providerNotRealPersonCount || 0;
+    const currentFakeProfile = user.providerFakeProfileCount || 0;
+    
+    const newTotal = currentTotal + 1;
+    const newScam = reportType === 'scam' ? currentScam + 1 : currentScam;
+    const newNotRealPerson = reportType === 'not_real_person' ? currentNotRealPerson + 1 : currentNotRealPerson;
+    const newFakeProfile = reportType === 'fake_profile' ? currentFakeProfile + 1 : currentFakeProfile;
+    
+    // 更新次數
+    await query(`
+      UPDATE users
+      SET provider_report_count = $1,
+          provider_scam_report_count = $2,
+          provider_not_real_person_count = $3,
+          provider_fake_profile_count = $4,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+    `, [newTotal, newScam, newNotRealPerson, newFakeProfile, userId]);
+    
+    return {
+      totalCount: newTotal,
+      scamCount: newScam,
+      notRealPersonCount: newNotRealPerson,
+      fakeProfileCount: newFakeProfile,
+    };
+  },
+
+  // 更新佳麗違規級別和標記
+  updateProviderViolationLevel: async (userId: string, level: number, warningBadge?: boolean): Promise<void> => {
+    const updates: string[] = ['provider_violation_level = $1', 'updated_at = CURRENT_TIMESTAMP'];
+    const params: any[] = [level];
+    
+    if (warningBadge !== undefined) {
+      updates.push(`provider_warning_badge = $${params.length + 1}`);
+      params.push(warningBadge);
+    }
+    
+    params.push(userId);
+    
+    await query(`
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE id = $${params.length}
+    `, params);
   },
 
   // 更新違規級別和標記

@@ -37,13 +37,91 @@ router.get('/', async (req, res) => {
 // GET /api/profiles/:id - Get profile by ID
 router.get('/:id', async (req, res) => {
   try {
-    const profile = await profileModel.getById(req.params.id);
+    // 增加瀏覽次數（只有非本人瀏覽時才增加）
+    const authHeader = req.headers.authorization;
+    let shouldIncrementViews = true;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const { verifyToken } = await import('../services/authService.js');
+        const payload = verifyToken(token);
+        if (payload && payload.userId) {
+          const profile = await profileModel.getById(req.params.id, false);
+          // 如果是佳麗本人瀏覽自己的資料，不增加瀏覽次數
+          if (profile && profile.userId === payload.userId) {
+            shouldIncrementViews = false;
+          }
+        }
+      } catch (error) {
+        // 忽略驗證錯誤，繼續增加瀏覽次數
+      }
+    }
+    
+    const profile = await profileModel.getById(req.params.id, shouldIncrementViews);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
     
+    // 如果是佳麗的資料且瀏覽次數達到 50，檢查並觸發 lady_boost_exposure 任務
+    if (profile.userId && shouldIncrementViews && profile.views >= 50) {
+      try {
+        const { userModel } = await import('../models/User.js');
+        const provider = await userModel.findById(profile.userId);
+        if (provider && provider.role === 'provider') {
+          const { tasksModel } = await import('../models/Tasks.js');
+          const { userStatsModel } = await import('../models/UserStats.js');
+          const { notificationModel } = await import('../models/Notification.js');
+          
+          // 獲取任務定義
+          const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_boost_exposure');
+          if (definition) {
+            // 獲取或創建任務
+            const date = tasksModel.getLocalDateString();
+            const task = await tasksModel.getOrCreateDailyTask(profile.userId, 'lady_boost_exposure', date);
+            
+            // 如果任務未完成，檢查是否達到目標
+            if (!task.isCompleted && profile.views >= definition.target) {
+              // 直接設置為完成
+              const { query } = await import('../db/database.js');
+              await query(`
+                UPDATE daily_tasks 
+                SET progress = $1, 
+                    is_completed = TRUE,
+                    points_earned = $2
+                WHERE id = $3
+              `, [definition.target, definition.pointsReward, task.id]);
+              
+              // 添加積分和經驗值
+              await userStatsModel.addPoints(
+                profile.userId,
+                definition.pointsReward,
+                definition.experienceReward
+              );
+              
+              // 創建任務完成通知
+              await notificationModel.create({
+                userId: profile.userId,
+                type: 'task',
+                title: '任務完成',
+                content: `恭喜您完成了「${definition.name}」任務！獲得 ${definition.pointsReward} 積分和 ${definition.experienceReward} 經驗值。`,
+                link: `/user-profile?tab=points`,
+                metadata: {
+                  taskType: 'lady_boost_exposure',
+                  taskName: definition.name,
+                  pointsEarned: definition.pointsReward,
+                  experienceEarned: definition.experienceReward,
+                },
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('更新 lady_boost_exposure 任務失敗:', error);
+      }
+    }
+    
     // 如果用户已登录且是茶客，更新瀏覽佳麗資料任務進度（僅限茶客）
-    const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);

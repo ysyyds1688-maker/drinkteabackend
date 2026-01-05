@@ -331,6 +331,15 @@ router.get('/me', async (req, res) => {
       violationLevel: user.violationLevel || 0,
       warningBadge: user.warningBadge || false,
       noShowBadge: user.noShowBadge || false,
+      providerReportCount: user.providerReportCount || 0,
+      providerScamReportCount: user.providerScamReportCount || 0,
+      providerNotRealPersonCount: user.providerNotRealPersonCount || 0,
+      providerFakeProfileCount: user.providerFakeProfileCount || 0,
+      providerViolationLevel: user.providerViolationLevel || 0,
+      providerWarningBadge: user.providerWarningBadge || false,
+      providerFrozen: user.providerFrozen || false,
+      providerFrozenAt: user.providerFrozenAt || undefined,
+      providerAutoUnfreezeAt: user.providerAutoUnfreezeAt || undefined,
     });
   } catch (error: any) {
     console.error('Get me error:', error);
@@ -486,6 +495,8 @@ router.get('/users/:userId', async (req, res) => {
       avatarUrl: user.avatarUrl,
       email: user.email,
       phoneNumber: user.phoneNumber,
+      emailVerified: user.emailVerified || false,
+      phoneVerified: user.phoneVerified || false,
       role: user.role,
       membershipLevel: calculatedLevel,
       isVip,
@@ -519,6 +530,15 @@ router.get('/users/:userId', async (req, res) => {
       violationLevel: user.violationLevel || 0,
       warningBadge: user.warningBadge || false,
       noShowBadge: user.noShowBadge || false,
+      providerReportCount: user.providerReportCount || 0,
+      providerScamReportCount: user.providerScamReportCount || 0,
+      providerNotRealPersonCount: user.providerNotRealPersonCount || 0,
+      providerFakeProfileCount: user.providerFakeProfileCount || 0,
+      providerViolationLevel: user.providerViolationLevel || 0,
+      providerWarningBadge: user.providerWarningBadge || false,
+      providerFrozen: user.providerFrozen || false,
+      providerFrozenAt: user.providerFrozenAt || undefined,
+      providerAutoUnfreezeAt: user.providerAutoUnfreezeAt || undefined,
     });
   } catch (error: any) {
     console.error('Get user profile error:', error);

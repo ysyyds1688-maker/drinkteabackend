@@ -182,6 +182,35 @@ export const initDatabase = async () => {
         console.warn('添加 bookingProcess 欄位時出現警告:', error.message);
       }
     }
+    
+    // 添加 views 欄位（用於追蹤 profile 瀏覽次數）
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 views 欄位時出現警告:', error.message);
+      }
+    }
+    
+    // 創建表來追蹤佳麗連續天數獲得好評
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS provider_quality_streaks (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          last_good_review_date DATE NOT NULL,
+          consecutive_days INTEGER DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id)
+        )
+      `);
+    } catch (error: any) {
+      console.warn('創建 provider_quality_streaks 表時出現警告:', error.message);
+    }
 
     // 創建索引以優化查詢
     await pool.query(`
@@ -325,6 +354,50 @@ export const initDatabase = async () => {
     } catch (error: any) {
       if (!error.message.includes('already exists')) {
         console.warn('添加預約取消相關欄位時出現警告:', error.message);
+      }
+    }
+
+    // 添加佳麗檢舉相關欄位（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_report_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_scam_report_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_not_real_person_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_fake_profile_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_violation_level INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_warning_badge BOOLEAN DEFAULT FALSE
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_frozen BOOLEAN DEFAULT FALSE
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_frozen_at TIMESTAMP
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS provider_auto_unfreeze_at TIMESTAMP
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加佳麗檢舉相關欄位時出現警告:', error.message);
       }
     }
 
@@ -602,12 +675,43 @@ export const initDatabase = async () => {
       console.warn('添加 booking_restrictions 欄位時出現警告:', error.message);
     }
 
+    // Provider restrictions table (佳麗凍結表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS provider_restrictions (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        restriction_type VARCHAR(50) NOT NULL CHECK(restriction_type IN ('report_limit', 'severe_violation', 'manual')),
+        reason TEXT,
+        report_count INTEGER DEFAULT 0,
+        scam_report_count INTEGER DEFAULT 0,
+        not_real_person_count INTEGER DEFAULT 0,
+        fake_profile_count INTEGER DEFAULT 0,
+        violation_level INTEGER DEFAULT 1 CHECK(violation_level IN (1, 2, 3, 4)),
+        is_frozen BOOLEAN DEFAULT TRUE,
+        frozen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        auto_unfreeze_at TIMESTAMP,
+        unfrozen_at TIMESTAMP,
+        unfrozen_by VARCHAR(255) REFERENCES users(id),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for booking_restrictions
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_restrictions_user ON booking_restrictions(user_id)
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_restrictions_frozen ON booking_restrictions(is_frozen)
+    `);
+    
+    // Create indexes for provider_restrictions
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_provider_restrictions_user_id ON provider_restrictions(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_provider_restrictions_frozen ON provider_restrictions(is_frozen, user_id)
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status)
@@ -921,14 +1025,16 @@ export const initDatabase = async () => {
       )
     `);
 
-    // Reports table (預約檢舉表 - 佳麗檢舉茶客)
+    // Reports table (預約檢舉表 - 支持雙向檢舉：佳麗檢舉茶客，茶客檢舉佳麗)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reports (
         id VARCHAR(255) PRIMARY KEY,
         reporter_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         target_user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reporter_role VARCHAR(20) CHECK(reporter_role IN ('client', 'provider')),
+        target_role VARCHAR(20) CHECK(target_role IN ('client', 'provider')),
         booking_id VARCHAR(255) REFERENCES bookings(id) ON DELETE SET NULL,
-        report_type VARCHAR(50) NOT NULL CHECK(report_type IN ('solicitation', 'scam', 'harassment', 'no_show', 'other')),
+        report_type VARCHAR(50) NOT NULL CHECK(report_type IN ('solicitation', 'scam', 'harassment', 'no_show', 'not_real_person', 'service_mismatch', 'fake_profile', 'other')),
         reason VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
         attachments TEXT,
@@ -941,6 +1047,48 @@ export const initDatabase = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // 添加新欄位（如果表已存在）
+    try {
+      await pool.query(`
+        ALTER TABLE reports 
+        ADD COLUMN IF NOT EXISTS reporter_role VARCHAR(20) CHECK(reporter_role IN ('client', 'provider'))
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 reporter_role 欄位時出現警告:', error.message);
+      }
+    }
+    
+    try {
+      await pool.query(`
+        ALTER TABLE reports 
+        ADD COLUMN IF NOT EXISTS target_role VARCHAR(20) CHECK(target_role IN ('client', 'provider'))
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 target_role 欄位時出現警告:', error.message);
+      }
+    }
+    
+    // 更新 report_type 的 CHECK 約束以支持新的檢舉類型
+    try {
+      // 先刪除舊的約束（如果存在）
+      await pool.query(`
+        ALTER TABLE reports 
+        DROP CONSTRAINT IF EXISTS reports_report_type_check
+      `);
+      // 添加新的約束
+      await pool.query(`
+        ALTER TABLE reports 
+        ADD CONSTRAINT reports_report_type_check 
+        CHECK(report_type IN ('solicitation', 'scam', 'harassment', 'no_show', 'not_real_person', 'service_mismatch', 'fake_profile', 'other'))
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists') && !error.message.includes('does not exist')) {
+        console.warn('更新 report_type 約束時出現警告:', error.message);
+      }
+    }
 
     // Create indexes for reports
     await pool.query(`

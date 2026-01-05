@@ -149,7 +149,7 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
     type: 'lady_forum_interaction',
     name: '論壇互動',
     description: '在論壇發表 1 篇帖子或回覆 3 篇',
-    target: 1, // 1 篇帖子 或 3 篇回覆（需要特殊處理）
+    target: 3, // 3 篇回覆（發表帖子時會直接設置進度為 target 來完成任務）
     pointsReward: 12,        // 積分：調降（原 25）
     experienceReward: 18,    // 經驗：調降（原 37）
     category: 'daily',

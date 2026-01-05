@@ -27,6 +27,8 @@ export interface ForumPost {
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
   relatedProfileName?: string; // 關聯的 Profile 名稱（用於顯示）
   verificationBadges?: string[]; // 驗證勳章
+  emailVerified?: boolean; // Email 驗證狀態
+  phoneVerified?: boolean; // 手機號碼驗證狀態
   warningBadge?: boolean; // 失信茶客標記
   noShowBadge?: boolean; // 失約茶客標記
   violationLevel?: number; // 違規級別
@@ -47,6 +49,8 @@ export interface ForumReply {
   isVip?: boolean;
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
   verificationBadges?: string[]; // 驗證勳章
+  emailVerified?: boolean; // Email 驗證狀態
+  phoneVerified?: boolean; // 手機號碼驗證狀態
   warningBadge?: boolean; // 失信茶客標記
   noShowBadge?: boolean; // 失約茶客標記
   violationLevel?: number; // 違規級別
@@ -170,6 +174,8 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              u.verification_badges,
+             u.email_verified,
+             u.phone_verified,
              u.warning_badge,
              u.no_show_badge,
              u.violation_level,
@@ -256,6 +262,8 @@ export const forumModel = {
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
+        emailVerified: Boolean(row.email_verified),
+        phoneVerified: Boolean(row.phone_verified),
         warningBadge: Boolean(row.warning_badge),
         noShowBadge: Boolean(row.no_show_badge),
         violationLevel: row.violation_level || 0,
@@ -277,6 +285,8 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              u.verification_badges,
+             u.email_verified,
+             u.phone_verified,
              u.warning_badge,
              u.no_show_badge,
              u.violation_level,
@@ -329,6 +339,8 @@ export const forumModel = {
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
+        emailVerified: Boolean(row.email_verified),
+        phoneVerified: Boolean(row.phone_verified),
         warningBadge: Boolean(row.warning_badge),
         noShowBadge: Boolean(row.no_show_badge),
         violationLevel: row.violation_level || 0,
@@ -375,9 +387,8 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              u.verification_badges,
-             u.warning_badge,
-             u.no_show_badge,
-             u.violation_level,
+             u.email_verified,
+             u.phone_verified,
              u.warning_badge,
              u.no_show_badge,
              u.violation_level,
@@ -419,6 +430,8 @@ export const forumModel = {
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
+        emailVerified: Boolean(row.email_verified),
+        phoneVerified: Boolean(row.phone_verified),
         warningBadge: Boolean(row.warning_badge),
         noShowBadge: Boolean(row.no_show_badge),
         violationLevel: row.violation_level || 0,
@@ -460,6 +473,8 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              u.verification_badges,
+             u.email_verified,
+             u.phone_verified,
              u.warning_badge,
              u.no_show_badge,
              u.violation_level,
@@ -499,6 +514,8 @@ export const forumModel = {
       avatarUrl: row.avatar_url || undefined,
       membershipLevel: row.membership_level || 'tea_guest',
       isVip: Boolean(isVip),
+      emailVerified: Boolean(row.email_verified),
+      phoneVerified: Boolean(row.phone_verified),
       userRole: row.user_role || undefined,
       verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
     };
@@ -682,6 +699,8 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              u.verification_badges,
+             u.email_verified,
+             u.phone_verified,
              pr.name as related_profile_name,
              s.is_active as subscription_active,
              s.expires_at as subscription_expires_at
@@ -748,6 +767,8 @@ export const forumModel = {
         avatarUrl: row.avatar_url || undefined,
         membershipLevel: row.membership_level || 'tea_guest',
         isVip: Boolean(isVip),
+        emailVerified: Boolean(row.email_verified),
+        phoneVerified: Boolean(row.phone_verified),
         warningBadge: Boolean(row.warning_badge),
         noShowBadge: Boolean(row.no_show_badge),
         violationLevel: row.violation_level || 0,
@@ -767,6 +788,8 @@ export const forumModel = {
              u.membership_level,
              u.role as user_role,
              u.verification_badges,
+             u.email_verified,
+             u.phone_verified,
              pr.name as related_profile_name,
              (SELECT is_active FROM subscriptions 
               WHERE user_id = u.id AND is_active = true 

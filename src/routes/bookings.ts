@@ -68,6 +68,88 @@ router.post('/', async (req, res) => {
     // 如果 profile 有 userId 欄位，使用它作為 providerId（特選魚市）
     const providerId = profile.userId || undefined;
     
+    // 檢查驗證狀態：至少需要 email 驗證才能預約特選魚市和嚴選好茶
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: '預約特選魚市和嚴選好茶需要先完成 Email 驗證。請前往個人資料頁面完成驗證。',
+        requiresVerification: 'email',
+        hasEmailVerified: user.emailVerified,
+        hasPhoneVerified: user.phoneVerified,
+      });
+    }
+    
+    // 檢查佳麗是否被凍結（僅針對特選魚市）
+    if (providerId) {
+      const { providerRestrictionModel } = await import('../models/ProviderRestriction.js');
+      const isProviderFrozen = await providerRestrictionModel.isUserFrozen(providerId);
+      
+      if (isProviderFrozen) {
+        const restriction = await providerRestrictionModel.getActiveByUserId(providerId);
+        const reason = restriction?.reason || '檢舉次數過多';
+        return res.status(403).json({
+          error: `該佳麗帳號已被凍結，無法接受預約。原因：${reason}。請選擇其他佳麗。`,
+          restriction: {
+            reason,
+            frozenAt: restriction?.frozenAt,
+            reportCount: restriction?.reportCount,
+          }
+        });
+      }
+    }
+    
+    // 防駭客機制：特選魚市預約限制（僅針對有 providerId 的預約）
+    if (providerId) {
+      // 1. 檢查是否在24小時內重複預約同一佳麗
+      const recentDuplicate = await bookingModel.checkRecentDuplicateBooking(user.id, providerId, 24);
+      if (recentDuplicate) {
+        return res.status(403).json({
+          error: `您在24小時內已向該佳麗提交過預約（預約時間：${new Date(recentDuplicate.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}），請等待該預約處理完成後再預約。`,
+          existingBookingId: recentDuplicate.id,
+          limitType: 'duplicate',
+        });
+      }
+      
+      // 2. 檢查同一天是否已預約超過2個時段
+      const sameDayBookingsCount = await bookingModel.getClientBookingsCountByDate(user.id, bookingDate);
+      if (sameDayBookingsCount >= 2) {
+        return res.status(403).json({
+          error: `您在同一天（${bookingDate}）已預約 ${sameDayBookingsCount} 個時段，同一天最多只能預約 2 個時段。`,
+          limitType: 'daily',
+          currentCount: sameDayBookingsCount,
+          maxCount: 2,
+        });
+      }
+
+      // 計算一週的開始和結束日期（週一到週日）
+      const bookingDateObj = new Date(bookingDate + 'T00:00:00');
+      const dayOfWeek = bookingDateObj.getDay(); // 0 = 週日, 1 = 週一, ...
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 轉換為週一到週日（0-6）
+      
+      const weekStart = new Date(bookingDateObj);
+      weekStart.setDate(bookingDateObj.getDate() - daysFromMonday);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      
+      // 檢查一週內是否已預約超過10個時段
+      const weekBookingsCount = await bookingModel.getClientBookingsCountByWeek(user.id, weekStartStr, weekEndStr);
+      if (weekBookingsCount >= 10) {
+        return res.status(403).json({
+          error: `您在本週（${weekStartStr} 至 ${weekEndStr}）已預約 ${weekBookingsCount} 個時段，一週最多只能預約 10 個時段。`,
+          limitType: 'weekly',
+          currentCount: weekBookingsCount,
+          maxCount: 10,
+          weekStart: weekStartStr,
+          weekEnd: weekEndStr,
+        });
+      }
+    }
+    
     // 茶客保護機制：檢查佳麗是否有被檢舉的記錄
     if (providerId) {
       const { reportModel } = await import('../models/Report.js');
@@ -346,6 +428,33 @@ router.put('/:id/status', async (req, res) => {
                 console.error('創建任務完成通知失敗:', error);
               }
             }
+            
+            // 更新平均回應時間（當佳麗回應預約時）
+            try {
+              const bookingCreatedAt = new Date(booking.createdAt);
+              const now = new Date();
+              const responseTimeMinutes = Math.floor((now.getTime() - bookingCreatedAt.getTime()) / (1000 * 60));
+              
+              // 獲取當前的平均回應時間
+              const currentStats = await userStatsModel.getOrCreate(user.id);
+              const currentAvgResponseTime = currentStats.averageResponseTime || 0;
+              const totalResponses = await query(`
+                SELECT COUNT(*) as count FROM bookings 
+                WHERE provider_id = $1 AND (status = 'accepted' OR status = 'rejected')
+              `, [user.id]);
+              const responseCount = parseInt(totalResponses.rows[0]?.count || '0');
+              
+              // 計算新的平均回應時間
+              const newAvgResponseTime = responseCount > 0
+                ? Math.round((currentAvgResponseTime * (responseCount - 1) + responseTimeMinutes) / responseCount)
+                : responseTimeMinutes;
+              
+              await userStatsModel.updateCounts(user.id, {
+                averageResponseTime: newAvgResponseTime,
+              });
+            } catch (error) {
+              console.error('更新平均回應時間失敗:', error);
+            }
           } catch (error) {
             console.error('更新回應預約任務失敗:', error);
           }
@@ -356,6 +465,28 @@ router.put('/:id/status', async (req, res) => {
           const clientName = user.userName || user.email || user.phoneNumber || '茶客';
           
           if (status === 'cancelled') {
+            // 防範亂取消機制：檢查是否在短時間內大量取消
+            const recentCancellationCount = await bookingModel.getRecentCancellationCount(user.id, 1);
+            if (recentCancellationCount >= 3) {
+              // 如果1小時內取消3次以上，直接觸發警告
+              try {
+                const { notificationModel } = await import('../models/Notification.js');
+                await notificationModel.create({
+                  userId: user.id,
+                  type: 'warning',
+                  title: '取消頻率過高警告',
+                  content: `您在1小時內已取消 ${recentCancellationCount + 1} 次預約，請謹慎使用取消功能。頻繁取消將導致帳號被凍結。`,
+                  link: `/user-profile?tab=bookings`,
+                  metadata: {
+                    type: 'cancellation_warning',
+                    count: recentCancellationCount + 1,
+                  },
+                });
+              } catch (error) {
+                console.error('發送取消警告通知失敗:', error);
+              }
+            }
+            
             // 增加茶客的取消次數
             try {
               const cancellationResult = await userModel.incrementCancellationCount(user.id);
@@ -475,6 +606,141 @@ router.put('/:id/status', async (req, res) => {
         // 給後宮佳麗經驗值並檢查自動解鎖成就（如果是供茶人完成的預約）
         if (user.role === 'provider' && booking.providerId === user.id) {
           await userStatsModel.addPoints(booking.providerId, 0, 25); // 只給經驗值，不給積分
+          
+          // 更新「完成預約」任務進度
+          try {
+            const { tasksModel } = await import('../models/Tasks.js');
+            const { notificationModel } = await import('../models/Notification.js');
+            const taskResult = await tasksModel.updateTaskProgress(booking.providerId, 'lady_complete_booking', 1);
+            
+            if (taskResult.completed) {
+              await userStatsModel.addPoints(
+                booking.providerId,
+                taskResult.pointsEarned,
+                taskResult.experienceEarned
+              );
+              
+              // 創建任務完成通知
+              try {
+                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_complete_booking');
+                if (definition) {
+                  await notificationModel.create({
+                    userId: booking.providerId,
+                    type: 'task',
+                    title: '任務完成',
+                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                    link: `/user-profile?tab=points`,
+                    metadata: {
+                      taskType: 'lady_complete_booking',
+                      taskName: definition.name,
+                      pointsEarned: taskResult.pointsEarned,
+                      experienceEarned: taskResult.experienceEarned,
+                    },
+                  });
+                }
+              } catch (error) {
+                console.error('創建任務完成通知失敗:', error);
+              }
+            }
+          } catch (error) {
+            console.error('更新完成預約任務失敗:', error);
+          }
+          
+          // 更新回頭客統計數據
+          try {
+            const { query } = await import('../db/database.js');
+            // 檢查該客戶是否為回頭客（之前有完成的預約）
+            const previousCompletedBookings = await query(`
+              SELECT COUNT(*) as count FROM bookings 
+              WHERE provider_id = $1 AND client_id = $2 AND status = 'completed' AND id != $3
+            `, [booking.providerId, booking.clientId, booking.id]);
+            
+            const previousCount = parseInt(previousCompletedBookings.rows[0]?.count || '0');
+            
+            if (previousCount > 0) {
+              // 這是回頭客，更新回頭客預約次數
+              await userStatsModel.updateCounts(booking.providerId, {
+                repeatClientBookingsCount: 1,
+              });
+              
+              // 檢查是否為新的回頭客（之前沒有完成過預約）
+              const uniqueReturningClients = await query(`
+                SELECT COUNT(DISTINCT client_id) as count FROM bookings 
+                WHERE provider_id = $1 AND status = 'completed' AND client_id IN (
+                  SELECT DISTINCT client_id FROM bookings 
+                  WHERE provider_id = $1 AND status = 'completed' 
+                  GROUP BY client_id HAVING COUNT(*) > 1
+                )
+              `, [booking.providerId]);
+              
+              const uniqueCount = parseInt(uniqueReturningClients.rows[0]?.count || '0');
+              await userStatsModel.updateCounts(booking.providerId, {
+                uniqueReturningClientsCount: uniqueCount,
+              });
+            }
+          } catch (error) {
+            console.error('更新回頭客統計數據失敗:', error);
+          }
+          
+          // 更新連續完成預約次數
+          try {
+            const { query } = await import('../db/database.js');
+            const currentStats = await userStatsModel.getOrCreate(booking.providerId);
+            const currentConsecutive = currentStats.consecutiveCompletedBookings || 0;
+            
+            // 檢查最後一次完成的預約時間
+            const lastCompletedBooking = await query(`
+              SELECT updated_at FROM bookings 
+              WHERE provider_id = $1 AND status = 'completed' AND id != $2
+              ORDER BY updated_at DESC LIMIT 1
+            `, [booking.providerId, booking.id]);
+            
+            if (lastCompletedBooking.rows.length > 0) {
+              const lastCompletedDate = new Date(lastCompletedBooking.rows[0].updated_at);
+              const today = new Date();
+              const diffDays = Math.floor((today.getTime() - lastCompletedDate.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (diffDays <= 1) {
+                // 連續完成，增加計數
+                await userStatsModel.updateCounts(booking.providerId, {
+                  consecutiveCompletedBookings: currentConsecutive + 1,
+                });
+              } else {
+                // 中斷了，重置為 1
+                await userStatsModel.updateCounts(booking.providerId, {
+                  consecutiveCompletedBookings: 1,
+                });
+              }
+            } else {
+              // 這是第一次完成預約
+              await userStatsModel.updateCounts(booking.providerId, {
+                consecutiveCompletedBookings: 1,
+              });
+            }
+          } catch (error) {
+            console.error('更新連續完成預約次數失敗:', error);
+          }
+          
+          // 更新取消率
+          try {
+            const { query } = await import('../db/database.js');
+            const totalBookings = await query(`
+              SELECT COUNT(*) as total FROM bookings WHERE provider_id = $1
+            `, [booking.providerId]);
+            const cancelledBookings = await query(`
+              SELECT COUNT(*) as cancelled FROM bookings WHERE provider_id = $1 AND status = 'cancelled'
+            `, [booking.providerId]);
+            
+            const total = parseInt(totalBookings.rows[0]?.total || '0');
+            const cancelled = parseInt(cancelledBookings.rows[0]?.cancelled || '0');
+            const cancellationRate = total > 0 ? cancelled / total : 0;
+            
+            await userStatsModel.updateCounts(booking.providerId, {
+              cancellationRate: cancellationRate,
+            });
+          } catch (error) {
+            console.error('更新取消率失敗:', error);
+          }
           
           // 檢查並自動解鎖符合條件的成就
           const { achievementModel } = await import('../models/Achievement.js');

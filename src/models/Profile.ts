@@ -23,7 +23,7 @@ export const profileModel = {
       let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                  type, "imageUrl", gallery, albums, price, prices, tags, 
                  "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
-                 "createdAt", "updatedAt" FROM profiles`;
+                 views, "createdAt", "updatedAt" FROM profiles`;
       const params: any[] = [];
       let paramIndex = 1;
       
@@ -71,6 +71,7 @@ export const profileModel = {
             availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
             isNew: Boolean(row.isNew),
             isAvailable: Boolean(row.isAvailable),
+            views: row.views || 0,
           };
         } catch (parseError: any) {
           console.error('Error parsing profile row:', row.id, parseError);
@@ -100,13 +101,18 @@ export const profileModel = {
     }
   },
 
-  getById: async (id: string): Promise<Profile | null> => {
+  getById: async (id: string, incrementViews: boolean = false): Promise<Profile | null> => {
     try {
+      // 如果 incrementViews 為 true，先增加瀏覽次數
+      if (incrementViews) {
+        await query(`UPDATE profiles SET views = COALESCE(views, 0) + 1 WHERE id = $1`, [id]);
+      }
+      
       // 明确指定所有列名，确保正确获取userId字段
       const result = await query(`SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                                   type, "imageUrl", gallery, albums, price, prices, tags, 
                                   "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
-                                  "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
+                                  views, "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
       if (result.rows.length === 0) return null;
       
       const row = result.rows[0];
@@ -130,6 +136,7 @@ export const profileModel = {
           availableTimes: typeof row.availableTimes === 'string' ? JSON.parse(row.availableTimes || '{}') : (row.availableTimes || {}),
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
+          views: row.views || 0,
         };
       } catch (parseError: any) {
         console.error('Error parsing profile:', id, parseError);
@@ -152,6 +159,7 @@ export const profileModel = {
           availableTimes: { today: '12:00~02:00', tomorrow: '12:00~02:00' },
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
+          views: row.views || 0,
         };
       }
     } catch (error: any) {

@@ -252,6 +252,82 @@ export const bookingModel = {
     return result.rows.map(row => row.booking_time);
   },
 
+  // 獲取茶客在特定日期的預約數量（特選魚市）
+  getClientBookingsCountByDate: async (clientId: string, bookingDate: string): Promise<number> => {
+    const result = await query(`
+      SELECT COUNT(*) as count
+      FROM bookings 
+      WHERE client_id = $1 
+        AND booking_date = $2
+        AND provider_id IS NOT NULL
+        AND status IN ('pending', 'accepted', 'completed')
+    `, [clientId, bookingDate]);
+    
+    return parseInt(result.rows[0]?.count || '0', 10);
+  },
+
+  // 獲取茶客在一週內的預約數量（特選魚市）
+  getClientBookingsCountByWeek: async (clientId: string, startDate: string, endDate: string): Promise<number> => {
+    const result = await query(`
+      SELECT COUNT(*) as count
+      FROM bookings 
+      WHERE client_id = $1 
+        AND booking_date >= $2
+        AND booking_date <= $3
+        AND provider_id IS NOT NULL
+        AND status IN ('pending', 'accepted', 'completed')
+    `, [clientId, startDate, endDate]);
+    
+    return parseInt(result.rows[0]?.count || '0', 10);
+  },
+
+  // 檢查是否在短時間內重複預約同一佳麗
+  checkRecentDuplicateBooking: async (clientId: string, providerId: string, hours: number = 24): Promise<Booking | null> => {
+    const result = await query(`
+      SELECT * FROM bookings 
+      WHERE client_id = $1 
+        AND provider_id = $2
+        AND created_at >= NOW() - INTERVAL '${hours} hours'
+        AND status IN ('pending', 'accepted')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [clientId, providerId]);
+    
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      providerId: row.provider_id || undefined,
+      clientId: row.client_id,
+      profileId: row.profile_id,
+      serviceType: row.service_type || undefined,
+      bookingDate: row.booking_date,
+      bookingTime: row.booking_time,
+      location: row.location || undefined,
+      status: row.status,
+      notes: row.notes || undefined,
+      clientReviewed: row.client_reviewed || false,
+      providerReviewed: row.provider_reviewed || false,
+      noShow: Boolean(row.no_show),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  },
+
+  // 獲取用戶在短時間內的取消次數
+  getRecentCancellationCount: async (clientId: string, hours: number = 1): Promise<number> => {
+    const result = await query(`
+      SELECT COUNT(*) as count
+      FROM bookings 
+      WHERE client_id = $1
+        AND status = 'cancelled'
+        AND updated_at >= NOW() - INTERVAL '${hours} hours'
+    `, [clientId]);
+    
+    return parseInt(result.rows[0]?.count || '0', 10);
+  },
+
   // 回報放鳥（佳麗回報茶客沒有到場）
   reportNoShow: async (id: string, providerId: string): Promise<Booking | null> => {
     const existing = await bookingModel.getById(id);

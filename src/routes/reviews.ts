@@ -343,6 +343,44 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
                   });
                 }
                 
+                // 更新回頭客統計數據（當預約完成並評論時）
+                if (profileBooking && profileBooking.status === 'completed') {
+                  try {
+                    const { query } = await import('../db/database.js');
+                    // 檢查該客戶是否為回頭客（之前有完成的預約）
+                    const previousCompletedBookings = await query(`
+                      SELECT COUNT(*) as count FROM bookings 
+                      WHERE provider_id = $1 AND client_id = $2 AND status = 'completed' AND id != $3
+                    `, [profile.userId, payload.userId, profileBooking.id]);
+                    
+                    const previousCount = parseInt(previousCompletedBookings.rows[0]?.count || '0');
+                    
+                    if (previousCount > 0) {
+                      // 這是回頭客，更新回頭客預約次數
+                      await userStatsModel.updateCounts(profile.userId, {
+                        repeatClientBookingsCount: 1,
+                      });
+                      
+                      // 計算不重複回頭客數量
+                      const uniqueReturningClients = await query(`
+                        SELECT COUNT(DISTINCT client_id) as count FROM bookings 
+                        WHERE provider_id = $1 AND status = 'completed' AND client_id IN (
+                          SELECT DISTINCT client_id FROM bookings 
+                          WHERE provider_id = $1 AND status = 'completed' 
+                          GROUP BY client_id HAVING COUNT(*) > 1
+                        )
+                      `, [profile.userId]);
+                      
+                      const uniqueCount = parseInt(uniqueReturningClients.rows[0]?.count || '0');
+                      await userStatsModel.updateCounts(profile.userId, {
+                        uniqueReturningClientsCount: uniqueCount,
+                      });
+                    }
+                  } catch (error) {
+                    console.error('更新回頭客統計數據失敗:', error);
+                  }
+                }
+                
                 // 檢查並解鎖佳麗的成就（必須在更新統計數據之後）
                 const providerUnlocked = await achievementModel.checkAndUnlockAchievements(profile.userId);
                 if (providerUnlocked.length > 0) {
@@ -404,6 +442,104 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
                       } catch (error) {
                         console.error('創建佳麗任務完成通知失敗:', error);
                       }
+                    }
+                    
+                    // 更新「維護品質」任務（連續 3 天都有獲得好評）
+                    try {
+                      const { query } = await import('../db/database.js');
+                      const { notificationModel } = await import('../models/Notification.js');
+                      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                      
+                      // 獲取或創建連續天數記錄
+                      let streakResult = await query(`
+                        SELECT * FROM provider_quality_streaks WHERE user_id = $1
+                      `, [profile.userId]);
+                      
+                      let consecutiveDays = 1;
+                      if (streakResult.rows.length > 0) {
+                        const streak = streakResult.rows[0];
+                        const lastDate = new Date(streak.last_good_review_date);
+                        const todayDate = new Date(today);
+                        const diffTime = todayDate.getTime() - lastDate.getTime();
+                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays === 0) {
+                          // 同一天，不增加天數
+                          consecutiveDays = streak.consecutive_days;
+                        } else if (diffDays === 1) {
+                          // 連續一天，增加天數
+                          consecutiveDays = streak.consecutive_days + 1;
+                          await query(`
+                            UPDATE provider_quality_streaks 
+                            SET last_good_review_date = $1, 
+                                consecutive_days = $2,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE user_id = $3
+                          `, [today, consecutiveDays, profile.userId]);
+                        } else {
+                          // 中斷了，重置為 1
+                          consecutiveDays = 1;
+                          await query(`
+                            UPDATE provider_quality_streaks 
+                            SET last_good_review_date = $1, 
+                                consecutive_days = 1,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE user_id = $2
+                          `, [today, profile.userId]);
+                        }
+                      } else {
+                        // 創建新記錄
+                        const { v4: uuidv4 } = await import('uuid');
+                        const streakId = `streak_${Date.now()}_${uuidv4().substring(0, 9)}`;
+                        await query(`
+                          INSERT INTO provider_quality_streaks (id, user_id, last_good_review_date, consecutive_days)
+                          VALUES ($1, $2, $3, 1)
+                        `, [streakId, profile.userId, today]);
+                      }
+                      
+                      // 如果連續天數達到 3，檢查並完成任務
+                      if (consecutiveDays >= 3) {
+                        const date = tasksModel.getLocalDateString();
+                        const task = await tasksModel.getOrCreateDailyTask(profile.userId, 'lady_maintain_quality', date);
+                        
+                        if (!task.isCompleted) {
+                          const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_maintain_quality');
+                          if (definition) {
+                            // 直接設置為完成
+                            await query(`
+                              UPDATE daily_tasks 
+                              SET progress = $1, 
+                                  is_completed = TRUE,
+                                  points_earned = $2
+                              WHERE id = $3
+                            `, [definition.target, definition.pointsReward, task.id]);
+                            
+                            // 添加積分和經驗值
+                            await userStatsModel.addPoints(
+                              profile.userId,
+                              definition.pointsReward,
+                              definition.experienceReward
+                            );
+                            
+                            // 創建任務完成通知
+                            await notificationModel.create({
+                              userId: profile.userId,
+                              type: 'task',
+                              title: '任務完成',
+                              content: `恭喜您完成了「${definition.name}」任務！獲得 ${definition.pointsReward} 積分和 ${definition.experienceReward} 經驗值。`,
+                              link: `/user-profile?tab=points`,
+                              metadata: {
+                                taskType: 'lady_maintain_quality',
+                                taskName: definition.name,
+                                pointsEarned: definition.pointsReward,
+                                experienceEarned: definition.experienceReward,
+                              },
+                            });
+                          }
+                        }
+                      }
+                    } catch (streakError) {
+                      console.error('更新維護品質任務失敗:', streakError);
                     }
                   } catch (providerTaskError) {
                     console.error('更新佳麗任務進度失敗:', providerTaskError);
