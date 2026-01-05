@@ -3,6 +3,7 @@ import { bookingModel } from '../models/Booking.js';
 import { verifyToken } from '../services/authService.js';
 import { userModel } from '../models/User.js';
 import { userStatsModel } from '../models/UserStats.js';
+import { query } from '../db/database.js';
 
 const router = Router();
 

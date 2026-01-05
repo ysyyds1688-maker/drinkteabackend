@@ -64,7 +64,7 @@ router.get('/:id', async (req, res) => {
     }
     
     // 如果是佳麗的資料且瀏覽次數達到 50，檢查並觸發 lady_boost_exposure 任務
-    if (profile.userId && shouldIncrementViews && profile.views >= 50) {
+    if (profile.userId && shouldIncrementViews && profile.views !== undefined && profile.views >= 50) {
       try {
         const { userModel } = await import('../models/User.js');
         const provider = await userModel.findById(profile.userId);
@@ -81,7 +81,7 @@ router.get('/:id', async (req, res) => {
             const task = await tasksModel.getOrCreateDailyTask(profile.userId, 'lady_boost_exposure', date);
             
             // 如果任務未完成，檢查是否達到目標
-            if (!task.isCompleted && profile.views >= definition.target) {
+            if (!task.isCompleted && profile.views !== undefined && profile.views >= definition.target) {
               // 直接設置為完成
               const { query } = await import('../db/database.js');
               await query(`

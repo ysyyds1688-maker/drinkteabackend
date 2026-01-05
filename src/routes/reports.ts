@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { reportModel } from '../models/Report.js';
 import { userModel } from '../models/User.js';
 import { verifyToken } from '../services/authService.js';
+import { query } from '../db/database.js';
 
 const router = Router();
 
@@ -113,11 +114,15 @@ router.post('/', async (req, res) => {
     }
     
     // 創建檢舉記錄
+    // 確保 targetRole 只允許 'client' 或 'provider'，排除 'admin'
+    const targetRole = targetUser.role === 'admin' ? undefined : (targetUser.role === 'provider' || targetUser.role === 'client' ? targetUser.role : undefined);
+    const reporterRole = user.role === 'admin' ? undefined : (user.role === 'provider' || user.role === 'client' ? user.role : undefined);
+    
     const report = await reportModel.create({
       reporterId: user.id,
       targetUserId,
-      reporterRole: user.role,
-      targetRole: targetUser.role,
+      reporterRole: reporterRole,
+      targetRole: targetRole,
       bookingId,
       reportType,
       reason: reason.trim(),
