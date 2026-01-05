@@ -296,6 +296,38 @@ export const initDatabase = async () => {
       }
     }
 
+    // 添加預約取消次數和警告狀態欄位（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS booking_cancellation_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS booking_warning BOOLEAN DEFAULT FALSE
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS no_show_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS violation_level INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS warning_badge BOOLEAN DEFAULT FALSE
+      `);
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS no_show_badge BOOLEAN DEFAULT FALSE
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加預約取消相關欄位時出現警告:', error.message);
+      }
+    }
+
     try {
       await pool.query(`
         ALTER TABLE users 
@@ -366,17 +398,21 @@ export const initDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS reviews (
         id VARCHAR(255) PRIMARY KEY,
-        profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        profile_id VARCHAR(255) REFERENCES profiles(id) ON DELETE CASCADE,
         client_id VARCHAR(255) NOT NULL REFERENCES users(id),
         client_name VARCHAR(100),
+        target_user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE,
+        review_type VARCHAR(20) DEFAULT 'profile' CHECK(review_type IN ('profile', 'client')),
         rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
         comment TEXT NOT NULL,
         service_type VARCHAR(50),
+        booking_id VARCHAR(255) REFERENCES bookings(id) ON DELETE SET NULL,
         is_verified BOOLEAN DEFAULT FALSE,
         is_visible BOOLEAN DEFAULT TRUE,
         likes INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CHECK((review_type = 'profile' AND profile_id IS NOT NULL) OR (review_type = 'client' AND target_user_id IS NOT NULL))
       )
     `);
 
@@ -442,6 +478,41 @@ export const initDatabase = async () => {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_reviews_created ON reviews(created_at DESC)
     `);
+    
+    // 添加新字段以支持 provider 評論 client
+    try {
+      await pool.query(`
+        ALTER TABLE reviews 
+        ADD COLUMN IF NOT EXISTS target_user_id VARCHAR(255) REFERENCES users(id) ON DELETE CASCADE
+      `);
+      await pool.query(`
+        ALTER TABLE reviews 
+        ADD COLUMN IF NOT EXISTS review_type VARCHAR(20) DEFAULT 'profile' CHECK(review_type IN ('profile', 'client'))
+      `);
+      await pool.query(`
+        ALTER TABLE reviews 
+        ADD COLUMN IF NOT EXISTS booking_id VARCHAR(255) REFERENCES bookings(id) ON DELETE SET NULL
+      `);
+      // 修改 profile_id 為可選（因為 provider 評論 client 時可能不需要 profile_id）
+      await pool.query(`
+        ALTER TABLE reviews 
+        ALTER COLUMN profile_id DROP NOT NULL
+      `).catch(() => {
+        // 如果已經是可選的，忽略錯誤
+      });
+      // 添加索引
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_reviews_target_user ON reviews(target_user_id)
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_reviews_type ON reviews(review_type)
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_reviews_booking ON reviews(booking_id)
+      `);
+    } catch (error: any) {
+      console.warn('添加評論新字段時出現警告:', error.message);
+    }
 
     // Bookings table (预约表)
     await pool.query(`
@@ -473,6 +544,10 @@ export const initDatabase = async () => {
         ALTER TABLE bookings 
         ADD COLUMN IF NOT EXISTS provider_reviewed BOOLEAN DEFAULT FALSE
       `);
+      await pool.query(`
+        ALTER TABLE bookings 
+        ADD COLUMN IF NOT EXISTS no_show BOOLEAN DEFAULT FALSE
+      `);
     } catch (error: any) {
       console.warn('添加评论状态字段时出现警告:', error.message);
     }
@@ -486,6 +561,53 @@ export const initDatabase = async () => {
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_bookings_profile ON bookings(profile_id)
+    `);
+
+    // Booking Restrictions table (預約凍結權限表)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS booking_restrictions (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        restriction_type VARCHAR(50) NOT NULL CHECK(restriction_type IN ('cancellation_limit', 'no_show', 'manual')),
+        reason TEXT,
+        cancellation_count INTEGER DEFAULT 0,
+        no_show_count INTEGER DEFAULT 0,
+        violation_level INTEGER DEFAULT 1 CHECK(violation_level IN (1, 2, 3, 4)),
+        is_frozen BOOLEAN DEFAULT TRUE,
+        frozen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        auto_unfreeze_at TIMESTAMP,
+        unfrozen_at TIMESTAMP,
+        unfrozen_by VARCHAR(255) REFERENCES users(id),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // 添加新欄位（如果不存在）
+    try {
+      await pool.query(`
+        ALTER TABLE booking_restrictions 
+        ADD COLUMN IF NOT EXISTS no_show_count INTEGER DEFAULT 0
+      `);
+      await pool.query(`
+        ALTER TABLE booking_restrictions 
+        ADD COLUMN IF NOT EXISTS violation_level INTEGER DEFAULT 1
+      `);
+      await pool.query(`
+        ALTER TABLE booking_restrictions 
+        ADD COLUMN IF NOT EXISTS auto_unfreeze_at TIMESTAMP
+      `);
+    } catch (error: any) {
+      console.warn('添加 booking_restrictions 欄位時出現警告:', error.message);
+    }
+
+    // Create indexes for booking_restrictions
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_restrictions_user ON booking_restrictions(user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_restrictions_frozen ON booking_restrictions(is_frozen)
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status)
@@ -797,6 +919,44 @@ export const initDatabase = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CHECK((post_id IS NOT NULL AND reply_id IS NULL) OR (post_id IS NULL AND reply_id IS NOT NULL))
       )
+    `);
+
+    // Reports table (預約檢舉表 - 佳麗檢舉茶客)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id VARCHAR(255) PRIMARY KEY,
+        reporter_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        target_user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        booking_id VARCHAR(255) REFERENCES bookings(id) ON DELETE SET NULL,
+        report_type VARCHAR(50) NOT NULL CHECK(report_type IN ('solicitation', 'scam', 'harassment', 'no_show', 'other')),
+        reason VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        attachments TEXT,
+        dialogue_history TEXT,
+        status VARCHAR(20) DEFAULT 'pending' CHECK(status IN ('pending', 'reviewing', 'resolved', 'rejected')),
+        admin_notes TEXT,
+        resolved_by VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+        resolved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for reports
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports(reporter_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_user_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_booking ON reports(booking_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC)
     `);
 
     // Daily tasks table (每日任務表)

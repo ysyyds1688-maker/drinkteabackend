@@ -147,6 +147,75 @@ export const schedulerService = {
             console.log(`✅ 自动取消了 ${expiredBookings.length} 个过期预约`);
           }
           break;
+
+        case 'auto_unfreeze_restrictions':
+          // 自動解凍預約限制
+          const { bookingRestrictionModel } = await import('../models/BookingRestriction.js');
+          const { notificationModel } = await import('../models/Notification.js');
+          
+          // 執行自動解凍
+          const unfrozenCount = await bookingRestrictionModel.autoUnfreeze();
+          
+          if (unfrozenCount > 0) {
+            console.log(`✅ 自動解凍了 ${unfrozenCount} 個預約限制`);
+            
+            // 獲取剛解凍的記錄並發送通知
+            const unfrozenRestrictions = await query(`
+              SELECT * FROM booking_restrictions
+              WHERE is_frozen = FALSE
+                AND unfrozen_at >= CURRENT_TIMESTAMP - INTERVAL '1 minute'
+                AND auto_unfreeze_at IS NOT NULL
+            `);
+            
+            for (const restriction of unfrozenRestrictions.rows) {
+              await notificationModel.create({
+                userId: restriction.user_id,
+                type: 'info',
+                title: '✅ 預約權限已解凍',
+                content: `您的預約權限已自動解凍，現在可以正常預約嚴選好茶和特選魚市了。請遵守預約規則，避免再次被凍結。`,
+                link: `/user-profile?tab=bookings`,
+                metadata: {
+                  type: 'booking_unfrozen',
+                  restrictionId: restriction.id,
+                },
+              });
+            }
+          }
+          
+          // 檢查即將解凍的記錄（3天內），發送提醒通知
+          const pendingUnfreeze = await bookingRestrictionModel.getPendingAutoUnfreeze(3);
+          
+          for (const restriction of pendingUnfreeze) {
+            // 檢查是否已經發送過提醒（避免重複通知）
+            const existingNotifications = await query(`
+              SELECT COUNT(*) as count FROM notifications
+              WHERE user_id = $1
+                AND type = 'info'
+                AND metadata->>'type' = 'booking_unfreeze_reminder'
+                AND metadata->>'restrictionId' = $2
+                AND created_at >= CURRENT_TIMESTAMP - INTERVAL '1 day'
+            `, [restriction.userId, restriction.id]);
+            
+            if (existingNotifications.rows[0].count === '0') {
+              const unfreezeDate = restriction.autoUnfreezeAt 
+                ? new Date(restriction.autoUnfreezeAt).toLocaleDateString('zh-TW')
+                : '';
+              
+              await notificationModel.create({
+                userId: restriction.userId,
+                type: 'info',
+                title: '📅 預約權限即將解凍',
+                content: `您的預約權限將於 ${unfreezeDate} 自動解凍。解凍後請遵守預約規則，避免再次被凍結。`,
+                link: `/user-profile?tab=bookings`,
+                metadata: {
+                  type: 'booking_unfreeze_reminder',
+                  restrictionId: restriction.id,
+                  unfreezeDate,
+                },
+              });
+            }
+          }
+          break;
       }
     } catch (error: any) {
       await query(

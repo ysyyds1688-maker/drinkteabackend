@@ -25,11 +25,11 @@ router.post('/register', async (req, res) => {
     const { email, phoneNumber, password, userName, role, age } = req.body;
     
     if (!email && !phoneNumber) {
-      return res.status(400).json({ error: '请提供 Email 或手机号' });
+      return res.status(400).json({ error: '請提供 Email 或手機號' });
     }
     
     if (!password || password.length < 6) {
-      return res.status(400).json({ error: '密码至少需要6个字符' });
+      return res.status(400).json({ error: '密碼至少需要6個字符' });
     }
     
     // 年龄验证：必须年满18周岁
@@ -134,23 +134,23 @@ router.post('/login', async (req, res) => {
     const { email, phoneNumber, password } = req.body;
     
     if (!email && !phoneNumber) {
-      return res.status(400).json({ error: '请提供 Email 或手机号' });
+      return res.status(400).json({ error: '請提供 Email 或手機號' });
     }
     
     if (!password) {
-      return res.status(400).json({ error: '请提供密码' });
+      return res.status(400).json({ error: '請提供密碼' });
     }
     
     // 查找用户
     const user = await userModel.findByEmailOrPhone(email, phoneNumber);
     if (!user) {
-      return res.status(401).json({ error: '用户不存在或密码错误' });
+      return res.status(401).json({ error: '用戶不存在或密碼錯誤' });
     }
     
     // 验证密码
     const isValid = await userModel.verifyPassword(user, password);
     if (!isValid) {
-      return res.status(401).json({ error: '用户不存在或密码错误' });
+      return res.status(401).json({ error: '用戶不存在或密碼錯誤' });
     }
     
     // 生成 Token
@@ -294,7 +294,7 @@ router.get('/me', async (req, res) => {
     
     const user = await userModel.findById(payload.userId);
     if (!user) {
-      return res.status(404).json({ error: '用户不存在' });
+      return res.status(404).json({ error: '用戶不存在' });
     }
     
     // 獲取用戶統計並計算正確的等級
@@ -326,6 +326,11 @@ router.get('/me', async (req, res) => {
       verificationBadges: user.verificationBadges || [],
       nicknameChangedAt: user.nicknameChangedAt,
       isVip,
+      bookingCancellationCount: user.bookingCancellationCount || 0,
+      noShowCount: user.noShowCount || 0,
+      violationLevel: user.violationLevel || 0,
+      warningBadge: user.warningBadge || false,
+      noShowBadge: user.noShowBadge || false,
     });
   } catch (error: any) {
     console.error('Get me error:', error);
@@ -358,7 +363,7 @@ router.put('/me', async (req, res) => {
     const updatedUser = await userModel.update(payload.userId, updateData);
     
     if (!updatedUser) {
-      return res.status(404).json({ error: '用户不存在' });
+      return res.status(404).json({ error: '用戶不存在' });
     }
     
     // 檢查是否有活躍的付費訂閱（VIP狀態）
@@ -509,6 +514,11 @@ router.get('/users/:userId', async (req, res) => {
         badgeIcon: b.badgeIcon,
         unlockedAt: b.unlockedAt,
       })),
+      bookingCancellationCount: user.bookingCancellationCount || 0,
+      noShowCount: user.noShowCount || 0,
+      violationLevel: user.violationLevel || 0,
+      warningBadge: user.warningBadge || false,
+      noShowBadge: user.noShowBadge || false,
     });
   } catch (error: any) {
     console.error('Get user profile error:', error);

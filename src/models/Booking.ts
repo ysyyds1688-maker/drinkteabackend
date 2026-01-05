@@ -14,6 +14,7 @@ export interface Booking {
   notes?: string;
   clientReviewed?: boolean; // 茶客是否已評論
   providerReviewed?: boolean; // 佳麗是否已評論
+  noShow?: boolean; // 是否被回報為放鳥
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +74,7 @@ export const bookingModel = {
       notes: row.notes || undefined,
       clientReviewed: row.client_reviewed || false,
       providerReviewed: row.provider_reviewed || false,
+      noShow: Boolean(row.no_show),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -234,6 +236,51 @@ export const bookingModel = {
     
     const result = await query('DELETE FROM bookings WHERE id = $1', [id]);
     return (result.rowCount || 0) > 0;
+  },
+
+  // 獲取某個 profile 在特定日期的已預約時間
+  getBookedTimesByProfileAndDate: async (profileId: string, bookingDate: string): Promise<string[]> => {
+    const result = await query(`
+      SELECT booking_time 
+      FROM bookings 
+      WHERE profile_id = $1 
+        AND booking_date = $2 
+        AND status IN ('pending', 'accepted', 'completed')
+      ORDER BY booking_time
+    `, [profileId, bookingDate]);
+    
+    return result.rows.map(row => row.booking_time);
+  },
+
+  // 回報放鳥（佳麗回報茶客沒有到場）
+  reportNoShow: async (id: string, providerId: string): Promise<Booking | null> => {
+    const existing = await bookingModel.getById(id);
+    if (!existing) return null;
+    
+    // 檢查權限：只有該預約的 provider 可以回報
+    if (existing.providerId !== providerId) {
+      return null;
+    }
+    
+    // 只有 accepted 或 pending 狀態的預約可以回報放鳥
+    if (existing.status !== 'accepted' && existing.status !== 'pending') {
+      return null;
+    }
+    
+    // 更新 no_show 狀態並將預約狀態改為 cancelled
+    await query(`
+      UPDATE bookings 
+      SET no_show = TRUE,
+          status = 'cancelled',
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [id]);
+    
+    // 增加茶客的放鳥次數（放鳥和取消分開計算）
+    const { userModel } = await import('./User.js');
+    await userModel.incrementNoShowCount(existing.clientId);
+    
+    return await bookingModel.getById(id);
   },
 };
 

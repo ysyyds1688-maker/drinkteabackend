@@ -28,6 +28,12 @@ export interface User {
   updatedAt: string;
   lastLoginAt?: string;
   nicknameChangedAt?: string; // 暱稱最後修改時間
+  bookingCancellationCount?: number; // 預約取消次數
+  bookingWarning?: boolean; // 預約警告狀態（超過3次取消）
+  noShowCount?: number; // 放鳥次數
+  violationLevel?: number; // 違規級別：0=無, 1=初次, 2=累犯1, 3=累犯2, 4=嚴重
+  warningBadge?: boolean; // 警示戶頭標記
+  noShowBadge?: boolean; // 放鳥標記徽章
 }
 
 export interface CreateUserData {
@@ -87,6 +93,12 @@ export const userModel = {
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
       nicknameChangedAt: row.nickname_changed_at || undefined,
+      bookingCancellationCount: row.booking_cancellation_count || 0,
+      noShowCount: row.no_show_count || 0,
+      violationLevel: row.violation_level || 0,
+      warningBadge: Boolean(row.warning_badge),
+      noShowBadge: Boolean(row.no_show_badge),
+      bookingWarning: Boolean(row.booking_warning),
     };
   },
 
@@ -122,6 +134,12 @@ export const userModel = {
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
       nicknameChangedAt: row.nickname_changed_at || undefined,
+      bookingCancellationCount: row.booking_cancellation_count || 0,
+      noShowCount: row.no_show_count || 0,
+      violationLevel: row.violation_level || 0,
+      warningBadge: Boolean(row.warning_badge),
+      noShowBadge: Boolean(row.no_show_badge),
+      bookingWarning: Boolean(row.booking_warning),
     };
   },
 
@@ -414,6 +432,71 @@ export const userModel = {
     `, [JSON.stringify(badges), id]);
     
     return userModel.findById(id);
+  },
+
+  // 增加預約取消次數並檢查是否需要警告
+  incrementCancellationCount: async (userId: string): Promise<{ count: number; warning: boolean }> => {
+    // 先獲取當前次數
+    const user = await userModel.findById(userId);
+    if (!user) throw new Error('用戶不存在');
+    
+    const currentCount = user.bookingCancellationCount || 0;
+    const newCount = currentCount + 1;
+    const shouldWarn = newCount >= 3;
+    
+    // 更新次數和警告狀態
+    await query(`
+      UPDATE users
+      SET booking_cancellation_count = $1,
+          booking_warning = $2,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [newCount, shouldWarn, userId]);
+    
+    return { count: newCount, warning: shouldWarn };
+  },
+
+  // 增加放鳥次數
+  incrementNoShowCount: async (userId: string): Promise<{ count: number }> => {
+    const user = await userModel.findById(userId);
+    if (!user) throw new Error('用戶不存在');
+    
+    const currentCount = user.noShowCount || 0;
+    const newCount = currentCount + 1;
+    
+    // 更新次數
+    await query(`
+      UPDATE users
+      SET no_show_count = $1,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [newCount, userId]);
+    
+    return { count: newCount };
+  },
+
+  // 更新違規級別和標記
+  updateViolationLevel: async (userId: string, level: number, warningBadge?: boolean, noShowBadge?: boolean): Promise<void> => {
+    const updates: string[] = ['violation_level = $1', 'updated_at = CURRENT_TIMESTAMP'];
+    const params: any[] = [level];
+    
+    if (warningBadge !== undefined) {
+      updates.push(`warning_badge = $${params.length + 1}`);
+      params.push(warningBadge);
+    }
+    
+    if (noShowBadge !== undefined) {
+      updates.push(`no_show_badge = $${params.length + 1}`);
+      params.push(noShowBadge);
+    }
+    
+    params.push(userId);
+    
+    await query(`
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE id = $${params.length}
+    `, params);
   },
 };
 

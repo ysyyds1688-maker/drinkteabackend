@@ -3,13 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface Review {
   id: string;
-  profileId: string;
+  profileId?: string;
   clientId: string;
   clientName?: string;
   clientAvatarUrl?: string; // 评论者头像
+  targetUserId?: string; // 被評論的用戶ID（當 reviewType = 'client' 時）
+  reviewType?: 'profile' | 'client'; // 評論類型：'profile' = 茶客評論佳麗, 'client' = 佳麗評論茶客
   rating: number;
   comment: string;
   serviceType?: string;
+  bookingId?: string; // 關聯的預約ID
   isVerified: boolean;
   isVisible: boolean;
   likes: number;
@@ -29,12 +32,15 @@ export interface ReviewReply {
 }
 
 export interface CreateReviewData {
-  profileId: string;
+  profileId?: string;
   clientId: string;
   clientName?: string;
+  targetUserId?: string; // 被評論的用戶ID（當 reviewType = 'client' 時）
+  reviewType?: 'profile' | 'client'; // 評論類型
   rating: number;
   comment: string;
   serviceType?: string;
+  bookingId?: string; // 關聯的預約ID
 }
 
 export const reviewModel = {
@@ -51,7 +57,9 @@ export const reviewModel = {
       FROM reviews r
       LEFT JOIN users u ON r.client_id = u.id
       LEFT JOIN review_likes rl ON r.id = rl.review_id
-      WHERE r.profile_id = $1 AND r.is_visible = TRUE
+      WHERE r.profile_id = $1 
+        AND r.review_type = 'profile'
+        AND r.is_visible = TRUE
       GROUP BY r.id, u.avatar_url
       ORDER BY r.created_at DESC
     `, [profileId, userId || null]);
@@ -67,13 +75,16 @@ export const reviewModel = {
       
       reviews.push({
         id: row.id,
-        profileId: row.profile_id,
+        profileId: row.profile_id || undefined,
         clientId: row.client_id,
         clientName: row.client_name || undefined,
         clientAvatarUrl: row.client_avatar_url || undefined,
+        targetUserId: row.target_user_id || undefined,
+        reviewType: row.review_type || 'profile',
         rating: row.rating,
         comment: row.comment,
         serviceType: row.service_type || undefined,
+        bookingId: row.booking_id || undefined,
         isVerified: Boolean(row.is_verified),
         isVisible: Boolean(row.is_visible),
         likes: parseInt(row.likes_count) || 0,
@@ -136,13 +147,16 @@ export const reviewModel = {
         
         reviews.push({
           id: row.id,
-          profileId: row.profile_id,
+          profileId: row.profile_id || undefined,
           clientId: row.client_id,
           clientName: row.client_name || undefined,
           clientAvatarUrl: row.client_avatar_url || undefined,
+          targetUserId: row.target_user_id || undefined,
+          reviewType: row.review_type || 'profile',
           rating: row.rating,
           comment: row.comment,
           serviceType: row.service_type || undefined,
+          bookingId: row.booking_id || undefined,
           isVerified: Boolean(row.is_verified),
           isVisible: Boolean(row.is_visible),
           likes: parseInt(row.likes_count) || 0,
@@ -163,37 +177,86 @@ export const reviewModel = {
       return reviews;
     } else {
       // 如果是client，獲取其他人對該client的評論
-      // 由於評論系統主要針對profile，我們需要查找：
-      // 1. 該client作為被評論者的評論（但reviews表中沒有直接存儲被評論的client）
-      // 2. 實際上，評論是針對profile的，所以對於client，我們可能需要查找：
-      //    - 該client創建的profile（如果client也是provider）
-      //    - 或者，查找該client作為client_id的評論，但這些是該client評論別人的
-      // 
-      // 根據用戶需求，應該是顯示其他人對該client的評論
-      // 但由於評論系統主要針對profile，對於純client，可能沒有直接的評論
-      // 目前先返回空數組，或者可以考慮擴展評論系統來支持client對client的評論
+      // 查找 review_type = 'client' 且 target_user_id = userId 的評論（佳麗評論茶客）
+      const result = await query(`
+        SELECT r.*, 
+          u.avatar_url as client_avatar_url,
+          u.user_name as client_name,
+          COUNT(rl.id) as likes_count,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM review_likes rl2 
+            WHERE rl2.review_id = r.id AND rl2.user_id = $2
+          ) THEN TRUE ELSE FALSE END as user_liked
+        FROM reviews r
+        LEFT JOIN users u ON r.client_id = u.id
+        LEFT JOIN review_likes rl ON r.id = rl.review_id
+        WHERE r.review_type = 'client'
+          AND r.target_user_id = $1
+          AND r.is_visible = TRUE
+        GROUP BY r.id, u.avatar_url, u.user_name
+        ORDER BY r.created_at DESC
+      `, [userId, currentUserId || null]);
       
-      // 暫時返回空數組，因為評論系統主要針對profile
-      // 如果未來需要支持client對client的評論，需要擴展reviews表結構
-      return [];
+      const reviews: Review[] = [];
+      for (const row of result.rows) {
+        const repliesResult = await query(`
+          SELECT * FROM review_replies 
+          WHERE review_id = $1 
+          ORDER BY created_at ASC
+        `, [row.id]);
+        
+        reviews.push({
+          id: row.id,
+          profileId: row.profile_id || undefined,
+          clientId: row.client_id,
+          clientName: row.client_name || undefined,
+          clientAvatarUrl: row.client_avatar_url || undefined,
+          targetUserId: row.target_user_id || undefined,
+          reviewType: row.review_type || 'profile',
+          rating: row.rating,
+          comment: row.comment,
+          serviceType: row.service_type || undefined,
+          bookingId: row.booking_id || undefined,
+          isVerified: Boolean(row.is_verified),
+          isVisible: Boolean(row.is_visible),
+          likes: parseInt(row.likes_count) || 0,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          userLiked: Boolean(row.user_liked),
+          replies: repliesResult.rows.map(rr => ({
+            id: rr.id,
+            reviewId: rr.review_id,
+            replyType: rr.reply_type,
+            authorId: rr.author_id || undefined,
+            content: rr.content,
+            createdAt: rr.created_at,
+          })),
+        });
+      }
+      
+      return reviews;
     }
   },
 
   // 创建评论
   create: async (data: CreateReviewData): Promise<Review> => {
     const id = `review_${Date.now()}_${uuidv4().substring(0, 9)}`;
+    const reviewType = data.reviewType || 'profile';
     
     await query(`
-      INSERT INTO reviews (id, profile_id, client_id, client_name, rating, comment, service_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO reviews (id, profile_id, client_id, client_name, target_user_id, review_type, rating, comment, service_type, booking_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `, [
       id,
-      data.profileId,
+      data.profileId || null,
       data.clientId,
       data.clientName || null,
+      data.targetUserId || null,
+      reviewType,
       data.rating,
       data.comment,
       data.serviceType || null,
+      data.bookingId || null,
     ]);
     
     const review = await reviewModel.getById(id, data.clientId);
@@ -231,13 +294,16 @@ export const reviewModel = {
     
     return {
       id: row.id,
-      profileId: row.profile_id,
+      profileId: row.profile_id || undefined,
       clientId: row.client_id,
       clientName: row.client_name || undefined,
       clientAvatarUrl: row.client_avatar_url || undefined,
+      targetUserId: row.target_user_id || undefined,
+      reviewType: row.review_type || 'profile',
       rating: row.rating,
       comment: row.comment,
       serviceType: row.service_type || undefined,
+      bookingId: row.booking_id || undefined,
       isVerified: Boolean(row.is_verified),
       isVisible: Boolean(row.is_visible),
       likes: parseInt(row.likes_count) || 0,

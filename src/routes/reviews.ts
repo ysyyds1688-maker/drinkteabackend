@@ -312,11 +312,64 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
                 console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));
               }
               
-              // 如果是後宮佳麗的評價，檢查並自動解鎖佳麗的成就
+              // 如果是後宮佳麗的評價，更新佳麗的統計數據並檢查成就
               if (profile && profile.userId) {
+                // 更新佳麗的評論統計數據
+                const providerStatsUpdates: any = {
+                  totalReviewsCount: 1,
+                };
+                
+                // 根據評分更新對應的星級統計
+                if (rating === 5) {
+                  providerStatsUpdates.fiveStarReviewsCount = 1;
+                } else if (rating === 4) {
+                  providerStatsUpdates.fourStarReviewsCount = 1;
+                }
+                
+                // 如果預約已完成，更新完成預約次數
+                if (profileBooking && profileBooking.status === 'completed') {
+                  providerStatsUpdates.completedBookingsCount = 1;
+                }
+                
+                // 更新佳麗的統計數據
+                await userStatsModel.updateCounts(profile.userId, providerStatsUpdates);
+                
+                // 重新計算平均評分
+                const { reviewModel } = await import('../models/Review.js');
+                const avgRating = await reviewModel.getAverageRating(profileId);
+                if (avgRating > 0) {
+                  await userStatsModel.updateCounts(profile.userId, {
+                    averageRating: avgRating,
+                  });
+                }
+                
+                // 檢查並解鎖佳麗的成就（必須在更新統計數據之後）
                 const providerUnlocked = await achievementModel.checkAndUnlockAchievements(profile.userId);
                 if (providerUnlocked.length > 0) {
                   console.log(`後宮佳麗 ${profile.userId} 自動解鎖了 ${providerUnlocked.length} 個成就:`, providerUnlocked.map(a => a.achievementName));
+                  
+                  // 發送成就解鎖通知給佳麗
+                  try {
+                    const { notificationModel } = await import('../models/Notification.js');
+                    for (const achievement of providerUnlocked) {
+                      await notificationModel.create({
+                        userId: profile.userId,
+                        type: 'achievement',
+                        title: '🎉 成就解鎖',
+                        content: `恭喜您解鎖了「${achievement.achievementName}」成就！獲得 ${achievement.pointsEarned} 積分和 ${achievement.experienceEarned} 經驗值。`,
+                        link: `/user-profile?tab=achievements`,
+                        metadata: {
+                          achievementId: achievement.id,
+                          achievementType: achievement.achievementType,
+                          achievementName: achievement.achievementName,
+                          pointsEarned: achievement.pointsEarned,
+                          experienceEarned: achievement.experienceEarned,
+                        },
+                      });
+                    }
+                  } catch (error) {
+                    console.error('發送成就解鎖通知失敗:', error);
+                  }
                 }
                 
                 // 如果評分是 4-5 星，更新佳麗的「獲得好評」任務進度
@@ -439,6 +492,77 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
   } catch (error: any) {
     console.error('Create review error:', error);
     res.status(500).json({ error: error.message || '创建评论失败' });
+  }
+});
+
+// 佳麗評論茶客（需要登入且為 provider）
+router.post('/clients/:clientId/reviews', async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    if (!payload) {
+      return res.status(401).json({ error: 'Token 無效' });
+    }
+    
+    // 檢查用戶是否為 provider
+    const user = await userModel.findById(payload.userId);
+    if (!user || user.role !== 'provider') {
+      return res.status(403).json({ error: '只有佳麗可以評論茶客' });
+    }
+    
+    const { rating, comment, bookingId } = req.body;
+    
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: '評分必須在1-5之間' });
+    }
+    
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ error: '請輸入評論內容' });
+    }
+    
+    // 檢查是否有有效的預約記錄
+    if (bookingId) {
+      const { bookingModel } = await import('../models/Booking.js');
+      const booking = await bookingModel.getById(bookingId);
+      if (!booking || booking.providerId !== payload.userId || booking.clientId !== clientId) {
+        return res.status(403).json({ error: '無效的預約記錄' });
+      }
+    }
+    
+    // 創建評論
+    const review = await reviewModel.create({
+      clientId: payload.userId,
+      clientName: user.userName || undefined,
+      targetUserId: clientId,
+      reviewType: 'client',
+      rating,
+      comment: comment.trim(),
+      bookingId: bookingId || undefined,
+    });
+    
+    // 更新預約的評論狀態
+    if (bookingId) {
+      try {
+        const { bookingModel } = await import('../models/Booking.js');
+        await bookingModel.updateReviewStatus(bookingId, 'provider', true);
+      } catch (error) {
+        console.error('更新預約評論狀態失敗:', error);
+        // 不阻止評論創建，只記錄錯誤
+      }
+    }
+    
+    res.status(201).json(review);
+  } catch (error: any) {
+    console.error('Create client review error:', error);
+    res.status(500).json({ error: error.message || '創建評論失敗' });
   }
 });
 

@@ -27,6 +27,7 @@ import userStatsRouter from './routes/user-stats.js';
 import badgesRouter from './routes/badges.js';
 import achievementsRouter from './routes/achievements.js';
 import notificationsRouter from './routes/notifications.js';
+import reportsRouter from './routes/reports.js';
 import { schedulerService } from './services/schedulerService.js';
 
 // Load environment variables - 明確指定 .env 文件路徑
@@ -200,6 +201,7 @@ app.use('/api/user-stats', userStatsRouter);
 app.use('/api/badges', badgesRouter);
 app.use('/api/achievements', achievementsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/reports', reportsRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);
@@ -247,6 +249,29 @@ initDatabase()
           ]
         );
         console.log('✅ 创建了自动取消预约定时任务');
+      }
+
+      // 檢查並創建自動解凍預約限制任務
+      const existingUnfreezeTask = await query(
+        "SELECT * FROM scheduled_tasks WHERE task_type = 'auto_unfreeze_restrictions'"
+      );
+      
+      if (existingUnfreezeTask.rows.length === 0) {
+        // 創建自動解凍任務（每小時執行一次）
+        const unfreezeTaskId = uuidv4();
+        await query(
+          `INSERT INTO scheduled_tasks (id, name, task_type, cron_expression, config, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            unfreezeTaskId,
+            '自動解凍預約限制',
+            'auto_unfreeze_restrictions',
+            '0 * * * *', // 每小時執行一次
+            JSON.stringify({}),
+            1
+          ]
+        );
+        console.log('✅ 已創建自動解凍預約限制任務');
       }
     } catch (error: any) {
       console.warn('创建自动取消预约任务时出现警告:', error.message);
