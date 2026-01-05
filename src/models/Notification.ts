@@ -3,7 +3,7 @@ import { query } from '../db/database.js';
 export interface Notification {
   id: string;
   userId: string;
-  type: 'achievement' | 'task' | 'system' | 'message' | 'booking' | 'review';
+  type: 'achievement' | 'task' | 'system' | 'message' | 'booking' | 'review' | 'warning' | 'info';
   title: string;
   content: string;
   isRead: boolean;

@@ -31,7 +31,7 @@ export interface CreateRestrictionData {
 }
 
 // 計算凍結期限（天數）
-export const calculateFreezeDuration = (violationLevel: number, restrictionType: 'cancellation_limit' | 'no_show'): number => {
+export const calculateFreezeDuration = (violationLevel: number, restrictionType: 'cancellation_limit' | 'no_show' | 'manual'): number => {
   if (restrictionType === 'cancellation_limit') {
     // 取消預約規則
     if (violationLevel === 1) return 30; // 初次：1個月
@@ -43,6 +43,12 @@ export const calculateFreezeDuration = (violationLevel: number, restrictionType:
     if (violationLevel === 1) return 30; // 初次：1個月
     if (violationLevel === 2) return 365; // 累犯：1年
     if (violationLevel === 4) return -1; // 嚴重：永久
+  } else if (restrictionType === 'manual') {
+    // 手動凍結：根據違規級別決定
+    if (violationLevel === 4) return -1; // 永久
+    if (violationLevel === 3) return 365; // 1年
+    if (violationLevel === 2) return 180; // 6個月
+    if (violationLevel === 1) return 30; // 1個月
   }
   return 30; // 預設1個月
 };

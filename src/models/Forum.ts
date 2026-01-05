@@ -27,6 +27,9 @@ export interface ForumPost {
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
   relatedProfileName?: string; // 關聯的 Profile 名稱（用於顯示）
   verificationBadges?: string[]; // 驗證勳章
+  warningBadge?: boolean; // 失信茶客標記
+  noShowBadge?: boolean; // 失約茶客標記
+  violationLevel?: number; // 違規級別
 }
 
 export interface ForumReply {
@@ -44,6 +47,9 @@ export interface ForumReply {
   isVip?: boolean;
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
   verificationBadges?: string[]; // 驗證勳章
+  warningBadge?: boolean; // 失信茶客標記
+  noShowBadge?: boolean; // 失約茶客標記
+  violationLevel?: number; // 違規級別
   replies?: ForumReply[];
 }
 
