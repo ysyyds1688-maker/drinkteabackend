@@ -26,6 +26,7 @@ export interface ForumPost {
   isVip?: boolean;
   userRole?: 'client' | 'provider' | 'admin'; // 用戶角色
   relatedProfileName?: string; // 關聯的 Profile 名稱（用於顯示）
+  verificationBadges?: string[]; // 驗證勳章
 }
 
 export interface ForumReply {

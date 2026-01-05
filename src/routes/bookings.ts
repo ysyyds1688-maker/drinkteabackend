@@ -211,6 +211,46 @@ router.put('/:id/status', async (req, res) => {
             },
           });
         }
+        
+        // 更新回應預約任務進度（當佳麗接受或拒絕預約時）
+        if (status === 'accepted' || status === 'rejected') {
+          try {
+            const { tasksModel } = await import('../models/Tasks.js');
+            const taskResult = await tasksModel.updateTaskProgress(user.id, 'lady_respond_booking');
+            
+            if (taskResult.completed) {
+              await userStatsModel.addPoints(
+                user.id,
+                taskResult.pointsEarned,
+                taskResult.experienceEarned
+              );
+              
+              // 創建任務完成通知
+              try {
+                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_respond_booking');
+                if (definition) {
+                  await notificationModel.create({
+                    userId: user.id,
+                    type: 'task',
+                    title: '任務完成',
+                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                    link: `/user-profile?tab=points`,
+                    metadata: {
+                      taskType: 'lady_respond_booking',
+                      taskName: definition.name,
+                      pointsEarned: taskResult.pointsEarned,
+                      experienceEarned: taskResult.experienceEarned,
+                    },
+                  });
+                }
+              } catch (error) {
+                console.error('創建任務完成通知失敗:', error);
+              }
+            }
+          } catch (error) {
+            console.error('更新回應預約任務失敗:', error);
+          }
+        }
       } else if (user.role === 'client' && booking.clientId === user.id) {
         // 茶客更新狀態，通知佳麗（如果有）
         if (booking.providerId) {

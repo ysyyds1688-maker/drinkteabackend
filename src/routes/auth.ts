@@ -401,6 +401,55 @@ router.get('/users/:userId', async (req, res) => {
       return res.status(404).json({ error: '用戶不存在' });
     }
     
+    // 如果用户已登录，更新浏览任务进度（浏览用户个人档案）
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload && payload.userId && payload.userId !== userId) {
+          // 只更新瀏覽其他用戶的任務，不更新瀏覽自己的
+          const { tasksModel } = await import('../models/Tasks.js');
+          const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'browse_profiles');
+          
+          // 如果任务完成，添加积分和经验值
+          if (taskResult.completed) {
+            await userStatsModel.addPoints(
+              payload.userId,
+              taskResult.pointsEarned,
+              taskResult.experienceEarned
+            );
+            
+            // 創建任務完成通知
+            try {
+              const { notificationModel } = await import('../models/Notification.js');
+              const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'browse_profiles');
+              if (definition) {
+                await notificationModel.create({
+                  userId: payload.userId,
+                  type: 'task',
+                  title: '任務完成',
+                  content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                  link: `/user-profile?tab=points`,
+                  metadata: {
+                    taskType: 'browse_profiles',
+                    taskName: definition.name,
+                    pointsEarned: taskResult.pointsEarned,
+                    experienceEarned: taskResult.experienceEarned,
+                  },
+                });
+              }
+            } catch (error) {
+              console.error('創建任務完成通知失敗:', error);
+            }
+          }
+        }
+      } catch (error) {
+        // 忽略验证错误，不影响返回用户资料
+        console.error('更新瀏覽任務失敗:', error);
+      }
+    }
+    
     // 檢查是否有活躍的付費訂閱（VIP狀態）
     const activeSubscription = await subscriptionModel.getActiveByUserId(userId);
     const isVip = activeSubscription !== null && 

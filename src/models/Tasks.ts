@@ -66,10 +66,19 @@ export const TASK_DEFINITIONS: Record<string, TaskDefinition> = {
   browse_profiles: {
     type: 'browse_profiles',
     name: '瀏覽任務',
-    description: '瀏覽 10 個個人資料',
+    description: '瀏覽 10 個用戶個人檔案',
     target: 10,
     pointsReward: 10,        // 積分：調降（原 20）
     experienceReward: 15,    // 經驗：調降（原 30）
+    category: 'daily',
+  },
+  browse_provider_profiles: {
+    type: 'browse_provider_profiles',
+    name: '瀏覽茶茶資料',
+    description: '瀏覽 10 個特選魚市或嚴選好茶資料',
+    target: 10,
+    pointsReward: 10,
+    experienceReward: 15,
     category: 'daily',
   },
   book_premium_tea: {

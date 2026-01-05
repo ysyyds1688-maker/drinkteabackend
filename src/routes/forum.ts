@@ -215,6 +215,25 @@ router.get('/posts', async (req, res) => {
   }
 });
 
+// 獲取特定用戶的帖子（必須在 /posts/:id 之前，否則會被 /posts/:id 攔截）
+router.get('/posts/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit, offset } = req.query;
+    
+    const posts = await forumModel.getPostsByUserId(
+      userId,
+      limit ? parseInt(limit as string) : undefined,
+      offset ? parseInt(offset as string) : undefined
+    );
+    
+    res.json({ posts });
+  } catch (error: any) {
+    console.error('Get user posts error:', error);
+    res.status(500).json({ error: error.message || '獲取用戶帖子失敗' });
+  }
+});
+
 // 獲取單個帖子
 router.get('/posts/:id', async (req, res) => {
   try {
@@ -844,24 +863,6 @@ router.get('/favorites', async (req, res) => {
   }
 });
 
-// 獲取特定用戶的帖子
-router.get('/posts/user/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { limit, offset } = req.query;
-    
-    const posts = await forumModel.getPostsByUserId(
-      userId,
-      limit ? parseInt(limit as string) : undefined,
-      offset ? parseInt(offset as string) : undefined
-    );
-    
-    res.json({ posts });
-  } catch (error: any) {
-    console.error('Get user posts error:', error);
-    res.status(500).json({ error: error.message || '獲取用戶帖子失敗' });
-  }
-});
 
 // 創建舉報
 router.post('/reports', async (req, res) => {

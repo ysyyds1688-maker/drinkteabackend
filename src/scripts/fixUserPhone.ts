@@ -12,7 +12,8 @@ async function fixUserPhone() {
     // 如果找不到，嘗試用 phoneNumber 查找（因為可能手機號欄位填了 email）
     if (!user) {
       const allUsers = await userModel.getAll();
-      user = allUsers.find(u => u.phoneNumber === 'wuc714168@gmail.com');
+      const foundUser = allUsers.find(u => u.phoneNumber === 'wuc714168@gmail.com');
+      user = foundUser || null;
     }
 
     if (!user) {

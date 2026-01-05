@@ -41,6 +41,65 @@ const getUserStatus = async (req: any): Promise<'guest' | 'logged_in' | 'subscri
   return 'logged_in';
 };
 
+// 獲取特定用戶的評論（必須在 /profiles/:profileId/reviews 之前，避免路由衝突）
+router.get('/users/:userId/reviews', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const authHeader = req.headers.authorization;
+    
+    // 獲取當前用戶ID（如果已登入）
+    let currentUserId: string | undefined;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      if (payload) {
+        currentUserId = payload.userId;
+      }
+    }
+    
+    // 獲取用戶信息以確定角色
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 獲取評論
+    const reviews = await reviewModel.getByUserId(userId, user.role as 'provider' | 'client', currentUserId);
+    
+    // 計算平均評分（僅對provider有效）
+    let averageRating = 0;
+    if (user.role === 'provider') {
+      const { profileModel } = await import('../models/Profile.js');
+      const profilesResult = await profileModel.getAll(userId);
+      if (profilesResult.profiles.length > 0) {
+        const profileIds = profilesResult.profiles.map(p => p.id);
+        // 計算所有profile的平均評分
+        let totalRating = 0;
+        let count = 0;
+        for (const profileId of profileIds) {
+          const avg = await reviewModel.getAverageRating(profileId);
+          if (avg > 0) {
+            totalRating += avg;
+            count++;
+          }
+        }
+        if (count > 0) {
+          averageRating = totalRating / count;
+        }
+      }
+    }
+    
+    res.json({
+      reviews,
+      total: reviews.length,
+      averageRating: Math.round(averageRating * 10) / 10,
+    });
+  } catch (error: any) {
+    console.error('Get user reviews error:', error);
+    res.status(500).json({ error: error.message || '獲取用戶評論失敗' });
+  }
+});
+
 // 获取评论（根据用户权限返回不同数量）
 router.get('/profiles/:profileId/reviews', async (req, res) => {
   try {
@@ -476,64 +535,6 @@ router.post('/reviews/:reviewId/like', async (req, res) => {
   }
 });
 
-// 獲取特定用戶的評論
-router.get('/users/:userId/reviews', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const authHeader = req.headers.authorization;
-    
-    // 獲取當前用戶ID（如果已登入）
-    let currentUserId: string | undefined;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const payload = verifyToken(token);
-      if (payload) {
-        currentUserId = payload.userId;
-      }
-    }
-    
-    // 獲取用戶信息以確定角色
-    const user = await userModel.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: '用戶不存在' });
-    }
-    
-    // 獲取評論
-    const reviews = await reviewModel.getByUserId(userId, user.role as 'provider' | 'client', currentUserId);
-    
-    // 計算平均評分（僅對provider有效）
-    let averageRating = 0;
-    if (user.role === 'provider') {
-      const { profileModel } = await import('../models/Profile.js');
-      const profilesResult = await profileModel.getAll(userId);
-      if (profilesResult.profiles.length > 0) {
-        const profileIds = profilesResult.profiles.map(p => p.id);
-        // 計算所有profile的平均評分
-        let totalRating = 0;
-        let count = 0;
-        for (const profileId of profileIds) {
-          const avg = await reviewModel.getAverageRating(profileId);
-          if (avg > 0) {
-            totalRating += avg;
-            count++;
-          }
-        }
-        if (count > 0) {
-          averageRating = totalRating / count;
-        }
-      }
-    }
-    
-    res.json({
-      reviews,
-      total: reviews.length,
-      averageRating: Math.round(averageRating * 10) / 10,
-    });
-  } catch (error: any) {
-    console.error('Get user reviews error:', error);
-    res.status(500).json({ error: error.message || '獲取用戶評論失敗' });
-  }
-});
 
 // 回复评论（Provider 或 Admin）
 router.post('/reviews/:reviewId/reply', async (req, res) => {

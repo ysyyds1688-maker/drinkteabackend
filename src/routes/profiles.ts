@@ -42,50 +42,55 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Profile not found' });
     }
     
-    // 如果用户已登录，更新浏览任务进度（浏览个人资料）
+    // 如果用户已登录且是茶客，更新瀏覽茶茶資料任務進度（僅限茶客）
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
         const payload = verifyToken(token);
         if (payload && payload.userId) {
-          // 更新浏览任务进度
-          const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'browse_profiles');
-          // 如果任务完成，添加积分和经验值
-          if (taskResult.completed) {
-            await userStatsModel.addPoints(
-              payload.userId,
-              taskResult.pointsEarned,
-              taskResult.experienceEarned
-            );
-            
-            // 創建任務完成通知
-            try {
-              const { notificationModel } = await import('../models/Notification.js');
-              const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'browse_profiles');
-              if (definition) {
-                await notificationModel.create({
-                  userId: payload.userId,
-                  type: 'task',
-                  title: '任務完成',
-                  content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
-                  link: `/user-profile?tab=points`,
-                  metadata: {
-                    taskType: 'browse_profiles',
-                    taskName: definition.name,
-                    pointsEarned: taskResult.pointsEarned,
-                    experienceEarned: taskResult.experienceEarned,
-                  },
-                });
+          // 檢查用戶角色，只有茶客才更新此任務
+          const { userModel } = await import('../models/User.js');
+          const currentUser = await userModel.findById(payload.userId);
+          if (currentUser && currentUser.role === 'client') {
+            // 更新瀏覽茶茶資料任務進度（茶客專屬）
+            const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'browse_provider_profiles');
+            // 如果任务完成，添加积分和经验值
+            if (taskResult.completed) {
+              await userStatsModel.addPoints(
+                payload.userId,
+                taskResult.pointsEarned,
+                taskResult.experienceEarned
+              );
+              
+              // 創建任務完成通知
+              try {
+                const { notificationModel } = await import('../models/Notification.js');
+                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'browse_provider_profiles');
+                if (definition) {
+                  await notificationModel.create({
+                    userId: payload.userId,
+                    type: 'task',
+                    title: '任務完成',
+                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                    link: `/user-profile?tab=points`,
+                    metadata: {
+                      taskType: 'browse_provider_profiles',
+                      taskName: definition.name,
+                      pointsEarned: taskResult.pointsEarned,
+                      experienceEarned: taskResult.experienceEarned,
+                    },
+                  });
+                }
+              } catch (error) {
+                console.error('創建任務完成通知失敗:', error);
               }
-            } catch (error) {
-              console.error('創建任務完成通知失敗:', error);
             }
           }
         }
       } catch (error) {
         // 忽略验证错误，不影响返回profile
-        console.error('更新浏览任务失败:', error);
+        console.error('更新瀏覽茶茶資料任務失敗:', error);
       }
     }
     
@@ -118,10 +123,66 @@ router.post('/', async (req, res) => {
 // PUT /api/profiles/:id - Update profile
 router.put('/:id', async (req, res) => {
   try {
+    // 獲取現有的 profile 以檢查 userId
+    const existingProfile = await profileModel.getById(req.params.id);
+    if (!existingProfile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    
     const profile = await profileModel.update(req.params.id, req.body);
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
+    
+    // 如果這個 profile 有 userId（表示是佳麗自己上架的），更新上架資料任務
+    if (profile.userId) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.substring(7);
+          const payload = verifyToken(token);
+          if (payload && payload.userId === profile.userId) {
+            // 確認是佳麗本人更新自己的資料
+            const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'lady_update_profile');
+            
+            if (taskResult.completed) {
+              await userStatsModel.addPoints(
+                payload.userId,
+                taskResult.pointsEarned,
+                taskResult.experienceEarned
+              );
+              
+              // 創建任務完成通知
+              try {
+                const { notificationModel } = await import('../models/Notification.js');
+                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_update_profile');
+                if (definition) {
+                  await notificationModel.create({
+                    userId: payload.userId,
+                    type: 'task',
+                    title: '任務完成',
+                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                    link: `/user-profile?tab=points`,
+                    metadata: {
+                      taskType: 'lady_update_profile',
+                      taskName: definition.name,
+                      pointsEarned: taskResult.pointsEarned,
+                      experienceEarned: taskResult.experienceEarned,
+                    },
+                  });
+                }
+              } catch (error) {
+                console.error('創建任務完成通知失敗:', error);
+              }
+            }
+          }
+        } catch (error) {
+          // 忽略验证错误，不影响更新profile
+          console.error('更新上架資料任務失敗:', error);
+        }
+      }
+    }
+    
     res.json(profile);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
