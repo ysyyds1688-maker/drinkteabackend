@@ -115,8 +115,9 @@ router.post('/', async (req, res) => {
     
     // 創建檢舉記錄
     // 確保 targetRole 只允許 'client' 或 'provider'，排除 'admin'
-    const targetRole = targetUser.role === 'admin' ? undefined : (targetUser.role === 'provider' || targetUser.role === 'client' ? targetUser.role : undefined);
-    const reporterRole = user.role === 'admin' ? undefined : (user.role === 'provider' || user.role === 'client' ? user.role : undefined);
+    // 注意：user.role 在前面已經被驗證為 'provider' 或 'client'，所以不需要檢查 'admin'
+    const targetRole = (targetUser.role === 'provider' || targetUser.role === 'client') ? targetUser.role : undefined;
+    const reporterRole = user.role as 'provider' | 'client';
     
     const report = await reportModel.create({
       reporterId: user.id,
