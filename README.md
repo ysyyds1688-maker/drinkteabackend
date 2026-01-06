@@ -1,540 +1,460 @@
 # 茶王 Backend API
 
-這是茶王專案的後端 API 伺服器，包含**後端 API** 和**後台管理系統**。
+## 📋 目錄
 
-## 📁 專案結構
-
-```
-backend/
-├── src/
-│   ├── db/                       # 資料庫相關
-│   │   └── database.ts          # PostgreSQL 連接和初始化
-│   ├── models/                   # 資料模型
-│   │   ├── Profile.ts           # 個人資料模型
-│   │   ├── Article.ts           # 文章模型
-│   │   ├── User.ts              # 用戶模型
-│   │   ├── Subscription.ts     # 訂閱模型
-│   │   ├── Review.ts            # 評論模型
-│   │   ├── Booking.ts           # 預約模型
-│   │   ├── UserStats.ts         # 用戶統計模型（積分、經驗值、成就統計）
-│   │   ├── Achievement.ts       # 成就模型
-│   │   ├── Badge.ts             # 勳章模型
-│   │   └── Tasks.ts             # 每日任務模型
-│   ├── routes/                   # API 路由
-│   │   ├── profiles.ts          # 公開 API - Profiles
-│   │   ├── articles.ts          # 公開 API - Articles
-│   │   ├── gemini.ts            # 公開 API - Gemini AI
-│   │   ├── auth.ts              # 認證 API - 登入/註冊
-│   │   ├── reviews.ts           # 評論 API
-│   │   ├── subscriptions.ts     # 訂閱 API
-│   │   ├── bookings.ts          # 預約 API
-│   │   ├── achievements.ts      # 成就 API
-│   │   ├── badges.ts            # 勳章 API
-│   │   ├── tasks.ts             # 每日任務 API
-│   │   ├── admin.ts             # 後台管理系統 API
-│   │   ├── admin-users.ts       # 用戶管理 API
-│   │   └── admin-panel.ts      # 後台管理系統頁面
-│   ├── services/                 # 服務層
-│   │   └── authService.ts      # JWT 認證服務
-│   ├── types.ts                  # TypeScript 類型定義
-│   └── server.ts                 # 主伺服器
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## 🎯 功能特色
-
-### 核心功能
-- ✅ RESTful API 設計
-- ✅ PostgreSQL 資料庫持久化
-- ✅ Gemini AI 整合（用於文案解析和名字分析）
-- ✅ CORS 支援（跨域請求）
-- ✅ TypeScript 類型安全
-- ✅ 完整的 CRUD 操作
-
-### 用戶系統
-- ✅ 用戶註冊/登入（Email 或手機號）
-- ✅ JWT Token 認證
-- ✅ 角色管理（Provider、Client、Admin）
-- ✅ **多級會員系統**（茶客、入門茶士、御前茶士、御用茶官、茶王近侍等 10 個等級）
-- ✅ **驗證勳章系統**（郵箱驗證、手機驗證）
-- ✅ **積分與經驗值系統**（積分用於兌換勳章，經驗值用於升級等級）
-- ✅ **成就系統**（自動解鎖，發放積分和經驗值）
-- ✅ **勳章系統**（使用積分兌換，展示身分象徵）
-- ✅ **每日任務系統**（完成任務獲得積分和經驗值）
-- ✅ 訂閱管理（訂閱、取消、歷史記錄、權益查詢）
-
-### 評論系統
-- ✅ 5星評分系統
-- ✅ 評論內容管理
-- ✅ 評論回復功能
-- ✅ 評論點讚功能
-- ✅ 評論可見性控制（訪客/登入用戶/訂閱用戶）
-
-### 預約系統
-- ✅ 預約創建和管理
-- ✅ 預約狀態追蹤（待處理/已接受/已完成/已取消）
-- ✅ Provider 和 Client 預約管理
-- ⚠️ **預約次數判斷機制**（重要）：
-  - 預約次數**只在用戶發表評論時才計數**，不在預約創建或狀態變更時計數
-  - **嚴選好茶**：需管理員確認成功赴約（`status='completed'`）+ 評論 = 計數一次
-  - **特選魚市**：需預約成功（`status='accepted'`或`completed'`）+ 評論 = 計數一次
-  - 📝 **詳細文檔**：請參考專案根目錄的 `預約次數判斷機制說明.md`
-  - 🔔 **後續實作提醒**：在實作開放真正預約功能時，務必參考該文檔確保邏輯一致性
-
-### 後台管理系統
-- ✅ 可視化後台管理介面
-- ✅ Profile 管理（上架/編輯/下架）
-- ✅ Article 管理（發布/編輯/刪除）
-- ✅ 用戶管理（查看所有用戶資料、會員等級、驗證勳章和預約狀況）
-- ✅ 預約管理（查看和管理所有預約）
-- ✅ 統計資訊儀表板
+- [快速開始](#快速開始)
+- [環境配置](#環境配置)
+- [性能優化](#性能優化)
+- [Redis 配置](#redis-配置)
+- [數據庫配置](#數據庫配置)
+- [API 文檔](#api-文檔)
+- [部署說明](#部署說明)
 
 ## 🚀 快速開始
 
-### 1. 安裝依賴
+### 安裝依賴
 
 ```bash
 npm install
 ```
 
-### 2. 設定環境變數
-
-建立 `.env` 檔案：
-
-```bash
-# 資料庫連接（PostgreSQL）
-DATABASE_URL=postgresql://user:password@localhost:5432/drinkstea
-
-# Gemini AI API Key
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# JWT Secret（用於 Token 加密）
-JWT_SECRET=your_jwt_secret_key_here
-
-# 伺服器設定
-PORT=3001
-NODE_ENV=development
-
-# 前端網域（用於 CORS）
-FRONTEND_URL=http://localhost:5173
-```
-
-### 3. 初始化資料庫
-
-資料庫會在首次啟動時自動初始化，包括：
-- Profiles 表
-- Articles 表
-- Users 表（包含會員等級和驗證勳章）
-- Subscriptions 表（訂閱記錄）
-- Reviews 表
-- Review Replies 表
-- Review Likes 表
-- Bookings 表
-- User Sessions 表
-- Verification Codes 表
-- User Stats 表（用戶統計：積分、經驗值、成就統計）
-- Achievements 表（成就記錄）
-- User Badges 表（用戶已兌換的勳章）
-- Daily Tasks 表（每日任務進度）
-
-### 4. 啟動開發伺服器
+### 開發模式
 
 ```bash
 npm run dev
 ```
 
-伺服器將在 `http://localhost:3001` 啟動。
-
-## 📡 API 端點
-
-### 公開 API（前端使用）
-
-#### Profiles（個人資料）
-- `GET /api/profiles` - 取得所有個人資料
-- `GET /api/profiles/:id` - 取得特定個人資料
-- `POST /api/profiles` - 建立新個人資料
-- `PUT /api/profiles/:id` - 更新個人資料
-- `DELETE /api/profiles/:id` - 刪除個人資料
-
-#### Articles（文章）
-- `GET /api/articles` - 取得所有文章
-- `GET /api/articles/:id` - 取得特定文章（會自動增加瀏覽次數）
-- `POST /api/articles` - 建立新文章
-- `PUT /api/articles/:id` - 更新文章
-- `DELETE /api/articles/:id` - 刪除文章
-
-#### Gemini AI
-- `POST /api/gemini/parse-profile` - 從文案解析個人資料
-- `POST /api/gemini/analyze-name` - 分析名字
-
-### 認證 API
-
-#### 用戶認證
-- `POST /api/auth/register` - 用戶註冊
-- `POST /api/auth/login` - 用戶登入
-- `GET /api/auth/me` - 取得當前用戶資訊（需要 Token）
-- `POST /api/auth/logout` - 登出（撤銷 Token）
-
-**請求範例：**
-```json
-// 註冊
-POST /api/auth/register
-{
-  "email": "user@example.com",
-  "phoneNumber": "0912345678",
-  "password": "password123",
-  "role": "client" // 或 "provider"
-}
-
-// 登入
-POST /api/auth/login
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
-
-### 評論 API
-
-#### 評論管理
-- `GET /api/reviews/profiles/:profileId/reviews` - 取得 Profile 的評論（根據用戶權限顯示）
-- `POST /api/reviews/profiles/:profileId/reviews` - 創建評論（需要 Client 身份）
-- `PUT /api/reviews/reviews/:reviewId` - 更新評論
-- `DELETE /api/reviews/reviews/:reviewId` - 刪除評論
-- `POST /api/reviews/reviews/:reviewId/like` - 點讚/取消點讚評論
-- `POST /api/reviews/reviews/:reviewId/reply` - 回復評論（Provider 或 Admin）
-
-**評論可見性規則：**
-- 訪客：無法查看評論
-- 登入用戶：可查看 2 則評論
-- 訂閱用戶：可查看所有評論
-
-### 訂閱 API
-
-#### 訂閱管理
-- `GET /api/subscriptions/my` - 取得當前用戶的訂閱狀態（包含等級和勳章，需要 Token）
-- `POST /api/subscriptions/subscribe` - 訂閱會員（支持選擇等級，需要 Token）
-- `GET /api/subscriptions/history` - 取得訂閱歷史記錄（需要 Token）
-- `POST /api/subscriptions/cancel` - 取消訂閱（需要 Token）
-- `GET /api/subscriptions/benefits` - 取得會員等級權益列表
-
-**請求範例：**
-```json
-// 訂閱
-POST /api/subscriptions/subscribe
-{
-  "membershipLevel": "bronze",  // bronze, silver, gold, diamond
-  "duration": 30  // 天數，預設 30 天
-}
-
-// 響應
-{
-  "message": "訂閱成功",
-  "membershipLevel": "bronze",
-  "membershipExpiresAt": "2024-02-01T00:00:00.000Z",
-  "subscription": { ... }
-}
-```
-
-### 預約 API
-
-#### 預約管理
-- `POST /api/bookings` - 創建預約（需要 Client 身份）
-- `GET /api/bookings/my` - 取得我的預約（Provider 或 Client）
-- `GET /api/bookings/all` - 取得所有預約（僅 Admin）
-- `PUT /api/bookings/:id/status` - 更新預約狀態（完成時會發放經驗值）
-- `DELETE /api/bookings/:id` - 刪除預約
-
-### 成就 API
-
-#### 成就管理
-- `GET /api/achievements/my` - 取得我的成就（需要 Token）
-- `GET /api/achievements/definitions` - 取得所有成就定義
-- `POST /api/achievements/check` - 檢查並解鎖成就（通常由系統自動調用）
-
-**成就分類**：
-- 🟦 **茶席互動**：論壇相關成就（初次獻帖、活躍作者、人望之星、茶會核心）
-- 🟦 **嚴選好茶**：高級茶預約成就（初嚐御茶、御茶常客、品鑑達人）
-- 🟦 **特選魚市**：個人小姐預約成就（初次入席、專屬熟客、茶王座上賓）
-- 🟦 **茶客資歷**：忠誠/時間成就（守席之人、老茶客、茶王舊識）
-
-### 勳章 API
-
-#### 勳章管理
-- `GET /api/badges/available` - 取得所有可兌換的勳章
-- `GET /api/badges/my` - 取得我已擁有的勳章（需要 Token）
-- `POST /api/badges/purchase/:badgeId` - 兌換勳章（需要 Token，會扣除積分）
-
-**勳章分類**：
-- 🟨 **身分稱號**：茶客、雅客、貴客、御選貴客
-- 🟨 **品味風格**：品茶行家、夜茶派、靜品派、御茶鑑賞
-- 🟨 **座上地位**：御茶常客、專屬座上、座上之賓、茶王座上
-- 🟨 **皇室御印**：茶王心腹、御賜金印、國師級茶官
-
-### 每日任務 API
-
-#### 任務管理
-- `GET /api/tasks/my` - 取得我的每日任務進度（需要 Token）
-- `POST /api/tasks/update/:taskType` - 更新任務進度（通常由系統自動調用）
-
-**任務類型**：
-- `daily_login` - 每日登入
-- `create_post` - 發表帖子
-- `reply_post` - 回覆帖子
-- `like_content` - 點讚內容
-- `browse_profiles` - 瀏覽個人資料
-
-### ⭐ 後台管理系統 API
-
-#### 統計資訊
-- `GET /api/admin/stats` - 取得後台統計資訊（包含用戶數、預約數等）
-
-#### Profile 管理（上架新茶）
-- `GET /api/admin/profiles` - 取得所有 profiles（管理用）
-- `GET /api/admin/profiles/:id` - 取得單一 profile
-- `POST /api/admin/profiles` - **上架新茶** ⭐
-- `PUT /api/admin/profiles/:id` - **編輯茶茶** ⭐
-- `PATCH /api/admin/profiles/:id` - 部分更新
-- `DELETE /api/admin/profiles/:id` - **下架茶茶** ⭐
-- `POST /api/admin/profiles/batch` - **批量操作** ⭐
-
-#### Article 管理（發布新文章）
-- `GET /api/admin/articles` - 取得所有 articles（管理用）
-- `GET /api/admin/articles/:id` - 取得單一 article
-- `POST /api/admin/articles` - **發布新文章** ⭐
-- `PUT /api/admin/articles/:id` - **編輯文章** ⭐
-- `DELETE /api/admin/articles/:id` - **刪除文章** ⭐
-- `POST /api/admin/articles/batch` - **批量操作** ⭐
-
-#### 用戶管理
-- `GET /api/admin/users` - 取得所有用戶（包含會員等級和驗證勳章，僅 Admin）
-- `GET /api/admin/users/:userId` - 取得用戶詳情（包含預約記錄、會員等級、驗證勳章）
-
-### 用戶統計 API
-
-#### 統計管理
-- `GET /api/user-stats/my` - 取得我的統計資訊（積分、經驗值、等級等，需要 Token）
-
-### Health Check
-- `GET /health` - 檢查伺服器狀態
-
-## 🎯 後台管理系統說明
-
-### 位置
-- **檔案**：`src/routes/admin-panel.ts`
-- **網頁介面**：`/admin`
-- **API 路由**：`/api/admin/*`
-
-### 功能
-後台管理系統與後端 API 在**同一個 Express 伺服器**中，包含：
-- ✅ 上架新茶（支援 AI 智慧填單）
-- ✅ 編輯茶茶
-- ✅ 下架茶茶
-- ✅ 發布新文章
-- ✅ 編輯文章
-- ✅ 批量操作
-- ✅ 統計資訊儀表板
-- ✅ **用戶管理**（查看所有註冊用戶、會員等級、驗證勳章）
-- ✅ **預約管理**（查看和管理所有預約）
-
-### 訪問方式
-訪問 `http://localhost:3001/admin` 即可使用後台管理系統。
-
-## 📦 建置生產版本
+### 生產構建
 
 ```bash
 npm run build
 npm start
 ```
 
-## 🚀 部署資訊
+## ⚙️ 環境配置
 
-### 後端網域
+創建 `.env` 文件並配置以下環境變數：
 
-**Base URL**: `https://backenddrinktea.zeabur.app`
+### 必需配置
 
-### 可用的端點
+```env
+# 數據庫連接
+DATABASE_URL=postgresql://user:password@host:5432/database
+# 或使用個別配置
+PGHOST=localhost
+PGPORT=5432
+PGUSER=your_user
+PGPASSWORD=your_password
+PGDATABASE=your_database
+PGSSLMODE=require
 
-- Health Check: `https://backenddrinktea.zeabur.app/health`
-- API Base: `https://backenddrinktea.zeabur.app/api`
-- 後台管理: `https://backenddrinktea.zeabur.app/admin`
-- 後台 API: `https://backenddrinktea.zeabur.app/api/admin`
+# JWT 密鑰
+JWT_SECRET=your_jwt_secret_key
+JWT_REFRESH_SECRET=your_refresh_secret_key
 
-### 環境變數設定
+# 服務器端口
+PORT=8080
+```
 
-在 Zeabur Dashboard 設定以下環境變數：
+### 可選配置
 
-- `DATABASE_URL` - PostgreSQL 連接字串（必填）
-- `GEMINI_API_KEY` - 你的 Gemini API Key（必填）
-- `JWT_SECRET` - JWT Token 加密密鑰（必填，建議使用強密碼）
-- `NODE_ENV=production`
-- `PORT` - 伺服器端口（Zeabur 會自動設定）
-- `FRONTEND_URL` - 前端網域（用於 CORS，可選）
+```env
+# 數據庫連接池（支持高併發）
+DB_POOL_MAX=300          # 最大連接數（默認：300）
+DB_POOL_MIN=20           # 最小連接數（默認：20）
+DB_POOL_IDLE_TIMEOUT=30000      # 空閒連接超時（毫秒）
+DB_POOL_CONNECTION_TIMEOUT=10000 # 連接超時（毫秒）
 
-### 資料庫設定
+# Redis 配置（後續加入，目前使用內存緩存）
+# 注意：Redis URL 後續再加入，目前先以內存緩存運行
+# REDIS_URL=redis://password@host:6379
+# 或使用個別配置
+# REDIS_HOST=localhost
+# REDIS_PORT=6379
+# REDIS_PASSWORD=your_password
 
-專案使用 PostgreSQL 資料庫，需要在 Zeabur 中：
-1. 添加 PostgreSQL 服務
-2. 設定 `DATABASE_URL` 環境變數
-3. 確保資料庫持久化（Zeabur 會自動處理）
+# SMTP 郵件配置
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=your_email@gmail.com
 
-## 🎖️ 會員等級、積分、經驗值與成就系統
+# 請求超時
+REQUEST_TIMEOUT=30000  # 30秒
+```
 
-### 會員等級系統（基於經驗值）
+## 🚀 性能優化
 
-系統支持 10 個會員等級（基於經驗值自動升級）：
+### 當前優化狀態
 
-1. **茶客（tea_guest）** - 0 經驗值
-2. **入門茶士（tea_scholar）** - 100 經驗值
-3. **御前茶士（royal_tea_scholar）** - 500 經驗值
-4. **御用茶官（royal_tea_officer）** - 2,000 經驗值
-5. **茶王近侍（tea_king_attendant）** - 10,000 經驗值
-6. **御前總茶官（imperial_chief_tea_officer）** - 50,000 經驗值
-7. **茶王心腹（tea_king_confidant）** - 100,000 經驗值
-8. **茶王親選（tea_king_personal_selection）** - 200,000 經驗值
-9. **御賜金印茶官（imperial_golden_seal_tea_officer）** - 500,000 經驗值
-10. **國師級茶官（national_master_tea_officer）** - 1,000,000 經驗值
+本專案已實施以下性能優化以支持 **1000+ 併發用戶**：
 
-### 積分與經驗值系統
+#### ✅ 已實施
 
-**積分（Points）**：
-- 用途：用於兌換勳章
-- 獲取方式：完成每日任務、解鎖成就
-- 特點：相對較難獲得，代表用戶的活躍貢獻度
+1. **數據庫連接池優化**
+   - 最大連接數：300（可配置）
+   - 最小連接數：20（可配置）
+   - 自動連接管理
 
-**經驗值（Experience Points）**：
-- 用途：用於提升會員等級
-- 獲取方式：完成每日任務、解鎖成就、即時活動獎勵（發表帖子、回覆、獲得點讚、完成預約、驗證郵箱等）
-- 特點：相對較容易獲得，確保用戶能持續感受到成長
+2. **請求限流保護**
+   - 全局 API 限流：15分鐘100請求
+   - 嚴格限流（登入/註冊）：15分鐘5次
+   - 驗證碼限流：1小時5次
+   - 上傳限流：1小時20次
+   - 論壇發帖限流：1小時10次
 
-### 成就系統（Achievement）
+3. **HTTP 壓縮**
+   - Gzip 壓縮啟用
+   - 自動壓縮 JSON 和文本響應
 
-**特點**：
-- 由用戶行為自動解鎖
-- 解鎖後永久存在
-- 不消耗積分
-- 解鎖時會發放積分和經驗值
+4. **數據庫索引優化**
+   - 已為常用查詢字段建立索引
+   - 優化 JOIN 查詢性能
 
-**成就分類**：
-- 🟦 **茶席互動**：論壇相關成就
-- 🟦 **嚴選好茶**：高級茶預約成就
-- 🟦 **特選魚市**：個人小姐預約成就
-- 🟦 **茶客資歷**：忠誠/時間成就
+5. **緩存機制**
+   - Redis 緩存服務（已準備，待配置）
+   - 內存緩存後備（目前使用）
 
-詳細成就列表請參考 `ACHIEVEMENT_SYSTEM_README.md`。
+#### ⚠️ 內存緩存 vs Redis 緩存
 
-### 勳章系統（Badge）
+**內存緩存（目前設置）的限制：**
 
-**特點**：
-- 由用戶使用積分兌換
-- 兌換後積分會被扣除
-- 可自由選擇是否兌換
-- 用於展示身分象徵
+❌ **不支持高併發多實例部署**
+- 每個實例有獨立的內存緩存
+- 無法在多個服務器實例間共享數據
+- 驗證碼、會話等數據無法跨實例訪問
 
-**勳章分類**：
-- 🟨 **身分稱號**：基本身分識別
-- 🟨 **品味風格**：代表個人風格
-- 🟨 **座上地位**：消費地位象徵
-- 🟨 **皇室御印**：最高榮譽勳章
+❌ **服務器重啟後數據丟失**
+- 內存緩存數據不會持久化
+- 重啟後所有緩存數據清空
 
-詳細勳章列表請參考 `# 茶王勳章系統（Tea King Badges）.ini.md`。
+❌ **單點故障風險**
+- 無法實現負載均衡
+- 無法水平擴展
 
-### 每日任務系統
+**Redis 緩存（後續加入）的優勢：**
 
-**任務類型**：
-- 每日登入
-- 發表帖子
-- 回覆帖子
-- 點讚內容
-- 瀏覽個人資料
+✅ **支持分佈式部署**
+- 多個服務器實例共享同一個 Redis
+- 驗證碼、會話等數據可在實例間共享
+- 支持負載均衡和水平擴展
 
-**獎勵**：
-- 每個任務完成後會獲得積分和經驗值
-- 經驗值獎勵通常是積分的 1.5 倍
+✅ **數據持久化**
+- 可配置持久化策略
+- 服務器重啟後數據不丟失
 
-### 驗證勳章系統
+✅ **高併發支持**
+- Redis 專為高併發設計
+- 支持數萬 QPS
+- 內存操作，速度極快
 
-系統支持以下驗證勳章：
+**結論：**
+- **單實例部署**：內存緩存可以穩定運行，但建議配置 Redis
+- **多實例/高併發部署**：**必須使用 Redis**，內存緩存無法支持
 
-- **email_verified** - 郵箱驗證勳章
-- **phone_verified** - 手機驗證勳章
+### 預期性能
 
-驗證勳章存儲在 `users.verification_badges` 欄位中（JSON 格式）。
+| 配置 | 併發用戶 | 響應時間 | 適用場景 |
+|------|---------|---------|---------|
+| 單實例 + 內存緩存 | 300-500 | 200-500ms | 開發/測試環境 |
+| 單實例 + Redis | 800-1000+ | 50-200ms | 中小型生產環境 |
+| 多實例 + Redis | 5000+ | 50-200ms | 大型生產環境 |
 
-### 訂閱記錄
+## 🔴 Redis 配置
 
-每次訂閱都會在 `subscriptions` 表中創建記錄，包含：
-- 用戶 ID
-- 會員等級
-- 開始時間
-- 到期時間
-- 是否活躍
+### 為什麼需要 Redis？
 
-### 數據遷移
+1. **分佈式部署支持**：多個服務器實例共享緩存
+2. **高併發性能**：專為高併發設計，支持數萬 QPS
+3. **數據持久化**：服務器重啟後數據不丟失
+4. **驗證碼共享**：多實例間驗證碼可共享
 
-系統會自動將現有的 `subscribed` 用戶遷移到 `bronze` 等級，確保數據一致性。
+### 配置方式
 
-## 🔐 安全說明
+#### 方式 1：使用 REDIS_URL（推薦）
 
-### JWT Token
-- Token 有效期：7 天
-- Refresh Token 有效期：30 天
-- Token 存儲在 `user_sessions` 表中，支援撤銷
+```env
+REDIS_URL=redis://password@host:6379
+```
 
-### 密碼安全
-- 使用 bcrypt 進行密碼雜湊
-- 密碼最小長度：6 個字符
+#### 方式 2：使用個別配置
 
-### CORS 設定
-- 預設允許所有來源（`origin: '*'`）
-- 生產環境建議設定特定的前端網域
+```env
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=your_password
+```
 
-## 🚧 待完成事項
+### 常見服務商配置
 
-### 高優先級
+詳細配置說明請參考：[REDIS_SETUP.md](./REDIS_SETUP.md)
 
-1. **評論路由成就檢查** ⚠️
-   - [x] 後端已實作評論時根據 `category` 參數更新統計
-   - [ ] **前端需要配合**：在評論 API 調用時傳遞 `category` 參數（'premium_tea' 或 'lady_booking'）
-   - [ ] 根據 profile 類別自動判斷並傳遞正確的 category
+### 當前狀態
 
-2. **預約完成成就檢查** ⚠️
-   - [ ] 在預約狀態更新為 'completed' 時觸發成就檢查
-   - [ ] 判斷預約類型（高級茶 vs 個人小姐）
-   - [ ] 更新相應的統計計數
+**注意：Redis URL 後續再加入，目前先以內存緩存運行**
 
-### 中優先級
+- 系統會自動檢測 Redis 是否配置
+- 如果未配置，會自動降級到內存緩存
+- 功能正常運行，但僅支持單實例部署
 
-3. **Provider 系統整合** ⚠️
-   - [ ] Provider 評分系統實作
-   - [ ] Provider 給 Client 評分時觸發成就檢查
-   - [ ] Provider 專屬成就定義
-   - [ ] Provider 專屬勳章定義
-   - [ ] Provider 等級與階級制度設計
-   - 詳細設計請參考 `PROVIDER_SYSTEM_PROPOSAL.md`
+### 啟用 Redis
 
-4. **判斷標準擴展** ⚠️
-   - [ ] 添加更多高級茶判斷標準（除評論外）
-   - [ ] 添加更多個人小姐判斷標準（除評論外）
-   - [ ] 完善重複預約判斷邏輯
+1. 配置 Redis 服務（本地或雲服務）
+2. 在 `.env` 中添加 `REDIS_URL` 或個別配置
+3. 重啟服務器
+4. 檢查日誌，應該看到：`✅ Redis 連接成功`
 
-### 低優先級
+## 🗄️ 數據庫配置
 
-5. **系統優化**
-   - [ ] 成就解鎖通知系統
-   - [ ] 成就進度顯示優化
-   - [ ] 勳章展示優先順序設定
+### PostgreSQL 連接池
 
-詳細的未完成事項請參考 `ACHIEVEMENT_SYSTEM_README.md`。
+```env
+DB_POOL_MAX=300          # 最大連接數（支持1000+併發）
+DB_POOL_MIN=20           # 最小連接數
+DB_POOL_IDLE_TIMEOUT=30000      # 空閒連接超時（30秒）
+DB_POOL_CONNECTION_TIMEOUT=10000 # 連接超時（10秒）
+```
 
-## 📚 更多文檔
+### PostgreSQL 服務器配置建議
 
-- [ACHIEVEMENT_SYSTEM_README.md](../ACHIEVEMENT_SYSTEM_README.md) - 成就系統判斷標準與未完成事項
-- [PROVIDER_SYSTEM_PROPOSAL.md](../PROVIDER_SYSTEM_PROPOSAL.md) - Provider 系統預留設計提案
-- [ACHIEVEMENT_BADGE_SYSTEM_UPDATE.md](../ACHIEVEMENT_BADGE_SYSTEM_UPDATE.md) - 成就與勳章系統更新總結
+```sql
+-- 增加最大連接數
+max_connections = 500
 
-## 授權
+-- 優化內存設置
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 4MB
+maintenance_work_mem = 64MB
+```
+
+## 📚 API 文檔
+
+### 主要端點
+
+#### 認證相關
+- `POST /api/auth/register` - 註冊
+- `POST /api/auth/login` - 登入
+- `GET /api/auth/me` - 獲取當前用戶信息
+- `POST /api/auth/logout` - 登出
+- `POST /api/auth/verify-email` - 郵箱驗證
+- `POST /api/auth/verify-phone` - 手機驗證
+
+#### Profiles 相關
+- `GET /api/profiles` - 獲取所有 Profiles（支持分頁、篩選、搜尋）
+- `GET /api/profiles/:id` - 獲取特定 Profile
+- `POST /api/profiles` - 創建 Profile（Provider）
+- `PUT /api/profiles/:id` - 更新 Profile（Provider）
+- `DELETE /api/profiles/:id` - 刪除 Profile（Provider）
+
+#### 預約相關
+- `POST /api/bookings` - 創建預約
+- `GET /api/bookings/my` - 獲取我的預約
+- `PUT /api/bookings/:id/status` - 更新預約狀態（確認/拒絕/完成）
+- `GET /api/bookings/:id` - 獲取特定預約詳情
+
+#### 訊息相關（預約確認專用）
+- `GET /api/messages/my` - 獲取我的訊息收件箱（對話串列表）
+- `GET /api/messages/thread/:threadId` - 獲取對話串詳情
+- `POST /api/messages/send` - 發送訊息（僅用於預約確認流程）
+- `PUT /api/messages/:id/read` - 標記訊息為已讀
+- `PUT /api/messages/read-all` - 標記所有訊息為已讀
+- `DELETE /api/messages/:id` - 刪除對話串
+
+#### 評論相關
+- `GET /api/reviews/profiles/:profileId/reviews` - 獲取 Profile 的評論
+- `POST /api/reviews/profiles/:profileId/reviews` - 創建評論
+- `POST /api/reviews/reviews/:reviewId/like` - 點讚評論
+- `POST /api/reviews/reviews/:reviewId/reply` - 回復評論
+- `GET /api/reviews/users/:userId/reviews` - 獲取用戶的評論（支持茶客評分）
+
+#### 訂閱相關
+- `GET /api/subscriptions/my` - 獲取我的訂閱狀態
+- `POST /api/subscriptions/subscribe` - 訂閱（支持選擇等級）
+- `GET /api/subscriptions/history` - 獲取訂閱歷史
+- `POST /api/subscriptions/cancel` - 取消訂閱
+- `GET /api/subscriptions/benefits` - 獲取會員等級權益列表
+
+#### 成就與勳章
+- `GET /api/achievements/my` - 獲取我的成就
+- `GET /api/achievements/definitions` - 獲取所有成就定義
+- `POST /api/achievements/check` - 檢查並解鎖成就
+- `GET /api/badges/available` - 獲取所有可兌換的勳章
+- `GET /api/badges/my` - 獲取我已擁有的勳章
+- `POST /api/badges/purchase/:badgeId` - 兌換勳章
+
+#### 任務與統計
+- `GET /api/tasks/my` - 獲取我的每日任務進度
+- `GET /api/user-stats/my` - 獲取我的統計資訊（積分、經驗值、等級等）
+
+#### 後台管理
+- `GET /api/admin/stats` - 獲取後台統計資訊
+- `GET /api/admin/users` - 獲取所有用戶
+- `GET /api/admin/bookings` - 獲取所有預約
+- `GET /admin` - 後台管理介面（可視化）
+
+#### 其他
+- `GET /` - API 信息
+- `GET /health` - 健康檢查
+- `GET /api/articles` - 獲取所有 Articles
+- `GET /api/forum/posts` - 獲取論壇帖子
+- `POST /api/forum/posts` - 創建論壇帖子
+
+完整 API 文檔請參考各路由文件。
+
+## 🚢 部署說明
+
+### 環境要求
+
+- Node.js 18+
+- PostgreSQL 12+
+- Redis（可選，但強烈建議）
+
+### 部署步驟
+
+1. **克隆倉庫**
+   ```bash
+   git clone <repository-url>
+   cd backend
+   ```
+
+2. **安裝依賴**
+   ```bash
+   npm install
+   ```
+
+3. **配置環境變數**
+   ```bash
+   cp .env.example .env
+   # 編輯 .env 文件
+   ```
+
+4. **初始化數據庫**
+   ```bash
+   npm run db:migrate
+   ```
+
+5. **構建項目**
+   ```bash
+   npm run build
+   ```
+
+6. **啟動服務**
+   ```bash
+   npm start
+   ```
+
+### 生產環境建議
+
+1. **使用 PM2 管理進程**
+   ```bash
+   npm install -g pm2
+   pm2 start dist/server.js --name tea-king-backend
+   ```
+
+2. **配置 Redis**（必須，如果多實例部署）
+   - 使用雲服務商的 Redis（推薦）
+   - 或自建 Redis 服務器
+
+3. **配置負載均衡**（多實例部署）
+   - 使用 Nginx 或雲服務負載均衡器
+   - 確保所有實例共享同一個 Redis
+
+4. **監控和日誌**
+   - 配置 APM 監控
+   - 設置日誌收集系統
+
+## 📊 性能監控
+
+### 連接池監控
+
+開發環境下，每 30 秒會輸出連接池狀態：
+
+```
+📊 連接池狀態: {
+  totalCount: 25,
+  idleCount: 15,
+  waitingCount: 0
+}
+```
+
+### Redis 連接狀態
+
+啟動時會顯示 Redis 連接狀態：
+
+```
+✅ Redis 連接成功
+```
+
+或
+
+```
+⚠️  Redis 未配置，將使用內存緩存（目前設置，後續會加入 Redis URL）
+```
+
+## 🔧 故障排除
+
+### Redis 連接失敗
+
+如果看到 Redis 連接失敗的警告：
+1. 檢查 Redis 服務是否運行
+2. 檢查 `REDIS_URL` 或個別配置是否正確
+3. 檢查網絡連接和防火牆設置
+4. 系統會自動降級到內存緩存，功能仍可正常使用
+
+### 數據庫連接失敗
+
+1. 檢查 `DATABASE_URL` 或 PostgreSQL 配置
+2. 檢查數據庫服務是否運行
+3. 檢查連接池配置是否合理
+
+### 性能問題
+
+1. 檢查數據庫連接池使用率
+2. 檢查是否有慢查詢
+3. 考慮添加 Redis 緩存
+4. 檢查 API 限流是否過於嚴格
+
+## 🎯 最新功能更新
+
+### ✅ 訊息系統（預約確認專用）
+- ✅ Email 風格訊息收件箱（列表 + 詳情視圖）
+- ✅ 預約確認流程自動化：
+  - 茶客發起預約後，系統自動發送確認訊息給茶客
+  - 佳麗收到預約請求訊息，可確認或拒絕
+  - 佳麗確認後，系統自動發送聯繫方式、預約流程、注意事項給茶客
+- ✅ 24小時倒數計時顯示
+- ✅ 自動取消機制（24小時未確認自動取消並通知雙方）
+- ⚠️ **不支援自由對話**：訊息收件箱僅用於預約確認
+
+### ✅ 預約系統增強
+- ✅ 預約日曆系統（顯示可用時間段）
+- ✅ 服務時長優先排序（根據服務項目時長建議後續時間段）
+- ✅ 台灣時區時間驗證（無法選擇已過期的時間段）
+- ✅ 24小時自動取消機制（未確認的預約自動取消）
+- ✅ 預約狀態管理（pending、accepted、rejected、completed、cancelled）
+
+### ✅ 評論系統增強
+- ✅ 茶客評分系統（佳麗可評論茶客）
+- ✅ 茶客平均評分顯示（5星評分系統）
+- ✅ 評論分類（嚴選好茶、特選魚市）
+
+### ✅ 自動化任務
+- ✅ 24小時自動取消未確認預約（Cron Job）
+- ✅ 預約凍結規則自動執行
+- ✅ 成就自動解鎖檢查
+- ✅ 每日任務自動重置
+
+## 📝 相關文檔
+
+- [性能分析報告](./PERFORMANCE_ANALYSIS.md) - 詳細的性能分析和優化建議
+- [性能分析與優化](./PERFORMANCE_ANALYSIS.md) - 高併發性能分析與優化實施狀態
+- [Redis 配置指南](./REDIS_SETUP.md) - Redis 詳細配置說明
+- [SMTP 配置指南](./EMAIL_CONFIG.md) - 郵件服務配置說明
+- [環境變數說明](./ENV_VARIABLES.md) - 完整的環境變數配置說明
+- [上線前檢查清單](../PRE_LAUNCH_CHECKLIST.md) - 上線前必須完成的檢查項目 ⭐
+
+## 📄 許可證
 
 ISC
