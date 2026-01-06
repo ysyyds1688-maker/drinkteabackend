@@ -633,6 +633,16 @@ router.post('/send-verification-email', async (req, res) => {
       await sendVerificationEmail(user.email, code);
     } catch (emailError: any) {
       console.error('發送郵件失敗:', emailError);
+      console.error('錯誤堆棧:', emailError.stack);
+      console.error('SMTP 配置檢查:', {
+        SMTP_HOST: process.env.SMTP_HOST ? '已設置' : '未設置',
+        SMTP_PORT: process.env.SMTP_PORT || '587',
+        SMTP_USER: process.env.SMTP_USER ? '已設置' : '未設置',
+        SMTP_PASS: process.env.SMTP_PASS ? '已設置（長度: ' + process.env.SMTP_PASS.length + '）' : '未設置',
+        SMTP_FROM: process.env.SMTP_FROM || '未設置',
+        NODE_ENV: process.env.NODE_ENV || '未設置',
+      });
+      
       // 如果是開發環境且未配置 SMTP，返回驗證碼供測試
       if (process.env.NODE_ENV === 'development') {
         console.log(`[開發環境] 用戶 ${user.email} 的驗證碼: ${code}`);
@@ -643,8 +653,14 @@ router.post('/send-verification-email', async (req, res) => {
         });
         return;
       }
-      // 生產環境發送失敗則返回錯誤
-      return res.status(500).json({ error: '發送驗證碼失敗，請稍後再試' });
+      
+      // 生產環境發送失敗則返回錯誤（包含詳細信息以便排查）
+      const errorMessage = emailError.message || '發送驗證碼失敗';
+      console.error('返回錯誤給前端:', errorMessage);
+      return res.status(500).json({ 
+        error: '發送驗證碼失敗，請稍後再試',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined // 開發環境返回詳細錯誤
+      });
     }
     
     res.json({ 

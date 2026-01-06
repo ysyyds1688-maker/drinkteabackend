@@ -1,21 +1,45 @@
 import nodemailer from 'nodemailer';
 
+// 追蹤是否已輸出 SMTP 配置日誌（避免重複輸出）
+let smtpConfigLogged = false;
+
 // 創建郵件傳輸器
 const createTransporter = () => {
+  // 檢查 SMTP 配置
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  
+  // 只在開發環境或首次初始化時輸出詳細日誌
+  if (process.env.NODE_ENV === 'development' && !smtpConfigLogged) {
+    console.log('📧 SMTP 配置檢查:', {
+      SMTP_HOST: smtpHost ? '已設置 (' + smtpHost + ')' : '未設置',
+      SMTP_PORT: process.env.SMTP_PORT || '587 (預設)',
+      SMTP_USER: smtpUser ? '已設置 (' + smtpUser + ')' : '未設置',
+      SMTP_PASS: smtpPass ? '已設置 (長度: ' + smtpPass.length + ')' : '未設置',
+      SMTP_FROM: process.env.SMTP_FROM || '未設置 (將使用 SMTP_USER)',
+      NODE_ENV: process.env.NODE_ENV || '未設置',
+    });
+    smtpConfigLogged = true;
+  }
+  
   // 如果配置了 SMTP，使用 SMTP
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (smtpHost && smtpUser && smtpPass) {
     // 清理 SMTP_PASS（移除空格，Gmail 應用程式密碼可能有空格）
-    const smtpPass = process.env.SMTP_PASS.replace(/\s+/g, '');
+    const cleanedPass = smtpPass.replace(/\s+/g, '');
+    
+    const port = parseInt(process.env.SMTP_PORT || '587', 10);
+    const secure = port === 465;
     
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+      host: smtpHost,
+      port: port,
+      secure: secure, // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER,
-        pass: smtpPass, // 使用清理後的密碼
+        user: smtpUser,
+        pass: cleanedPass, // 使用清理後的密碼
       },
-      // 開發環境可能不需要 TLS
+      // TLS 配置
       tls: {
         rejectUnauthorized: false,
       },

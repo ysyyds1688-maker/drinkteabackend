@@ -60,8 +60,15 @@ if (process.env.NODE_ENV === 'development') {
 
 // 連接池錯誤處理
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('⚠️  數據庫連接池錯誤:', err);
+  console.error('錯誤詳情:', {
+    message: err.message,
+    code: err.code,
+    stack: err.stack,
+  });
+  // 不要直接退出進程，記錄錯誤即可
+  // 連接池會自動嘗試重新連接
+  // 如果問題持續，應該檢查數據庫連接配置
 });
 
 // 初始化資料庫 schema

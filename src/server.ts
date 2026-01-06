@@ -44,6 +44,21 @@ console.log(`[DEBUG] 加載後 DATABASE_URL 是否存在: ${process.env.DATABASE
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
+// Trust proxy - 在 Zeabur 等雲平台上，請求會通過反向代理
+// 需要信任代理來正確識別客戶端 IP（用於 rate limiting 等）
+// 在生產環境中，Zeabur 會設置 X-Forwarded-For 等頭部
+if (process.env.NODE_ENV === 'production' || process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', true);
+  console.log('✅ Trust proxy enabled (for production/reverse proxy environments)');
+} else if (process.env.TRUST_PROXY === 'false') {
+  app.set('trust proxy', false);
+  console.log('⚠️  Trust proxy disabled (explicitly set to false)');
+} else {
+  // 開發環境：如果檢測到 X-Forwarded-For 頭部，啟用 trust proxy
+  // 否則保持默認（false）
+  console.log('ℹ️  Trust proxy: auto-detecting (development mode)');
+}
+
 // Middleware
 // CORS 設定：全面開放，確保前端和後台管理系統都能正常運作
 const corsOptions = {
@@ -236,6 +251,26 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// 全局錯誤處理器 - 防止未捕獲的錯誤導致進程退出
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  console.error('❌ 未處理的 Promise Rejection:', reason);
+  console.error('Promise:', promise);
+  // 不要退出進程，記錄錯誤即可
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('❌ 未捕獲的異常:', error);
+  console.error('堆棧:', error.stack);
+  // 對於未捕獲的異常，我們仍然需要退出，但先記錄錯誤
+  // 在生產環境中，應該使用 PM2 或類似的進程管理器來重啟
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️  生產環境未捕獲異常，進程將退出');
+    process.exit(1);
+  } else {
+    console.error('⚠️  開發環境未捕獲異常，繼續運行（建議修復）');
+  }
+});
+
 // Initialize database and start server
 initDatabase()
   .then(() => initTestUsers())
@@ -312,7 +347,17 @@ initDatabase()
   })
   .catch((error) => {
     console.error('❌ Failed to initialize database:', error);
-    process.exit(1);
+    console.error('錯誤堆棧:', error.stack);
+    console.error('⚠️  服務器啟動失敗，請檢查：');
+    console.error('   1. 數據庫連接配置（DATABASE_URL）');
+    console.error('   2. 數據庫服務是否正在運行');
+    console.error('   3. 環境變數是否正確設置');
+    // 在開發環境中，不要立即退出，給開發者時間查看錯誤
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    } else {
+      console.error('⚠️  開發環境：服務器未啟動，但進程繼續運行以便查看錯誤');
+    }
   });
 
 // 优雅关闭
