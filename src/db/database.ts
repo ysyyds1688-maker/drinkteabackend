@@ -59,11 +59,11 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // 連接池錯誤處理
-pool.on('error', (err) => {
+pool.on('error', (err: any) => {
   console.error('⚠️  數據庫連接池錯誤:', err);
   console.error('錯誤詳情:', {
     message: err.message,
-    code: err.code,
+    code: err.code || '未知',
     stack: err.stack,
   });
   // 不要直接退出進程，記錄錯誤即可

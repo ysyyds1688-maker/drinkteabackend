@@ -94,3 +94,4 @@ export const articleDetailCache = createCacheMiddleware({
   keyGenerator: (req) => `cache:article:${req.params.id}`,
 });
 
+

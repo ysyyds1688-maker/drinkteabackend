@@ -28,10 +28,16 @@ const createTransporter = () => {
     // 清理 SMTP_PASS（移除空格，Gmail 應用程式密碼可能有空格）
     const cleanedPass = smtpPass.replace(/\s+/g, '');
     
+    // 驗證清理後的密碼長度（Gmail 應用程式密碼通常是 16 個字符）
+    if (cleanedPass.length < 10) {
+      console.warn('⚠️  警告: SMTP_PASS 清理後長度過短，可能不正確');
+    }
+    
     const port = parseInt(process.env.SMTP_PORT || '587', 10);
     const secure = port === 465;
     
-    return nodemailer.createTransport({
+    // 對於 Gmail，使用更寬鬆的配置
+    const transporterConfig: any = {
       host: smtpHost,
       port: port,
       secure: secure, // true for 465, false for other ports
@@ -43,7 +49,16 @@ const createTransporter = () => {
       tls: {
         rejectUnauthorized: false,
       },
-    });
+    };
+    
+    // Gmail 特殊配置
+    if (smtpHost.includes('gmail.com')) {
+      transporterConfig.service = 'gmail';
+      // 對於 Gmail，不需要指定 host 和 port，使用 service 即可
+      // 但我們保留 host 和 port 以便靈活配置
+    }
+    
+    return nodemailer.createTransport(transporterConfig);
   }
   
   // 如果沒有配置 SMTP，使用開發環境的測試配置（使用 Gmail 等）
@@ -93,6 +108,19 @@ export const sendEmail = async (
       response: error.response,
       responseCode: error.responseCode,
     });
+    
+    // Gmail 認證錯誤的詳細診斷
+    if (error.code === 'EAUTH' || error.responseCode === 535) {
+      console.error('🔐 Gmail 認證失敗診斷:');
+      console.error('   1. 確認已啟用「兩步驟驗證」');
+      console.error('   2. 確認使用的是「應用程式密碼」，不是 Gmail 帳戶密碼');
+      console.error('   3. 確認應用程式密碼正確（已自動移除空格）');
+      console.error('   4. 檢查 Gmail 帳戶是否被鎖定或需要額外驗證');
+      console.error('   5. 如果使用 Gmail，請訪問: https://myaccount.google.com/apppasswords');
+      console.error('   6. SMTP_USER:', process.env.SMTP_USER);
+      console.error('   7. SMTP_PASS 長度:', process.env.SMTP_PASS?.length || 0);
+    }
+    
     throw new Error(`發送郵件失敗: ${error.message || '未知錯誤'}`);
   }
 };
