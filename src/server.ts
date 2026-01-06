@@ -47,9 +47,11 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 // Trust proxy - 在 Zeabur 等雲平台上，請求會通過反向代理
 // 需要信任代理來正確識別客戶端 IP（用於 rate limiting 等）
 // 在生產環境中，Zeabur 會設置 X-Forwarded-For 等頭部
+// 注意：設置為 1 表示只信任第一個代理，避免 express-rate-limit 的安全警告
+// 設置為 true 會讓任何人都可以繞過 IP-based rate limiting
 if (process.env.NODE_ENV === 'production' || process.env.TRUST_PROXY === 'true') {
-  app.set('trust proxy', true);
-  console.log('✅ Trust proxy enabled (for production/reverse proxy environments)');
+  app.set('trust proxy', 1); // 只信任第一個代理，更安全
+  console.log('✅ Trust proxy enabled (trusting first proxy only, for production/reverse proxy environments)');
 } else if (process.env.TRUST_PROXY === 'false') {
   app.set('trust proxy', false);
   console.log('⚠️  Trust proxy disabled (explicitly set to false)');

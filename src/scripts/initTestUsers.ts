@@ -55,17 +55,6 @@ async function initTestUsers() {
     }
 
     console.log(`\n✅ 测试用户初始化完成: 创建 ${created} 个, 跳过 ${skipped} 个\n`);
-    console.log('📋 测试账号信息:');
-    console.log('   Admin (管理員):');
-    console.log('     Email: admin@teakingom.com');
-    console.log('     密码: #admintea5469!');
-    console.log('   Provider (小姐):');
-    console.log('     Email: provider@teakingom.com');
-    console.log('     密码: provider69169#');
-    console.log('   Client (客戶):');
-    console.log('     Email: client@teakingom.com');
-    console.log('     密码: client696968#');
-    console.log('');
 
   } catch (error: any) {
     console.error('❌ 初始化测试用户失败:', error);

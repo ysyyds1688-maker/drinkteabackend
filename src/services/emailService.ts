@@ -5,6 +5,13 @@ let smtpConfigLogged = false;
 
 // 創建郵件傳輸器
 const createTransporter = () => {
+  // 檢查 SMTP 是否啟用
+  const smtpEnabled = process.env.SMTP_ENABLED !== 'false'; // 默認啟用，除非明確設置為 false
+  if (!smtpEnabled) {
+    console.warn('⚠️  SMTP_ENABLED 設置為 false，郵件發送功能已禁用');
+    return null;
+  }
+  
   // 檢查 SMTP 配置
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USER;
@@ -13,6 +20,7 @@ const createTransporter = () => {
   // 只在開發環境或首次初始化時輸出詳細日誌
   if (process.env.NODE_ENV === 'development' && !smtpConfigLogged) {
     console.log('📧 SMTP 配置檢查:', {
+      SMTP_ENABLED: smtpEnabled ? 'true (已啟用)' : 'false (已禁用)',
       SMTP_HOST: smtpHost ? '已設置 (' + smtpHost + ')' : '未設置',
       SMTP_PORT: process.env.SMTP_PORT || '587 (預設)',
       SMTP_USER: smtpUser ? '已設置 (' + smtpUser + ')' : '未設置',
@@ -68,7 +76,13 @@ const createTransporter = () => {
     return null;
   }
   
-  throw new Error('SMTP 配置未設置，無法發送郵件');
+  // 生產環境：如果 SMTP_ENABLED 為 true 但配置不完整，拋出錯誤
+  if (smtpEnabled) {
+    throw new Error('SMTP 配置未設置，無法發送郵件。請設置 SMTP_HOST、SMTP_USER 和 SMTP_PASS');
+  }
+  
+  // 如果 SMTP_ENABLED 為 false，返回 null（不發送郵件）
+  return null;
 };
 
 // 發送郵件
