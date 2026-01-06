@@ -2,15 +2,15 @@ import { initDatabase } from '../db/database.js';
 import { query } from '../db/database.js';
 import { userModel } from '../models/User.js';
 
-// 為 client@test.com 設置警告標記和放鳥標記
+// 為 client@teakingom.com 設置警告標記和放鳥標記
 async function setClientWarningBadges() {
   try {
-    console.log('🔄 開始為 client@test.com 設置警告標記和放鳥標記...\n');
+    console.log('🔄 開始為 client@teakingom.com 設置警告標記和放鳥標記...\n');
 
     // 初始化資料庫
     await initDatabase();
 
-    const email = 'client@test.com';
+    const email = 'client@teakingom.com';
 
     // 查找用戶
     const user = await userModel.findByEmailOrPhone(email);
@@ -57,7 +57,7 @@ async function setClientWarningBadges() {
       console.log(`   放鳥標記: ${updatedUser.noShowBadge ? '是' : '否'}`);
     }
 
-    console.log('\n✅ 更新完成！現在 client@test.com 應該會顯示警告標記和放鳥標記。\n');
+    console.log('\n✅ 更新完成！現在 client@teakingom.com 應該會顯示警告標記和放鳥標記。\n');
 
   } catch (error: any) {
     console.error('❌ 設置標記失敗:', error);

@@ -6,13 +6,61 @@ import { achievementModel, ACHIEVEMENT_DEFINITIONS, LADY_ACHIEVEMENT_DEFINITIONS
 import { badgeModel } from '../models/Badge.js';
 import { tasksModel } from '../models/Tasks.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
+import { cacheService } from '../services/redisService.js';
+import { verificationLimiter, strictLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-// 存储邮箱验证码（生产环境应使用 Redis）
+// 驗證碼存儲（優先使用 Redis，否則使用內存 Map 作為後備）
+// 注意：Redis URL 後續再加入，目前先以內存 Map 運行
 const emailVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
-// 存储手机验证码（生产环境应使用 Redis）
 const phoneVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
+
+// 驗證碼存儲輔助函數（優先使用 Redis）
+const setVerificationCode = async (type: 'email' | 'phone', key: string, code: string, expiresInSeconds: number = 600): Promise<void> => {
+  const cacheKey = `verification:${type}:${key}`;
+  const expiresAt = Date.now() + expiresInSeconds * 1000;
+  
+  // 嘗試使用 Redis
+  const cached = await cacheService.set(cacheKey, { code, expiresAt }, expiresInSeconds);
+  if (!cached) {
+    // Redis 不可用，使用內存 Map
+    if (type === 'email') {
+      emailVerificationCodes.set(key, { code, expiresAt });
+    } else {
+      phoneVerificationCodes.set(key, { code, expiresAt });
+    }
+  }
+};
+
+const getVerificationCode = async (type: 'email' | 'phone', key: string): Promise<{ code: string; expiresAt: number } | null> => {
+  const cacheKey = `verification:${type}:${key}`;
+  
+  // 嘗試從 Redis 獲取（後續配置 Redis URL 後會自動啟用）
+  const cached = await cacheService.get<{ code: string; expiresAt: number }>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  
+  // Redis 不可用，從內存 Map 獲取（目前設置）
+  if (type === 'email') {
+    return emailVerificationCodes.get(key) || null;
+  } else {
+    return phoneVerificationCodes.get(key) || null;
+  }
+};
+
+const deleteVerificationCode = async (type: 'email' | 'phone', key: string): Promise<void> => {
+  const cacheKey = `verification:${type}:${key}`;
+  await cacheService.delete(cacheKey);
+  
+  // 同時從內存 Map 刪除（目前設置）
+  if (type === 'email') {
+    emailVerificationCodes.delete(key);
+  } else {
+    phoneVerificationCodes.delete(key);
+  }
+};
 
 // 生成6位数字验证码
 const generateVerificationCode = (): string => {
@@ -129,7 +177,7 @@ router.post('/register', async (req, res) => {
 });
 
 // 登入
-router.post('/login', async (req, res) => {
+router.post('/login', strictLimiter, async (req, res) => {
   try {
     const { email, phoneNumber, password } = req.body;
     
@@ -575,10 +623,9 @@ router.post('/send-verification-email', async (req, res) => {
     
     // 生成驗證碼
     const code = generateVerificationCode();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10分鐘後過期
     
-    // 存儲驗證碼
-    emailVerificationCodes.set(user.id, { code, expiresAt });
+    // 存儲驗證碼（優先使用 Redis）
+    await setVerificationCode('email', user.id, code, 600); // 10分鐘過期
     
     // 發送郵件
     try {
@@ -611,8 +658,8 @@ router.post('/send-verification-email', async (req, res) => {
   }
 });
 
-// 驗證郵箱
-router.post('/verify-email', async (req, res) => {
+// 驗證郵箱（添加限流）
+router.post('/verify-email', strictLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -639,14 +686,14 @@ router.post('/verify-email', async (req, res) => {
       return res.status(400).json({ error: '郵箱已驗證' });
     }
     
-    // 檢查驗證碼
-    const verificationData = emailVerificationCodes.get(user.id);
+    // 檢查驗證碼（優先使用 Redis，否則使用內存 Map）
+    const verificationData = await getVerificationCode('email', user.id);
     if (!verificationData) {
       return res.status(400).json({ error: '驗證碼不存在或已過期，請重新發送' });
     }
     
     if (Date.now() > verificationData.expiresAt) {
-      emailVerificationCodes.delete(user.id);
+      await deleteVerificationCode('email', user.id);
       return res.status(400).json({ error: '驗證碼已過期，請重新發送' });
     }
     
@@ -658,7 +705,7 @@ router.post('/verify-email', async (req, res) => {
     await userModel.updateEmailVerified(user.id, true);
     
     // 刪除已使用的驗證碼
-    emailVerificationCodes.delete(user.id);
+    await deleteVerificationCode('email', user.id);
     
     // 給用戶經驗值獎勵（+10經驗值）
     try {
@@ -690,8 +737,8 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
-// 發送手機驗證碼
-router.post('/send-verification-phone', async (req, res) => {
+// 發送手機驗證碼（添加限流）
+router.post('/send-verification-phone', verificationLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -719,10 +766,9 @@ router.post('/send-verification-phone', async (req, res) => {
     
     // 生成驗證碼
     const code = generateVerificationCode();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10分鐘後過期
     
-    // 存儲驗證碼
-    phoneVerificationCodes.set(user.id, { code, expiresAt });
+    // 存儲驗證碼（優先使用 Redis）
+    await setVerificationCode('phone', user.id, code, 600); // 10分鐘過期
     
     // TODO: 這裡應該發送真實的 SMS，目前先返回驗證碼（開發環境）
     // 生產環境應該移除這個返回，只返回成功消息
@@ -744,8 +790,8 @@ router.post('/send-verification-phone', async (req, res) => {
   }
 });
 
-// 驗證手機號碼
-router.post('/verify-phone', async (req, res) => {
+// 驗證手機號碼（添加限流）
+router.post('/verify-phone', strictLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -773,13 +819,13 @@ router.post('/verify-phone', async (req, res) => {
     }
     
     // 檢查驗證碼
-    const verificationData = phoneVerificationCodes.get(user.id);
+    const verificationData = await getVerificationCode('phone', user.id);
     if (!verificationData) {
       return res.status(400).json({ error: '驗證碼不存在或已過期，請重新發送' });
     }
     
     if (Date.now() > verificationData.expiresAt) {
-      phoneVerificationCodes.delete(user.id);
+      await deleteVerificationCode('phone', user.id);
       return res.status(400).json({ error: '驗證碼已過期，請重新發送' });
     }
     
@@ -791,7 +837,7 @@ router.post('/verify-phone', async (req, res) => {
     await userModel.updatePhoneVerified(user.id, true);
     
     // 刪除已使用的驗證碼
-    phoneVerificationCodes.delete(user.id);
+    await deleteVerificationCode('phone', user.id);
     
     // 給用戶經驗值獎勵（+10經驗值）
     try {

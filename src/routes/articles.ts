@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { articleModel } from '../models/Article.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Article } from '../types.js';
+import { articlesCache, articleDetailCache } from '../middleware/cacheMiddleware.js';
+import { queryLimiter } from '../middleware/queryLimiter.js';
 
 const router = Router();
 
-// GET /api/articles - Get all articles (支持分頁)
-router.get('/', async (req, res) => {
+// GET /api/articles - Get all articles (支持分頁，帶緩存和查詢限制)
+router.get('/', queryLimiter, articlesCache, async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
@@ -26,8 +28,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/articles/:id - Get article by ID
-router.get('/:id', async (req, res) => {
+// GET /api/articles/:id - Get article by ID (帶緩存)
+router.get('/:id', articleDetailCache, async (req, res) => {
   try {
     const article = await articleModel.getById(req.params.id);
     if (!article) {

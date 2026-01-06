@@ -2,12 +2,12 @@ import { userModel } from '../models/User.js';
 
 async function setClientVerification() {
   try {
-    console.log('🔍 正在查找 client@test.com...\n');
+    console.log('🔍 正在查找 client@teakingom.com...\n');
     
-    const user = await userModel.findByEmailOrPhone('client@test.com');
+    const user = await userModel.findByEmailOrPhone('client@teakingom.com');
     
     if (!user) {
-      console.error('❌ 找不到用戶 client@test.com');
+      console.error('❌ 找不到用戶 client@teakingom.com');
       return;
     }
     
@@ -23,10 +23,10 @@ async function setClientVerification() {
     const { query } = await import('../db/database.js');
     
     if (!user.email) {
-      console.log('📧 設置 Email: client@test.com');
+      console.log('📧 設置 Email: client@teakingom.com');
       await query(
         'UPDATE users SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        ['client@test.com', user.id]
+        ['client@teakingom.com', user.id]
       );
     }
     

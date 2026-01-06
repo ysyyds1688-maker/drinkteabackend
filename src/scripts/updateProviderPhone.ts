@@ -10,15 +10,15 @@ function generateRandomPhoneNumber(): string {
   return prefix + randomDigits.substring(0, 8);
 }
 
-// 更新 provider@test.com 的手機號為隨機亂數
+// 更新 provider@teakingom.com 的手機號為隨機亂數
 async function updateProviderPhone() {
   try {
-    console.log('🔄 開始更新 provider@test.com 的手機號...\n');
+    console.log('🔄 開始更新 provider@teakingom.com 的手機號...\n');
 
     // 初始化資料庫
     await initDatabase();
 
-    const email = 'provider@test.com';
+    const email = 'provider@teakingom.com';
 
     // 查找用戶
     const user = await userModel.findByEmailOrPhone(email);

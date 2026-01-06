@@ -12,7 +12,7 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 
 async function addPointsToUser() {
   try {
-    const email = process.argv[2] || 'provider@test.com';
+    const email = process.argv[2] || 'provider@teakingom.com';
     const points = parseInt(process.argv[3] || '5000', 10);
 
     console.log(`正在為 ${email} 補充 ${points} 積分...`);

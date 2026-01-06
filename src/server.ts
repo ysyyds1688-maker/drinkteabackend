@@ -29,6 +29,9 @@ import achievementsRouter from './routes/achievements.js';
 import notificationsRouter from './routes/notifications.js';
 import reportsRouter from './routes/reports.js';
 import { schedulerService } from './services/schedulerService.js';
+import { initRedis, closeRedis } from './services/redisService.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
+import { queryLimiter } from './middleware/queryLimiter.js';
 
 // Load environment variables - 明確指定 .env 文件路徑
 // 使用 process.cwd() 獲取當前工作目錄（backend 目錄）
@@ -54,6 +57,19 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// 應用全局 API 限流（保護所有 API 端點）
+// 排除登入和註冊路由，它們使用更嚴格的 strictLimiter
+app.use('/api/', (req, res, next) => {
+  // 排除登入和註冊路由
+  if (req.path === '/auth/login' || req.path === '/auth/register') {
+    return next();
+  }
+  return apiLimiter(req, res, next);
+});
+
+// 應用全局查詢限制（限制查詢參數，防止過大查詢）
+app.use('/api/', queryLimiter);
 
 // 啟用 gzip 壓縮（優化 API 響應大小）
 app.use(compression({
@@ -277,6 +293,10 @@ initDatabase()
       console.warn('创建自动取消预约任务时出现警告:', error.message);
     }
     
+    // 初始化 Redis（如果配置了）
+    // 注意：Redis URL 後續再加入，目前先以內存緩存運行
+    await initRedis();
+    
     // 启动定时任务
     schedulerService.startAllTasks();
     
@@ -296,14 +316,16 @@ initDatabase()
   });
 
 // 优雅关闭
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
   schedulerService.stopAllTasks();
+  await closeRedis();
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
   schedulerService.stopAllTasks();
+  await closeRedis();
   process.exit(0);
 });

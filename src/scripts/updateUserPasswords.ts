@@ -14,17 +14,17 @@ async function updateUserPasswords() {
     // 測試用戶數據（新密碼）
     const testUsers = [
       {
-        email: 'admin@test.com',
+        email: 'admin@teakingom.com',
         password: '#admintea5469!',
         role: 'admin' as const,
       },
       {
-        email: 'provider@test.com',
+        email: 'provider@teakingom.com',
         password: 'provider69169#',
         role: 'provider' as const,
       },
       {
-        email: 'client@test.com',
+        email: 'client@teakingom.com',
         password: 'client696968#',
         role: 'client' as const,
       },
@@ -65,13 +65,13 @@ async function updateUserPasswords() {
     console.log(`\n✅ 測試用戶密碼更新完成: 更新 ${updated} 個, 創建 ${created} 個\n`);
     console.log('📋 測試帳號信息:');
     console.log('   Admin (管理員):');
-    console.log('     Email: admin@test.com');
+    console.log('     Email: admin@teakingom.com');
     console.log('     密碼: #admintea5469!');
     console.log('   Provider (後宮佳麗):');
-    console.log('     Email: provider@test.com');
+    console.log('     Email: provider@teakingom.com');
     console.log('     密碼: provider69169#');
     console.log('   Client (品茶客):');
-    console.log('     Email: client@test.com');
+    console.log('     Email: client@teakingom.com');
     console.log('     密碼: client696968#');
     console.log('');
 

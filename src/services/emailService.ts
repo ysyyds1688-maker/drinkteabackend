@@ -4,13 +4,16 @@ import nodemailer from 'nodemailer';
 const createTransporter = () => {
   // 如果配置了 SMTP，使用 SMTP
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // 清理 SMTP_PASS（移除空格，Gmail 應用程式密碼可能有空格）
+    const smtpPass = process.env.SMTP_PASS.replace(/\s+/g, '');
+    
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587', 10),
       secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        pass: smtpPass, // 使用清理後的密碼
       },
       // 開發環境可能不需要 TLS
       tls: {
@@ -59,6 +62,13 @@ export const sendEmail = async (
     console.log(`✅ 郵件已發送到 ${to}，Message ID: ${info.messageId}`);
   } catch (error: any) {
     console.error('❌ 發送郵件失敗:', error);
+    console.error('錯誤詳情:', {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+    });
     throw new Error(`發送郵件失敗: ${error.message || '未知錯誤'}`);
   }
 };
@@ -132,4 +142,3 @@ export const sendVerificationEmail = async (email: string, code: string): Promis
     text
   );
 };
-

@@ -2,15 +2,15 @@ import { initDatabase } from '../db/database.js';
 import { query } from '../db/database.js';
 import { userModel } from '../models/User.js';
 
-// 移除 client@test.com 的標記
+// 移除 client@teakingom.com 的標記
 async function removeClientBadges() {
   try {
-    console.log('🔄 開始移除 client@test.com 的標記...\n');
+    console.log('🔄 開始移除 client@teakingom.com 的標記...\n');
 
     // 初始化資料庫
     await initDatabase();
 
-    const email = 'client@test.com';
+    const email = 'client@teakingom.com';
 
     // 查找用戶
     const user = await userModel.findByEmailOrPhone(email);
@@ -62,7 +62,7 @@ async function removeClientBadges() {
       console.log(`   失約茶客標記: ${updatedUser.noShowBadge ? '是' : '否'}`);
     }
 
-    console.log('\n✅ 標記移除完成！現在 client@test.com 應該不會顯示任何標記了。\n');
+    console.log('\n✅ 標記移除完成！現在 client@teakingom.com 應該不會顯示任何標記了。\n');
 
   } catch (error: any) {
     console.error('❌ 移除標記失敗:', error);

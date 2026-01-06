@@ -5,11 +5,13 @@ import { tasksModel } from '../models/Tasks.js';
 import { achievementModel } from '../models/Achievement.js';
 import { verifyToken } from '../services/authService.js';
 import { query } from '../db/database.js';
+import { forumPostsCache } from '../middleware/cacheMiddleware.js';
+import { queryLimiter } from '../middleware/queryLimiter.js';
 
 const router = Router();
 
 // 版規內容定義（與前端保持一致）
-const getRulesContent = (category: string): { title: string; content: string; images: string[] } | null => {
+export const getRulesContent = (category: string): { title: string; content: string; images: string[] } | null => {
   const rulesMap: Record<string, { title: string; rules: string[]; image: string }> = {
     '': {
       title: '御茶室通用版規',
@@ -45,12 +47,12 @@ const getRulesContent = (category: string): { title: string; content: string; im
       title: '嚴選好茶版規',
       rules: [
         '本版專門討論嚴選好茶相關話題，歡迎分享經驗和心得',
-        '發帖時建議關聯相關的茶茶 Profile，方便其他用戶參考',
+        '發帖時建議關聯相關的御選佳麗 profile，方便其他用戶參考',
         '分享經驗時請保持真實客觀，避免過度誇大或惡意貶低',
         '禁止在討論中直接發布聯絡方式、拉客或進行私下交易',
         '討論價格時請尊重市場行情，避免惡意壓價或哄抬',
         '鼓勵分享真實的預約和服務經驗，幫助其他茶友做選擇',
-        '禁止發布茶茶的個人隱私資訊（如真實姓名、住址、身份證等）',
+        '禁止發布御選佳麗的個人隱私資訊（如真實姓名、住址、身份證等）',
         '禁止發布未經同意的照片或影片',
         '如有糾紛，請透過平台客服處理，勿在版上公開爭執或人身攻擊'
       ],
@@ -60,12 +62,12 @@ const getRulesContent = (category: string): { title: string; content: string; im
       title: '特選魚市版規',
       rules: [
         '本版專門討論特選魚市相關話題，歡迎分享經驗和心得',
-        '發帖時建議關聯相關的茶茶 Profile，方便其他用戶參考',
+        '發帖時建議關聯相關的佳麗 profile，方便其他用戶參考',
         '分享經驗時請保持真實，避免虛假宣傳或惡意中傷',
         '討論時請尊重所有參與者，避免歧視性言論或人身攻擊',
         '禁止在討論中直接發布聯絡方式、拉客或進行私下交易',
         '鼓勵分享真實的預約和服務經驗，幫助其他用戶做選擇',
-        '禁止發布茶茶的個人隱私資訊（如真實姓名、住址等）',
+        '禁止發布佳麗的個人隱私資訊（如真實姓名、住址等）',
         '禁止發布未經同意的照片或影片',
         '如有問題或糾紛，請透過平台客服處理，勿在版上公開爭執'
       ],
@@ -75,6 +77,7 @@ const getRulesContent = (category: string): { title: string; content: string; im
       title: '預約交流版規',
       rules: [
         '本版專門討論預約流程、注意事項和經驗分享',
+        '本版適用於嚴選好茶和特選魚市的預約交流',
         '發帖時可關聯相關的預約記錄（系統會自動驗證真實性）',
         '分享預約經驗時請保持真實，幫助其他用戶了解流程',
         '禁止發布虛假的預約經驗或誤導性資訊',
@@ -82,7 +85,7 @@ const getRulesContent = (category: string): { title: string; content: string; im
         '禁止在版上進行預約交易、拉客或私下聯絡',
         '如有預約問題，請先查看平台說明或聯繫客服',
         '鼓勵分享預約技巧、注意事項和避坑經驗',
-        '禁止發布茶茶或客戶的個人隱私資訊',
+        '禁止發布佳麗或客戶的個人隱私資訊',
         '預約相關糾紛請透過平台客服處理，勿在版上公開爭執或人身攻擊'
       ],
       image: '/images/tea_king_jp_uumox9yah.jpg'
@@ -137,14 +140,14 @@ const getRulesContent = (category: string): { title: string; content: string; im
       rules: [
         '本版專為佳麗提供宣傳平台，僅限佳麗角色發帖',
         '歡迎發布個人宣傳、服務介紹、優惠活動等內容',
-        '可以發布聯絡方式（Line、電話、Telegram 等）',
+        '禁止直接發布聯絡方式（Line、電話、Telegram 等），實際預約需透過特選魚市進行，可在此說明預約流程（為保護佳麗安全）',
         '可以發布個人照片、服務照片（需確保已成年且為本人）',
-        '可以發布價格資訊、服務項目、營業時間等',
+        '禁止直接發布價格資訊、服務項目、營業時間等，實際預約需透過特選魚市進行，可在此說明預約流程（為保護佳麗安全）',
         '鼓勵詳細介紹個人特色、服務內容和優勢',
-        '禁止發布涉及未成年人的內容',
-        '禁止發布虛假資訊、詐騙訊息或誤導性內容',
-        '禁止惡意攻擊其他佳麗或客戶',
-        '禁止發布違法內容或涉及非法交易',
+        '禁止發布涉及未成年人的內容（為保護佳麗安全）',
+        '禁止發布虛假資訊、詐騙訊息或誤導性內容（為保護佳麗安全）',
+        '禁止惡意攻擊其他佳麗或客戶（為保護佳麗安全）',
+        '禁止發布違法內容或涉及非法交易（為保護佳麗安全）',
         '建議定期更新帖子，保持內容新鮮度',
         '客戶可在帖子下回覆詢問，請友善回應'
       ],
@@ -177,8 +180,8 @@ const getRulesContent = (category: string): { title: string; content: string; im
   };
 };
 
-// 獲取帖子列表
-router.get('/posts', async (req, res) => {
+// 獲取帖子列表（帶緩存和查詢限制）
+router.get('/posts', queryLimiter, forumPostsCache, async (req, res) => {
   try {
     const { category, sortBy = 'latest', limit, offset } = req.query;
     
@@ -247,12 +250,13 @@ router.get('/posts/:id', async (req, res) => {
       }
       
       const existingPost = await query('SELECT id FROM forum_posts WHERE id = $1', [id]);
-      if (existingPost.rows.length === 0) {
-        const rulesContent = getRulesContent(category);
-        if (rulesContent) {
-          const adminUsers = await query('SELECT id FROM users WHERE role = $1 LIMIT 1', ['admin']);
-          const systemUserId = adminUsers.rows.length > 0 ? adminUsers.rows[0].id : 'system';
-          
+      const rulesContent = getRulesContent(category);
+      if (rulesContent) {
+        const adminUsers = await query('SELECT id FROM users WHERE role = $1 LIMIT 1', ['admin']);
+        const systemUserId = adminUsers.rows.length > 0 ? adminUsers.rows[0].id : 'system';
+        
+        if (existingPost.rows.length === 0) {
+          // 創建新帖子
           await query(`
             INSERT INTO forum_posts (id, user_id, title, content, category, images, is_pinned, is_locked)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -265,6 +269,20 @@ router.get('/posts/:id', async (req, res) => {
             JSON.stringify(rulesContent.images),
             true,
             false,
+          ]);
+        } else {
+          // 更新現有帖子（確保使用最新版規）
+          await query(`
+            UPDATE forum_posts 
+            SET 
+              title = $1,
+              content = $2,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = $3
+          `, [
+            `【版規】${rulesContent.title}`,
+            rulesContent.content,
+            id
           ]);
         }
       }
@@ -319,12 +337,12 @@ router.post('/posts', async (req, res) => {
       return res.status(400).json({ error: '標題、內容和分類為必填項' });
     }
     
-    // 檢查後宮佳麗宣傳區的發帖權限
+    // 檢查佳麗御選名鑑的發帖權限
     if (category === 'lady_promotion') {
       const { userModel } = await import('../models/User.js');
       const user = await userModel.findById(payload.userId);
       if (!user || user.role !== 'provider') {
-        return res.status(403).json({ error: '此版區僅限後宮佳麗（Provider）發帖宣傳' });
+        return res.status(403).json({ error: '此版區僅限佳麗發帖宣傳' });
       }
     }
     

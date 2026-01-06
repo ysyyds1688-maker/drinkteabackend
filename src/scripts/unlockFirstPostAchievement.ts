@@ -96,7 +96,7 @@ async function unlockFirstPostAchievement(email: string) {
 
 // 如果直接運行此腳本
 if (import.meta.url.endsWith(process.argv[1]) || process.argv[1]?.includes('unlockFirstPostAchievement')) {
-  const email = process.argv[2] || 'client@test.com';
+  const email = process.argv[2] || 'client@teakingom.com';
 
   unlockFirstPostAchievement(email)
     .then(() => {

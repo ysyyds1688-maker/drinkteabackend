@@ -12,18 +12,18 @@ async function initTestUsers() {
     // 测试用户数据
     const testUsers = [
       {
-        email: 'admin@test.com',
-        password: 'admin123',
+        email: 'admin@teakingom.com',
+        password: '#admintea5469!',
         role: 'admin' as const,
       },
       {
-        email: 'provider@test.com',
-        password: 'provider123',
+        email: 'provider@teakingom.com',
+        password: 'provider69169#',
         role: 'provider' as const,
       },
       {
-        email: 'client@test.com',
-        password: 'client123',
+        email: 'client@teakingom.com',
+        password: 'client696968#',
         role: 'client' as const,
       },
     ];
@@ -57,14 +57,14 @@ async function initTestUsers() {
     console.log(`\n✅ 测试用户初始化完成: 创建 ${created} 个, 跳过 ${skipped} 个\n`);
     console.log('📋 测试账号信息:');
     console.log('   Admin (管理員):');
-    console.log('     Email: admin@test.com');
-    console.log('     密码: admin123');
+    console.log('     Email: admin@teakingom.com');
+    console.log('     密码: #admintea5469!');
     console.log('   Provider (小姐):');
-    console.log('     Email: provider@test.com');
-    console.log('     密码: provider123');
+    console.log('     Email: provider@teakingom.com');
+    console.log('     密码: provider69169#');
     console.log('   Client (客戶):');
-    console.log('     Email: client@test.com');
-    console.log('     密码: client123');
+    console.log('     Email: client@teakingom.com');
+    console.log('     密码: client696968#');
     console.log('');
 
   } catch (error: any) {

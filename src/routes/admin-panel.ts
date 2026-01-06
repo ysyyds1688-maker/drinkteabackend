@@ -513,7 +513,7 @@ router.get('/', (req, res) => {
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="login-form-group">
                     <label>Email</label>
-                    <input type="email" id="loginEmail" placeholder="admin@test.com" required />
+                    <input type="email" id="loginEmail" placeholder="admin@teakingom.com" required />
                 </div>
                 <div class="login-form-group">
                     <label>密碼</label>
@@ -521,10 +521,6 @@ router.get('/', (req, res) => {
                 </div>
                 <button type="submit" class="login-btn">登入</button>
             </form>
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0; font-size: 0.75rem; color: #666; text-align: center;">
-                <p style="margin-bottom: 0.5rem;"><strong>測試帳號：</strong></p>
-                <p>Admin: admin@test.com / admin123</p>
-            </div>
         </div>
     </div>
 

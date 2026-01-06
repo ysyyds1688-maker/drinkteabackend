@@ -20,7 +20,7 @@ async function setupAdminAccount() {
     console.log('🚀 開始設置管理員帳號...');
     await initDatabase();
 
-    const email = 'admin@test.com';
+    const email = 'admin@teakingom.com';
 
     // 查找管理員用戶
     const user = await userModel.findByEmailOrPhone(email);

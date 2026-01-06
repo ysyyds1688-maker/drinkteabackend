@@ -10,9 +10,9 @@ if (!process.env.DATABASE_URL && !process.env.PGHOST) {
 // 從環境變數獲取資料庫連接資訊
 const getDatabaseConfig = () => {
   const baseConfig: any = {
-    // 連接池配置 - 優化以支持高並發
-    max: parseInt(process.env.DB_POOL_MAX || '100', 10), // 最大連接數：支持1000+並發用戶
-    min: parseInt(process.env.DB_POOL_MIN || '10', 10), // 最小連接數：保持基本連接
+    // 連接池配置 - 優化以支持高並發（1000+ 用戶）
+    max: parseInt(process.env.DB_POOL_MAX || '300', 10), // 最大連接數：支持1000+並發用戶（從100提升到300）
+    min: parseInt(process.env.DB_POOL_MIN || '20', 10), // 最小連接數：保持基本連接（從10提升到20）
     idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '30000', 10), // 空閒連接超時：30秒
     connectionTimeoutMillis: parseInt(process.env.DB_POOL_CONNECTION_TIMEOUT || '10000', 10), // 連接超時：10秒
     // 允許連接池在需要時創建新連接

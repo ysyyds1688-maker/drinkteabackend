@@ -5,11 +5,13 @@ import { Profile } from '../types.js';
 import { verifyToken } from '../services/authService.js';
 import { tasksModel } from '../models/Tasks.js';
 import { userStatsModel } from '../models/UserStats.js';
+import { profilesCache, profileDetailCache } from '../middleware/cacheMiddleware.js';
+import { queryLimiter } from '../middleware/queryLimiter.js';
 
 const router = Router();
 
-// GET /api/profiles - Get all profiles (支持分頁)
-router.get('/', async (req, res) => {
+// GET /api/profiles - Get all profiles (支持分頁，帶緩存和查詢限制)
+router.get('/', queryLimiter, profilesCache, async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
@@ -34,8 +36,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/profiles/:id - Get profile by ID
-router.get('/:id', async (req, res) => {
+// GET /api/profiles/:id - Get profile by ID (帶緩存)
+router.get('/:id', profileDetailCache, async (req, res) => {
   try {
     // 增加瀏覽次數（只有非本人瀏覽時才增加）
     const authHeader = req.headers.authorization;
