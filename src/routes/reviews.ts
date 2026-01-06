@@ -66,9 +66,12 @@ router.get('/users/:userId/reviews', async (req, res) => {
     // 獲取評論
     const reviews = await reviewModel.getByUserId(userId, user.role as 'provider' | 'client', currentUserId);
     
-    // 計算平均評分（僅對provider有效）
+    // 計算平均評分
     let averageRating = 0;
+    let reviewCount = reviews.length;
+    
     if (user.role === 'provider') {
+      // Provider: 計算所有profile的平均評分
       const { profileModel } = await import('../models/Profile.js');
       const profilesResult = await profileModel.getAll(userId);
       if (profilesResult.profiles.length > 0) {
@@ -87,11 +90,19 @@ router.get('/users/:userId/reviews', async (req, res) => {
           averageRating = totalRating / count;
         }
       }
+    } else if (user.role === 'client') {
+      // Client: 計算該茶客收到的評論的平均評分（reviewType = 'client' 且 targetUserId = userId）
+      const clientReviews = reviews.filter(r => r.reviewType === 'client' && r.targetUserId === userId);
+      reviewCount = clientReviews.length; // 只計算茶客收到的評論數量
+      if (clientReviews.length > 0) {
+        const totalRating = clientReviews.reduce((sum, review) => sum + review.rating, 0);
+        averageRating = totalRating / clientReviews.length;
+      }
     }
     
     res.json({
       reviews,
-      total: reviews.length,
+      total: reviewCount,
       averageRating: Math.round(averageRating * 10) / 10,
     });
   } catch (error: any) {

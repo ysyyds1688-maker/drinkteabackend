@@ -1173,6 +1173,64 @@ export const initDatabase = async () => {
       )
     `);
 
+    // Messages table（訊息表）
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id VARCHAR(255) PRIMARY KEY,
+        sender_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        recipient_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        parent_message_id VARCHAR(255) REFERENCES messages(id) ON DELETE CASCADE,
+        thread_id VARCHAR(255),
+        message TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 添加 parent_message_id 和 thread_id 欄位（如果表已存在）
+    try {
+      await pool.query(`
+        ALTER TABLE messages 
+        ADD COLUMN IF NOT EXISTS parent_message_id VARCHAR(255) REFERENCES messages(id) ON DELETE CASCADE
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 parent_message_id 欄位時出現警告:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE messages 
+        ADD COLUMN IF NOT EXISTS thread_id VARCHAR(255)
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 thread_id 欄位時出現警告:', error.message);
+      }
+    }
+
+    // Create indexes for messages
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_profile_id ON messages(profile_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_parent_message_id ON messages(parent_message_id)
+    `);
+
     // Create indexes for notifications
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id)

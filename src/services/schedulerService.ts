@@ -9,6 +9,9 @@ export const schedulerService = {
   // 启动所有活跃的定时任务
   async startAllTasks() {
     try {
+      // 確保預約自動取消任務存在
+      await this.ensureBookingAutoCancelTask();
+      
       const result = await query(
         'SELECT * FROM scheduled_tasks WHERE is_active = 1'
       );
@@ -19,6 +22,36 @@ export const schedulerService = {
       console.log(`✅ Started ${result.rows.length} scheduled tasks`);
     } catch (error: any) {
       console.error('Failed to start scheduled tasks:', error);
+    }
+  },
+  
+  // 確保預約自動取消任務存在
+  async ensureBookingAutoCancelTask() {
+    try {
+      const result = await query(
+        `SELECT * FROM scheduled_tasks WHERE task_type = 'booking_auto_cancel'`
+      );
+      
+      if (result.rows.length === 0) {
+        // 創建預約自動取消任務（每小時執行一次）
+        const { v4: uuidv4 } = await import('uuid');
+        const taskId = uuidv4();
+        await query(
+          `INSERT INTO scheduled_tasks (id, name, task_type, cron_expression, config, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            taskId,
+            '自動取消24小時內未確認的預約',
+            'booking_auto_cancel',
+            '0 * * * *', // 每小時執行一次
+            JSON.stringify({}),
+            1
+          ]
+        );
+        console.log('✅ 已創建預約自動取消定時任務');
+      }
+    } catch (error: any) {
+      console.error('確保預約自動取消任務失敗:', error);
     }
   },
 
@@ -133,22 +166,96 @@ export const schedulerService = {
           console.log(`Executing cleanup task: ${task.name}`);
           break;
 
-        case 'booking_auto_cancel':
+        case 'booking_auto_cancel': {
           // 自动取消24小时内未确认的预约
           const { bookingModel } = await import('../models/Booking.js');
+          const { profileModel } = await import('../models/Profile.js');
+          const { userModel } = await import('../models/User.js');
+          const { notificationModel } = await import('../models/Notification.js');
+          const { v4: uuidv4 } = await import('uuid');
+          
           const expiredBookings = await bookingModel.getPendingExpired();
           
           for (const booking of expiredBookings) {
-            await bookingModel.updateStatus(booking.id, 'cancelled', 'system', 'admin');
-            console.log(`自动取消预约: ${booking.id} (创建于 ${booking.createdAt})`);
+            try {
+              // 更新預約狀態為取消
+              await bookingModel.updateStatus(booking.id, 'cancelled', 'system', 'admin');
+              
+              // 獲取預約相關資訊
+              const profile = await profileModel.getById(booking.profileId);
+              const client = await userModel.findById(booking.clientId);
+              const provider = booking.providerId ? await userModel.findById(booking.providerId) : null;
+              
+              const threadId = booking.id;
+              
+              // 發送取消訊息給茶客
+              if (client) {
+                const clientMessageId = uuidv4();
+                const clientMessage = `⏰ 預約自動取消\n\n很抱歉，由於佳麗在24小時內未確認您的預約請求，該預約已自動取消。\n\n預約詳情：\n• 佳麗：${profile?.name || '未知'}\n• 預約日期：${booking.bookingDate}\n• 預約時間：${booking.bookingTime}${booking.location ? `\n• 地點：${booking.location}` : ''}\n\n您可以重新發送預約請求。`;
+                
+                await query(
+                  `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                  [clientMessageId, 'system', booking.clientId, booking.profileId, threadId, clientMessage, new Date(), false]
+                );
+                
+                // 發送通知給茶客
+                await notificationModel.create({
+                  userId: booking.clientId,
+                  type: 'booking',
+                  title: '預約自動取消',
+                  content: `您的預約請求因24小時內未獲確認已自動取消。\n\n請前往訊息收件箱查看詳情。`,
+                  link: `/user-profile?tab=messages`,
+                  metadata: {
+                    bookingId: booking.id,
+                    profileId: booking.profileId,
+                    messageId: clientMessageId,
+                    threadId: threadId,
+                  },
+                });
+              }
+              
+              // 發送取消訊息給佳麗（如果有）
+              if (provider && booking.providerId) {
+                const providerMessageId = uuidv4();
+                const providerMessage = `⏰ 預約自動取消\n\n由於您在24小時內未確認此預約請求，該預約已自動取消。\n\n預約詳情：\n• 茶客：${client?.userName || client?.email || '未知'}\n• 預約日期：${booking.bookingDate}\n• 預約時間：${booking.bookingTime}${booking.location ? `\n• 地點：${booking.location}` : ''}\n\n請及時處理預約請求，避免自動取消。`;
+                
+                await query(
+                  `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                  [providerMessageId, 'system', booking.providerId, booking.profileId, threadId, providerMessage, new Date(), false]
+                );
+                
+                // 發送通知給佳麗
+                await notificationModel.create({
+                  userId: booking.providerId,
+                  type: 'booking',
+                  title: '預約自動取消',
+                  content: `一則預約請求因24小時內未獲確認已自動取消。\n\n請前往訊息收件箱查看詳情。`,
+                  link: `/user-profile?tab=messages`,
+                  metadata: {
+                    bookingId: booking.id,
+                    profileId: booking.profileId,
+                    messageId: providerMessageId,
+                    threadId: threadId,
+                  },
+                });
+              }
+              
+              console.log(`自动取消预约: ${booking.id} (创建于 ${booking.createdAt})`);
+            } catch (error: any) {
+              console.error(`取消預約 ${booking.id} 時發生錯誤:`, error);
+              // 繼續處理下一個預約
+            }
           }
           
           if (expiredBookings.length > 0) {
             console.log(`✅ 自动取消了 ${expiredBookings.length} 个过期预约`);
           }
           break;
+        }
 
-        case 'auto_unfreeze_restrictions':
+        case 'auto_unfreeze_restrictions': {
           // 自動解凍預約限制
           const { bookingRestrictionModel } = await import('../models/BookingRestriction.js');
           const { notificationModel } = await import('../models/Notification.js');
@@ -216,6 +323,7 @@ export const schedulerService = {
             }
           }
           break;
+        }
       }
     } catch (error: any) {
       await query(

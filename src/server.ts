@@ -28,6 +28,7 @@ import badgesRouter from './routes/badges.js';
 import achievementsRouter from './routes/achievements.js';
 import notificationsRouter from './routes/notifications.js';
 import reportsRouter from './routes/reports.js';
+import messagesRouter from './routes/messages.js';
 import { schedulerService } from './services/schedulerService.js';
 import { initRedis, closeRedis } from './services/redisService.js';
 import { authLimiter, readLimiter, writeLimiter, writeLimiterIP } from './middleware/rateLimiter.js';
@@ -263,6 +264,7 @@ app.use('/api/badges', badgesRouter);
 app.use('/api/achievements', achievementsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/messages', messagesRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);
