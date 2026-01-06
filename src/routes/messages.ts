@@ -119,7 +119,7 @@ router.post('/send', async (req: any, res) => {
     let profile = null;
     try {
       const { profileModel } = await import('../models/Profile.js');
-      profile = await profileModel.findById(profileId);
+      profile = await profileModel.getById(profileId);
     } catch (error) {
       console.error('獲取 Profile 資訊失敗:', error);
       // 不阻止訊息發送，只記錄錯誤

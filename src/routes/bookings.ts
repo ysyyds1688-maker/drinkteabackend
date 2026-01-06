@@ -407,6 +407,12 @@ router.put('/:id/status', async (req, res) => {
         // 佳麗更新狀態，通知茶客
         const client = await userModel.findById(booking.clientId);
         const profile = await profileModel.getById(booking.profileId);
+        
+        if (!profile) {
+          console.error(`❌ Profile ${booking.profileId} 不存在，無法發送確認訊息`);
+          return res.status(404).json({ error: 'Profile 不存在' });
+        }
+        
         const clientName = client?.userName || client?.email || client?.phoneNumber || '茶客';
         const providerName = user.userName || user.email || user.phoneNumber || '佳麗';
         const providerId = booking.providerId; // 確保 providerId 可用
