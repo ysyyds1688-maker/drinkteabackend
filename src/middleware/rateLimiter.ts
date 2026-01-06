@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request, Response } from 'express';
 
 // Rate Limit 日誌記錄函數
@@ -93,16 +93,17 @@ export const writeLimiter = rateLimit({
   keyGenerator: (req: Request) => {
     // 優先使用用戶 ID（如果有認證）
     const authHeader = req.headers.authorization;
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         // TODO: 解析 JWT token 獲取用戶 ID
         // 暫時使用 IP，實際應該從 token 中提取 userId
-        return `user:${req.ip || req.socket.remoteAddress || 'unknown'}`;
+        return `user:${ipKeyGenerator(ip)}`;
       } catch {
-        return `ip:${req.ip || req.socket.remoteAddress || 'unknown'}`;
+        return `ip:${ipKeyGenerator(ip)}`;
       }
     }
-    return `ip:${req.ip || req.socket.remoteAddress || 'unknown'}`;
+    return `ip:${ipKeyGenerator(ip)}`;
   },
   message: {
     error: '請求過於頻繁，請稍後再試',
@@ -226,16 +227,17 @@ export const createUserBasedLimiter = (windowMs: number, max: number) => {
     keyGenerator: (req: Request) => {
       // 如果有認證用戶，使用用戶 ID；否則使用 IP
       const authHeader = req.headers.authorization;
+      const ip = req.ip || req.socket.remoteAddress || 'unknown';
       if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
           // 這裡可以解析 JWT token 獲取用戶 ID
           // 暫時使用 IP，實際應該從 token 中提取
-          return req.ip || req.socket.remoteAddress || 'unknown';
+          return ipKeyGenerator(ip);
         } catch {
-          return req.ip || req.socket.remoteAddress || 'unknown';
+          return ipKeyGenerator(ip);
         }
       }
-      return req.ip || req.socket.remoteAddress || 'unknown';
+      return ipKeyGenerator(ip);
     },
     message: {
       error: '請求過於頻繁，請稍後再試'
