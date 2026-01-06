@@ -30,7 +30,7 @@ import notificationsRouter from './routes/notifications.js';
 import reportsRouter from './routes/reports.js';
 import { schedulerService } from './services/schedulerService.js';
 import { initRedis, closeRedis } from './services/redisService.js';
-import { apiLimiter } from './middleware/rateLimiter.js';
+import { authLimiter, readLimiter, writeLimiter, writeLimiterIP } from './middleware/rateLimiter.js';
 import { queryLimiter } from './middleware/queryLimiter.js';
 
 // Load environment variables - 明確指定 .env 文件路徑
@@ -63,6 +63,7 @@ if (process.env.NODE_ENV === 'production' || process.env.TRUST_PROXY === 'true')
 
 // Middleware
 // CORS 設定：全面開放，確保前端和後台管理系統都能正常運作
+// 優先處理 CORS，確保 OPTIONS 預檢請求能正確通過
 const corsOptions = {
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -73,16 +74,48 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+// 優先處理所有 OPTIONS 請求（CORS 預檢）
+app.options('*', cors(corsOptions));
+
+// 應用 CORS 中間件
 app.use(cors(corsOptions));
 
-// 應用全局 API 限流（保護所有 API 端點）
-// 排除登入和註冊路由，它們使用更嚴格的 strictLimiter
-app.use('/api/', (req, res, next) => {
-  // 排除登入和註冊路由
-  if (req.path === '/auth/login' || req.path === '/auth/register') {
+// ==================== Rate Limit 架構（分層設計）====================
+// 重要：不再使用全局 apiLimiter，改為路由層級掛載
+// 這樣可以避免一個 API 被打爆就拖全站下水
+// 
+// 架構：
+// - Auth Limiter：5 requests / 1 minute（/auth/login, /auth/register 等）
+// - Read Limiter：60 requests / 1 minute（所有 GET 請求）
+// - Write Limiter：60 requests / 1 minute / userId + 30 requests / 1 minute / IP（所有 POST/PUT/DELETE）
+
+// 跳過 OPTIONS 請求（CORS 預檢）的輔助函數
+const skipOptions = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+  if (req.method === 'OPTIONS') {
     return next();
   }
-  return apiLimiter(req, res, next);
+  next();
+};
+
+// 為所有 GET 請求應用 Read Limiter（排除 auth 路由，它有自己的 limiter）
+app.use('/api/', skipOptions, (req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/auth')) {
+    return readLimiter(req, res, next);
+  }
+  next();
+});
+
+// 為所有 POST/PUT/DELETE 請求應用 Write Limiter（排除 auth 路由）
+app.use('/api/', skipOptions, (req, res, next) => {
+  if ((req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') && !req.path.startsWith('/auth')) {
+    // 先應用 IP 限制
+    return writeLimiterIP(req, res, (err) => {
+      if (err) return next(err);
+      // 再應用用戶限制
+      return writeLimiter(req, res, next);
+    });
+  }
+  next();
 });
 
 // 應用全局查詢限制（限制查詢參數，防止過大查詢）
@@ -101,17 +134,12 @@ app.use(compression({
   threshold: 1024, // 只壓縮大於 1KB 的響應
 }));
 
-// 明確處理 OPTIONS 請求（確保預檢請求通過）
-app.options('*', cors(corsOptions));
-
-// 手動添加CORS頭部（作為備用方案）
+// 手動添加 CORS 頭部（作為備用方案，確保所有響應都包含 CORS 頭部）
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
+  // OPTIONS 請求已經在上面處理，這裡不需要再次處理
   next();
 });
 

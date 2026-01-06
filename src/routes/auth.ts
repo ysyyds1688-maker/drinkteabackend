@@ -7,7 +7,7 @@ import { badgeModel } from '../models/Badge.js';
 import { tasksModel } from '../models/Tasks.js';
 import { generateTokens, verifyToken } from '../services/authService.js';
 import { cacheService } from '../services/redisService.js';
-import { verificationLimiter, strictLimiter } from '../middleware/rateLimiter.js';
+import { verificationLimiter, authLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -68,7 +68,7 @@ const generateVerificationCode = (): string => {
 };
 
 // 註冊
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const { email, phoneNumber, password, userName, role, age } = req.body;
     
@@ -177,7 +177,7 @@ router.post('/register', async (req, res) => {
 });
 
 // 登入
-router.post('/login', strictLimiter, async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, phoneNumber, password } = req.body;
     
@@ -371,6 +371,8 @@ router.get('/me', async (req, res) => {
       role: user.role,
       membershipLevel: user.membershipLevel,
       membershipExpiresAt: user.membershipExpiresAt,
+      emailVerified: user.emailVerified || false,
+      phoneVerified: user.phoneVerified || false,
       verificationBadges: user.verificationBadges || [],
       nicknameChangedAt: user.nicknameChangedAt,
       isVip,
@@ -680,7 +682,7 @@ router.post('/send-verification-email', async (req, res) => {
 });
 
 // 驗證郵箱（添加限流）
-router.post('/verify-email', strictLimiter, async (req, res) => {
+router.post('/verify-email', authLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -812,7 +814,7 @@ router.post('/send-verification-phone', verificationLimiter, async (req, res) =>
 });
 
 // 驗證手機號碼（添加限流）
-router.post('/verify-phone', strictLimiter, async (req, res) => {
+router.post('/verify-phone', authLimiter, async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

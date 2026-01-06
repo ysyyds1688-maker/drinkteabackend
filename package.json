@@ -17,6 +17,7 @@
     "merge:accounts": "tsx src/scripts/mergeTestUserAccounts.ts",
     "check:users": "tsx src/scripts/checkUserData.ts",
     "check:redis": "tsx src/scripts/checkRedis.ts",
+    "check:email-verification": "tsx src/scripts/checkAndFixEmailVerification.ts",
     "assign:article-images": "tsx src/scripts/assign-article-images.ts",
     "update:rules": "tsx src/scripts/updateRulesPost.ts"
   },
