@@ -524,8 +524,40 @@ router.put('/:id/status', async (req, res) => {
             const { v4: uuidv4 } = await import('uuid');
             const threadId = booking.id;
             
-            // 構建確認訊息內容（簡短版本）
-            let confirmationMessage = `我已確認 請用聯繫方式聯絡我一起品茶! ❤️`;
+            // 構建確認訊息內容（包含聯絡方式）
+            let confirmationMessage = `我已確認 請用聯繫方式聯絡我一起品茶! ❤️\n\n`;
+            
+            // 格式化並添加聯絡方式
+            if (profile.contactInfo) {
+              const contactInfo = profile.contactInfo;
+              const contactParts: string[] = [];
+              
+              if (contactInfo.line) {
+                contactParts.push(`LINE: ${contactInfo.line}`);
+              }
+              if (contactInfo.phone) {
+                contactParts.push(`電話: ${contactInfo.phone}`);
+              }
+              if (contactInfo.email) {
+                contactParts.push(`Email: ${contactInfo.email}`);
+              }
+              if (contactInfo.telegram) {
+                contactParts.push(`Telegram: ${contactInfo.telegram}`);
+              }
+              if (contactInfo.socialAccounts && Object.keys(contactInfo.socialAccounts).length > 0) {
+                Object.entries(contactInfo.socialAccounts).forEach(([platform, account]) => {
+                  contactParts.push(`${platform}: ${account}`);
+                });
+              }
+              
+              if (contactParts.length > 0) {
+                confirmationMessage += `【我的聯絡方式】\n${contactParts.join('\n')}`;
+              }
+              
+              if (contactInfo.contactInstructions) {
+                confirmationMessage += `\n\n${contactInfo.contactInstructions}`;
+              }
+            }
             
             // 創建確認訊息（sender_id 使用 providerId，表示是佳麗發送的確認訊息）
             const confirmationMessageId = uuidv4();
