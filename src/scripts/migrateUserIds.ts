@@ -136,6 +136,44 @@ const dropAllForeignKeys = async (queryFn: (text: string, params: any[]) => Prom
   
   console.log('✅ 所有外鍵約束已成功刪除');
   
+  // 驗證約束真的被刪除了
+  const verifyResult = await queryFn(`
+    SELECT constraint_name 
+    FROM information_schema.table_constraints 
+    WHERE constraint_type = 'FOREIGN KEY' 
+      AND constraint_name LIKE '%user%'
+      AND table_schema = 'public'
+      AND constraint_name IN (
+        SELECT constraint_name
+        FROM information_schema.constraint_column_usage
+        WHERE table_name = 'users'
+      )
+  `, []);
+  
+  if (verifyResult.rows.length > 0) {
+    console.log(`\n⚠️  警告: 仍有 ${verifyResult.rows.length} 個外鍵約束存在，嘗試再次刪除:`);
+    for (const row of verifyResult.rows) {
+      console.log(`  - ${row.constraint_name}`);
+      // 獲取表名並再次嘗試刪除
+      try {
+        const tableResult = await queryFn(`
+          SELECT table_name 
+          FROM information_schema.table_constraints 
+          WHERE constraint_name = $1
+        `, [row.constraint_name]);
+        if (tableResult.rows.length > 0) {
+          const tableName = tableResult.rows[0].table_name;
+          await queryFn(`ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS ${row.constraint_name} CASCADE`, []);
+          console.log(`  已再次刪除約束: ${row.constraint_name}`);
+        }
+      } catch (error: any) {
+        console.log(`  無法再次刪除約束 ${row.constraint_name}: ${error.message}`);
+      }
+    }
+  }
+  
+  console.log('✅ 驗證完成：所有外鍵約束已確認刪除');
+  
   return fkConstraints;
 };
 

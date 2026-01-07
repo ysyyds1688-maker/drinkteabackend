@@ -12,6 +12,8 @@ export type AnyMembershipLevel = MembershipLevel | LadyMembershipLevel;
 
 export interface User {
   id: string;
+  // 對外顯示用的用戶ID（例如 #Tea123456 / #Gri123456），不一定等於資料庫主鍵 id
+  publicId?: string;
   email?: string;
   phoneNumber?: string;
   password: string;
@@ -88,6 +90,7 @@ export const userModel = {
     }
     return {
       id: row.id,
+      publicId: row.public_id || undefined,
       email: row.email || undefined,
       phoneNumber: row.phone_number || undefined,
       password: row.password,
@@ -139,6 +142,7 @@ export const userModel = {
     }
     return {
       id: row.id,
+      publicId: row.public_id || undefined,
       email: row.email || undefined,
       phoneNumber: row.phone_number || undefined,
       password: row.password,
@@ -315,6 +319,7 @@ export const userModel = {
       }
       return {
         id: row.id,
+        publicId: row.public_id || undefined,
         email: row.email || undefined,
         phoneNumber: row.phone_number || undefined,
         password: row.password,
@@ -441,6 +446,7 @@ export const userModel = {
     }
     return {
       id: row.id,
+      publicId: row.public_id || undefined,
       email: row.email || undefined,
       phoneNumber: row.phone_number || undefined,
       password: row.password,

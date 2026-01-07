@@ -157,6 +157,7 @@ router.post('/register', authLimiter, async (req, res) => {
     res.json({
       user: {
         id: user.id,
+        publicId: user.publicId || user.id,
         email: user.email,
         phoneNumber: user.phoneNumber,
         userName: user.userName,
@@ -307,6 +308,7 @@ router.post('/login', authLimiter, async (req, res) => {
     res.json({
       user: {
         id: user.id,
+        publicId: user.publicId || user.id,
         email: user.email,
         phoneNumber: user.phoneNumber,
         userName: user.userName,
@@ -366,6 +368,7 @@ router.get('/me', async (req, res) => {
     
     res.json({
       id: user.id,
+      publicId: user.publicId || user.id,
       email: user.email,
       phoneNumber: user.phoneNumber,
       userName: user.userName,
@@ -436,6 +439,7 @@ router.put('/me', async (req, res) => {
     
     res.json({
       id: updatedUser.id,
+      publicId: updatedUser.publicId || updatedUser.id,
       email: updatedUser.email,
       phoneNumber: updatedUser.phoneNumber,
       userName: updatedUser.userName,
