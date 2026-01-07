@@ -202,6 +202,18 @@ export const initDatabase = async () => {
       }
     }
     
+    // 添加 contact_count 欄位（用於追蹤聯繫客服次數）
+    try {
+      await pool.query(`
+        ALTER TABLE profiles 
+        ADD COLUMN IF NOT EXISTS contact_count INTEGER DEFAULT 0
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 contact_count 欄位時出現警告:', error.message);
+      }
+    }
+    
     // 創建表來追蹤佳麗連續天數獲得好評
     try {
       await pool.query(`
@@ -298,6 +310,17 @@ export const initDatabase = async () => {
     } catch (error: any) {
       if (!error.message.includes('already exists')) {
         console.warn('添加 nickname_changed_at 欄位時出現警告:', error.message);
+      }
+    }
+
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS nickname_change_count INTEGER DEFAULT 0
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 nickname_change_count 欄位時出現警告:', error.message);
       }
     }
 

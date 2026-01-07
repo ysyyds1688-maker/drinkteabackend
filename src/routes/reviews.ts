@@ -119,26 +119,57 @@ router.get('/profiles/:profileId/reviews', async (req, res) => {
     
     // 获取用户ID（如果已登录）
     let userId: string | undefined;
+    let userLevel: any;
+    let isVip = false;
+    
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const payload = verifyToken(token);
       if (payload) {
         userId = payload.userId;
+        
+        // 獲取用戶信息和VIP狀態
+        const { userModel } = await import('../models/User.js');
+        const user = await userModel.findById(userId);
+        if (user) {
+          userLevel = user.membershipLevel;
+          
+          // 檢查VIP狀態
+          const { subscriptionModel } = await import('../models/Subscription.js');
+          const activeSubscription = await subscriptionModel.getActiveByUserId(userId);
+          isVip = activeSubscription !== null && 
+            activeSubscription.isActive && 
+            (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+        }
       }
     }
+    
+    // 獲取 profile 信息，判斷是嚴選好茶還是特選魚市
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(profileId);
+    const isPremiumTea = !profile?.userId; // 沒有 userId 表示是嚴選好茶
     
     // 获取所有评论
     const allReviews = await reviewModel.getByProfileId(profileId, userId);
     
-    // 根据权限返回不同数量
-    let visibleReviews: typeof allReviews;
+    // 根據等級和VIP狀態計算可查看的評論數量
+    let maxReviewCount: number;
     if (userStatus === 'guest') {
-      visibleReviews = [];
-    } else if (userStatus === 'logged_in') {
-      visibleReviews = allReviews.slice(0, 2); // 只返回2则
+      maxReviewCount = 0;
     } else {
-      visibleReviews = allReviews; // 返回全部
+      const { getMaxReviewCount } = await import('../utils/membershipBenefits.js');
+      maxReviewCount = getMaxReviewCount(userLevel, isVip, isPremiumTea);
+    }
+    
+    // 根據限制返回對應數量的評論
+    let visibleReviews: typeof allReviews;
+    if (maxReviewCount === 0) {
+      visibleReviews = [];
+    } else if (maxReviewCount === -1) {
+      visibleReviews = allReviews; // VIP用戶可以查看全部
+    } else {
+      visibleReviews = allReviews.slice(0, maxReviewCount);
     }
     
     // 获取平均评分
@@ -148,8 +179,11 @@ router.get('/profiles/:profileId/reviews', async (req, res) => {
       reviews: visibleReviews,
       total: allReviews.length,
       visibleCount: visibleReviews.length,
+      maxReviewCount: maxReviewCount === -1 ? allReviews.length : maxReviewCount,
       userStatus,
-      canSeeAll: userStatus === 'subscribed',
+      canSeeAll: maxReviewCount === -1,
+      isVip,
+      userLevel,
       averageRating: Math.round(averageRating * 10) / 10, // 四舍五入到小数点后1位
     });
   } catch (error: any) {
@@ -278,46 +312,64 @@ router.post('/profiles/:profileId/reviews', async (req, res) => {
         } else {
           if (determinedCategory === 'premium_tea') {
             // 嚴選好茶：必須是管理員確認成功赴約（status='completed'）才計數
+            // ⚠️ 重要：只有在該預約還沒有被評論過時才計數，防止重複計數
             if (profileBooking.status === 'completed') {
-              await userStatsModel.updateCounts(payload.userId, {
-                premiumTeaBookingsCount: 1,
-              });
-              console.log(`用戶 ${payload.userId} 嚴選好茶預約計數 +1（管理員已確認赴約）`);
+              // 檢查該預約是否已經被評論過
+              if (profileBooking.clientReviewed) {
+                console.log(`用戶 ${payload.userId} 評論嚴選好茶但該預約已被評論過，不重複計數`);
+              } else {
+                await userStatsModel.updateCounts(payload.userId, {
+                  premiumTeaBookingsCount: 1,
+                });
+                console.log(`用戶 ${payload.userId} 嚴選好茶預約計數 +1（管理員已確認赴約且首次評論）`);
+              }
             } else {
               console.log(`用戶 ${payload.userId} 評論嚴選好茶但預約狀態為 ${profileBooking.status}，需等待管理員確認赴約`);
             }
           } else if (determinedCategory === 'lady_booking') {
             // 特選魚市：預約成功（status='accepted' 或 'completed'）即可計數
+            // ⚠️ 重要：只有在該預約還沒有被評論過時才計數，防止重複計數
             if (profileBooking.status === 'accepted' || profileBooking.status === 'completed') {
-              await userStatsModel.updateCounts(payload.userId, {
-                ladyBookingsCount: 1,
-              });
-              
-              // 檢查是否為重複預約同一位後宮佳麗
-              const completedBookingsForSameProfile = clientBookings.filter(
-                b => b.profileId === profileId && 
-                     (b.status === 'accepted' || b.status === 'completed') &&
-                     b.id !== profileBooking.id
-              );
-              
-              if (completedBookingsForSameProfile.length > 0) {
-                // 如果這是重複預約，增加重複預約計數
+              // 檢查該預約是否已經被評論過
+              if (profileBooking.clientReviewed) {
+                console.log(`用戶 ${payload.userId} 評論特選魚市但該預約已被評論過，不重複計數`);
+              } else {
                 await userStatsModel.updateCounts(payload.userId, {
-                  repeatLadyBookingsCount: 1,
+                  ladyBookingsCount: 1,
                 });
-                console.log(`用戶 ${payload.userId} 重複預約特選魚市計數 +1`);
+                
+                // 檢查是否為重複預約同一位後宮佳麗
+                // 注意：這裡檢查的是「其他」預約（不包括當前預約），且已經評論過的
+                const completedBookingsForSameProfile = clientBookings.filter(
+                  b => b.profileId === profileId && 
+                       (b.status === 'accepted' || b.status === 'completed') &&
+                       b.id !== profileBooking.id &&
+                       b.clientReviewed === true // 只計算已經評論過的其他預約
+                );
+                
+                if (completedBookingsForSameProfile.length > 0) {
+                  // 如果這是重複預約，增加重複預約計數
+                  await userStatsModel.updateCounts(payload.userId, {
+                    repeatLadyBookingsCount: 1,
+                  });
+                  console.log(`用戶 ${payload.userId} 重複預約特選魚市計數 +1`);
+                }
+                
+                console.log(`用戶 ${payload.userId} 特選魚市預約計數 +1（預約已成功且首次評論）`);
               }
-              
-              console.log(`用戶 ${payload.userId} 特選魚市預約計數 +1（預約已成功）`);
             } else {
               console.log(`用戶 ${payload.userId} 評論特選魚市但預約狀態為 ${profileBooking.status}，需等待預約成功`);
             }
           }
           
-          // 檢查並解鎖成就（只有在計數後才檢查）
+          // 檢查並解鎖成就（只有在計數後才檢查，且該預約還沒有被評論過）
           const stats = await userStatsModel.getOrCreate(payload.userId);
-          if ((determinedCategory === 'premium_tea' && profileBooking.status === 'completed') ||
-              (determinedCategory === 'lady_booking' && (profileBooking.status === 'accepted' || profileBooking.status === 'completed'))) {
+          const shouldCheckAchievements = 
+            !profileBooking.clientReviewed && // 只有在首次評論時才檢查成就
+            ((determinedCategory === 'premium_tea' && profileBooking.status === 'completed') ||
+             (determinedCategory === 'lady_booking' && (profileBooking.status === 'accepted' || profileBooking.status === 'completed')));
+          
+          if (shouldCheckAchievements) {
               const unlocked = await achievementModel.checkAndUnlockAchievements(payload.userId);
               if (unlocked.length > 0) {
                 console.log(`用戶 ${payload.userId} 解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));

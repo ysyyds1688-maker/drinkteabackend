@@ -210,9 +210,11 @@ router.get('/my', async (req: any, res) => {
         u.user_name as "senderName",
         u.email as "senderEmail",
         u.avatar_url as "senderAvatarUrl",
+        u.email_verified as "senderEmailVerified",
         r.user_name as "recipientName",
         r.email as "recipientEmail",
         r.avatar_url as "recipientAvatarUrl",
+        r.email_verified as "recipientEmailVerified",
         p.name as "profileName",
         p."imageUrl" as "profileImageUrl",
         (SELECT COUNT(*) FROM messages WHERE thread_id = m.thread_id) as "threadCount"
@@ -248,12 +250,14 @@ router.get('/my', async (req: any, res) => {
         name: row.senderName,
         email: row.senderEmail,
         avatarUrl: row.senderAvatarUrl,
+        emailVerified: row.senderEmailVerified || false,
       },
       recipient: {
         id: row.recipientId,
         name: row.recipientName,
         email: row.recipientEmail,
         avatarUrl: row.recipientAvatarUrl,
+        emailVerified: row.recipientEmailVerified || false,
       },
       profile: {
         id: row.profileId,
@@ -344,7 +348,7 @@ router.get('/thread/:threadId', async (req: any, res) => {
 
     // 獲取對話串的所有訊息
     const result = await query(
-      `SELECT 
+      `SELECT
         m.id,
         m.sender_id as "senderId",
         m.recipient_id as "recipientId",
@@ -357,9 +361,11 @@ router.get('/thread/:threadId', async (req: any, res) => {
         u.user_name as "senderName",
         u.email as "senderEmail",
         u.avatar_url as "senderAvatarUrl",
+        u.email_verified as "senderEmailVerified",
         r.user_name as "recipientName",
         r.email as "recipientEmail",
         r.avatar_url as "recipientAvatarUrl",
+        r.email_verified as "recipientEmailVerified",
         p.name as "profileName",
         p."imageUrl" as "profileImageUrl"
        FROM messages m
@@ -386,12 +392,14 @@ router.get('/thread/:threadId', async (req: any, res) => {
         name: row.senderName,
         email: row.senderEmail,
         avatarUrl: row.senderAvatarUrl,
+        emailVerified: row.senderEmailVerified || false,
       },
       recipient: {
         id: row.recipientId,
         name: row.recipientName,
         email: row.recipientEmail,
         avatarUrl: row.recipientAvatarUrl,
+        emailVerified: row.recipientEmailVerified || false,
       },
       profile: {
         id: row.profileId,

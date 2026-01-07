@@ -282,4 +282,36 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/profiles/:id/contact - 記錄聯繫客服次數（嚴選好茶）
+router.post('/:id/contact', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 檢查 profile 是否存在
+    const profile = await profileModel.getById(id);
+    if (!profile) {
+      return res.status(404).json({ error: '檔案不存在' });
+    }
+    
+    // 只記錄嚴選好茶的聯繫次數（沒有 userId 的才是嚴選好茶）
+    if (profile.userId) {
+      return res.status(400).json({ error: '此功能僅適用於嚴選好茶' });
+    }
+    
+    // 增加聯繫次數
+    await profileModel.incrementContactCount(id);
+    
+    // 獲取更新後的聯繫次數
+    const updatedProfile = await profileModel.getById(id);
+    
+    res.json({
+      message: '聯繫次數已記錄',
+      contactCount: updatedProfile?.contactCount || 0,
+    });
+  } catch (error: any) {
+    console.error('記錄聯繫次數失敗:', error);
+    res.status(500).json({ error: error.message || '記錄聯繫次數失敗' });
+  }
+});
+
 export default router;

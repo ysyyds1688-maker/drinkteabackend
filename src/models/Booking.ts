@@ -267,6 +267,50 @@ export const bookingModel = {
   },
 
   // 獲取茶客在一週內的預約數量（特選魚市）
+  // 獲取客戶當月嚴選好茶預約次數（每月刷新）
+  getClientPremiumTeaBookingsCountThisMonth: async (clientId: string): Promise<number> => {
+    // 獲取當月第一天和最後一天（台灣時區）
+    // 使用台灣時區來計算當月的開始和結束日期
+    const now = new Date();
+    
+    // 獲取台灣時區的當前日期
+    const taiwanDateStr = now.toLocaleDateString('en-CA', { 
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const [year, month] = taiwanDateStr.split('-').map(Number);
+    
+    // 創建台灣時區的當月第一天 00:00:00
+    const monthStartTaiwan = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00+08:00`);
+    // 創建台灣時區的當月最後一天 23:59:59
+    const monthEndTaiwan = new Date(year, month, 0, 23, 59, 59, 999);
+    // 轉換為台灣時區的日期字符串（YYYY-MM-DD）
+    const monthEndTaiwanStr = monthEndTaiwan.toLocaleDateString('en-CA', { 
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    
+    // 使用日期字符串進行查詢（booking_date 是 DATE 類型，不包含時間）
+    const monthStartStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    
+    // 查詢當月嚴選好茶的預約（providerId為空或null的預約）
+    const result = await query(`
+      SELECT COUNT(*) as count
+      FROM bookings
+      WHERE client_id = $1
+      AND (provider_id IS NULL OR provider_id = '')
+      AND booking_date >= $2
+      AND booking_date <= $3
+      AND status IN ('pending', 'accepted', 'completed')
+    `, [clientId, monthStartStr, monthEndTaiwanStr]);
+    
+    return parseInt(result.rows[0]?.count || '0', 10);
+  },
+
   getClientBookingsCountByWeek: async (clientId: string, startDate: string, endDate: string): Promise<number> => {
     const result = await query(`
       SELECT COUNT(*) as count

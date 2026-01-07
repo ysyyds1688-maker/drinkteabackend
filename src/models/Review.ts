@@ -7,6 +7,7 @@ export interface Review {
   clientId: string;
   clientName?: string;
   clientAvatarUrl?: string; // 评论者头像
+  clientEmailVerified?: boolean; // 評論者 Email 驗證狀態
   targetUserId?: string; // 被評論的用戶ID（當 reviewType = 'client' 時）
   reviewType?: 'profile' | 'client'; // 評論類型：'profile' = 茶客評論佳麗, 'client' = 佳麗評論茶客
   rating: number;
@@ -49,6 +50,7 @@ export const reviewModel = {
     const result = await query(`
       SELECT r.*, 
         u.avatar_url as client_avatar_url,
+        u.email_verified as client_email_verified,
         COUNT(rl.id) as likes_count,
         CASE WHEN EXISTS (
           SELECT 1 FROM review_likes rl2 
@@ -60,7 +62,7 @@ export const reviewModel = {
       WHERE r.profile_id = $1 
         AND r.review_type = 'profile'
         AND r.is_visible = TRUE
-      GROUP BY r.id, u.avatar_url
+      GROUP BY r.id, u.avatar_url, u.email_verified
       ORDER BY r.created_at DESC
     `, [profileId, userId || null]);
     
@@ -79,6 +81,7 @@ export const reviewModel = {
         clientId: row.client_id,
         clientName: row.client_name || undefined,
         clientAvatarUrl: row.client_avatar_url || undefined,
+        clientEmailVerified: Boolean(row.client_email_verified),
         targetUserId: row.target_user_id || undefined,
         reviewType: row.review_type || 'profile',
         rating: row.rating,

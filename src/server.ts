@@ -29,10 +29,12 @@ import achievementsRouter from './routes/achievements.js';
 import notificationsRouter from './routes/notifications.js';
 import reportsRouter from './routes/reports.js';
 import messagesRouter from './routes/messages.js';
+import statsRouter from './routes/stats.js';
 import { schedulerService } from './services/schedulerService.js';
 import { initRedis, closeRedis } from './services/redisService.js';
 import { authLimiter, readLimiter, writeLimiter, writeLimiterIP } from './middleware/rateLimiter.js';
 import { queryLimiter } from './middleware/queryLimiter.js';
+import { updateUserActivity } from './middleware/updateUserActivity.js';
 
 // Load environment variables - 明確指定 .env 文件路徑
 // 使用 process.cwd() 獲取當前工作目錄（backend 目錄）
@@ -165,6 +167,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// 更新用戶活躍時間（用於在線人數統計）
+// 放在 logging 之後，確保所有 API 請求都會經過
+app.use(updateUserActivity);
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ 
@@ -265,6 +271,7 @@ app.use('/api/achievements', achievementsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/messages', messagesRouter);
+app.use('/api/stats', statsRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);

@@ -77,20 +77,21 @@ router.post('/subscribe', async (req, res) => {
       return res.status(404).json({ error: '用戶不存在' });
     }
     
-    if (!user.emailVerified || !user.phoneVerified) {
-      const missingVerifications: string[] = [];
-      if (!user.emailVerified) missingVerifications.push('Email');
-      if (!user.phoneVerified) missingVerifications.push('手機號碼');
-      
+    // 只需要Email驗證即可購買VIP
+    if (!user.emailVerified) {
       return res.status(400).json({ 
-        error: `購買VIP前，請先完成以下驗證：${missingVerifications.join('、')}`,
-        missingVerifications 
+        error: '購買VIP前，請先完成Email驗證',
+        missingVerifications: ['Email']
       });
     }
     
     const days = duration || 30;
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
+    
+    // 檢查是否為首次購買VIP（檢查訂閱歷史）
+    const subscriptionHistory = await subscriptionModel.getHistoryByUserId(payload.userId);
+    const isFirstPurchase = subscriptionHistory.length === 0;
     
     // 創建訂閱記錄
     const subscription = await subscriptionModel.create({
@@ -102,11 +103,44 @@ router.post('/subscribe', async (req, res) => {
     // 更新用戶會員等級
     await userModel.updateMembership(payload.userId, membershipLevel as MembershipLevel, expiresAt);
     
+    // 首次購買VIP獎勵：500經驗 + 1000積分
+    if (isFirstPurchase) {
+      try {
+        const { userStatsModel } = await import('../models/UserStats.js');
+        await userStatsModel.addPoints(payload.userId, 1000, 500);
+        
+        // 發送首次購買獎勵通知
+        try {
+          const { notificationModel } = await import('../models/Notification.js');
+          await notificationModel.create({
+            userId: payload.userId,
+            type: 'system',
+            title: '首次購買VIP獎勵',
+            content: '恭喜您首次購買VIP！已為您發放500經驗值和1000積分作為獎勵。',
+            link: '/user-profile?tab=points',
+          });
+        } catch (notifError) {
+          console.error('發送首次購買獎勵通知失敗:', notifError);
+          // 不阻止訂閱流程
+        }
+      } catch (pointsError) {
+        console.error('發放首次購買獎勵失敗:', pointsError);
+        // 不阻止訂閱流程，只記錄錯誤
+      }
+    }
+    
     res.json({
       message: '訂閱成功',
       membershipLevel: membershipLevel,
       membershipExpiresAt: expiresAt.toISOString(),
       subscription,
+      isFirstPurchase,
+      ...(isFirstPurchase && {
+        reward: {
+          points: 1000,
+          experience: 500,
+        },
+      }),
     });
   } catch (error: any) {
     console.error('Subscribe error:', error);

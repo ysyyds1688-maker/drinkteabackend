@@ -23,7 +23,7 @@ export const profileModel = {
       let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                  type, "imageUrl", gallery, albums, price, prices, tags, 
                  "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
-                 views, "createdAt", "updatedAt" FROM profiles`;
+                 views, contact_count, "createdAt", "updatedAt" FROM profiles`;
       const params: any[] = [];
       let paramIndex = 1;
       
@@ -72,6 +72,7 @@ export const profileModel = {
             isNew: Boolean(row.isNew),
             isAvailable: Boolean(row.isAvailable),
             views: row.views || 0,
+            contactCount: row.contact_count || 0,
           };
         } catch (parseError: any) {
           console.error('Error parsing profile row:', row.id, parseError);
@@ -112,7 +113,7 @@ export const profileModel = {
       const result = await query(`SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
                                   type, "imageUrl", gallery, albums, price, prices, tags, 
                                   "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
-                                  views, "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
+                                  views, contact_count, "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
       if (result.rows.length === 0) return null;
       
       const row = result.rows[0];
@@ -137,6 +138,7 @@ export const profileModel = {
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
           views: row.views || 0,
+          contactCount: row.contact_count || 0,
         };
       } catch (parseError: any) {
         console.error('Error parsing profile:', id, parseError);
@@ -160,6 +162,7 @@ export const profileModel = {
           isNew: Boolean(row.isNew),
           isAvailable: Boolean(row.isAvailable),
           views: row.views || 0,
+          contactCount: row.contact_count || 0,
         };
       }
     } catch (error: any) {
@@ -403,5 +406,18 @@ export const profileModel = {
     }
 
     return totalWeight > 0 ? Math.round((score / totalWeight) * 100) : 0;
+  },
+
+  // 增加聯繫客服次數
+  incrementContactCount: async (profileId: string): Promise<void> => {
+    try {
+      await query(
+        `UPDATE profiles SET contact_count = COALESCE(contact_count, 0) + 1 WHERE id = $1`,
+        [profileId]
+      );
+    } catch (error: any) {
+      console.error('Error incrementing contact count:', error);
+      throw new Error(`增加聯繫次數失敗: ${error.message || '資料庫錯誤'}`);
+    }
   },
 };

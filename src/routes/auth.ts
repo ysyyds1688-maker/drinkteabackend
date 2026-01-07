@@ -166,6 +166,7 @@ router.post('/register', authLimiter, async (req, res) => {
         membershipExpiresAt: user.membershipExpiresAt,
         verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
+        nicknameChangeCount: user.nicknameChangeCount || 0,
         isVip,
       },
       ...tokens,
@@ -315,6 +316,7 @@ router.post('/login', authLimiter, async (req, res) => {
         membershipExpiresAt: user.membershipExpiresAt,
         verificationBadges: user.verificationBadges || [],
         nicknameChangedAt: user.nicknameChangedAt,
+        nicknameChangeCount: user.nicknameChangeCount || 0,
         isVip,
       },
       ...tokens,
@@ -375,6 +377,7 @@ router.get('/me', async (req, res) => {
       phoneVerified: user.phoneVerified || false,
       verificationBadges: user.verificationBadges || [],
       nicknameChangedAt: user.nicknameChangedAt,
+      nicknameChangeCount: user.nicknameChangeCount || 0,
       isVip,
       bookingCancellationCount: user.bookingCancellationCount || 0,
       noShowCount: user.noShowCount || 0,
@@ -441,6 +444,8 @@ router.put('/me', async (req, res) => {
       membershipLevel: updatedUser.membershipLevel,
       membershipExpiresAt: updatedUser.membershipExpiresAt,
       verificationBadges: updatedUser.verificationBadges || [],
+      nicknameChangedAt: updatedUser.nicknameChangedAt,
+      nicknameChangeCount: updatedUser.nicknameChangeCount || 0,
       isVip,
     });
   } catch (error: any) {

@@ -98,6 +98,78 @@ router.post('/', async (req, res) => {
       }
     }
     
+    // 嚴選好茶每月預約次數限制（僅針對沒有 providerId 的預約）
+    if (!providerId) {
+      try {
+        const { getPremiumTeaBookingLimit } = await import('../utils/membershipBenefits.js');
+        const { subscriptionModel } = await import('../models/Subscription.js');
+        
+        // 檢查用戶是否有活躍的VIP訂閱
+        const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
+        const isVip = activeSubscription !== null && 
+          activeSubscription.isActive && 
+          (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+        
+        // 獲取用戶等級
+        const userLevel = user.membershipLevel as any;
+        
+        // 計算每月預約次數上限
+        const monthlyLimit = getPremiumTeaBookingLimit(userLevel, isVip);
+        
+        // 獲取當月已預約次數
+        const currentMonthCount = await bookingModel.getClientPremiumTeaBookingsCountThisMonth(user.id);
+        
+        if (currentMonthCount >= monthlyLimit) {
+          // 獲取當月第一天和最後一天（台灣時區）
+          const now = new Date();
+          const taiwanDateStr = now.toLocaleDateString('en-CA', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          const [year, month] = taiwanDateStr.split('-').map(Number);
+          const monthStart = new Date(year, month - 1, 1);
+          const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+          
+          const monthStartStr = monthStart.toLocaleDateString('zh-TW', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          const monthEndStr = monthEnd.toLocaleDateString('zh-TW', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          
+          let errorMessage = `您在本月（${monthStartStr} 至 ${monthEndStr}）已預約 ${currentMonthCount} 次嚴選好茶，本月上限為 ${monthlyLimit} 次。`;
+          
+          if (!isVip) {
+            errorMessage += '\n\n購買VIP會員可根據等級增加每月預約次數上限。';
+          } else {
+            errorMessage += '\n\n升級會員等級可進一步增加每月預約次數上限。';
+          }
+          
+          return res.status(403).json({
+            error: errorMessage,
+            limitType: 'monthly_premium_tea',
+            currentCount: currentMonthCount,
+            maxCount: monthlyLimit,
+            isVip,
+            userLevel,
+            monthStart: monthStartStr,
+            monthEnd: monthEndStr,
+          });
+        }
+      } catch (error: any) {
+        console.error('檢查嚴選好茶預約限制失敗:', error);
+        // 如果檢查失敗，不阻止預約（避免影響用戶體驗）
+      }
+    }
+    
     // 防駭客機制：特選魚市預約限制（僅針對有 providerId 的預約）
     if (providerId) {
       // 1. 檢查是否在24小時內重複預約同一佳麗

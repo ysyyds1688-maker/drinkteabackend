@@ -98,6 +98,7 @@ export interface Profile {
   isNew?: boolean;
   isAvailable?: boolean;
   views?: number; // 瀏覽次數
+  contactCount?: number; // 聯繫次數
 
   availableTimes: {
     today: string;

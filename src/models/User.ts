@@ -28,6 +28,7 @@ export interface User {
   updatedAt: string;
   lastLoginAt?: string;
   nicknameChangedAt?: string; // 暱稱最後修改時間
+  nicknameChangeCount?: number; // 暱稱修改次數（從第一次修改開始計算）
   bookingCancellationCount?: number; // 預約取消次數
   bookingWarning?: boolean; // 預約警告狀態（超過3次取消）
   noShowCount?: number; // 放鳥次數
@@ -103,6 +104,7 @@ export const userModel = {
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
       nicknameChangedAt: row.nickname_changed_at || undefined,
+      nicknameChangeCount: row.nickname_change_count || 0,
       bookingCancellationCount: row.booking_cancellation_count || 0,
       noShowCount: row.no_show_count || 0,
       violationLevel: row.violation_level || 0,
@@ -153,6 +155,7 @@ export const userModel = {
       updatedAt: row.updated_at,
       lastLoginAt: row.last_login_at || undefined,
       nicknameChangedAt: row.nickname_changed_at || undefined,
+      nicknameChangeCount: row.nickname_change_count || 0,
       bookingCancellationCount: row.booking_cancellation_count || 0,
       noShowCount: row.no_show_count || 0,
       violationLevel: row.violation_level || 0,
@@ -171,10 +174,38 @@ export const userModel = {
     };
   },
 
+  // 生成新格式的用戶ID
+  // 茶客：#Tea123456（# + Tea + 6位隨機數字）
+  // 佳麗：#Gri123456（# + Gri + 6位隨機數字）
+  generateUserId: async (role: 'provider' | 'client' | 'admin' = 'client'): Promise<string> => {
+    const prefix = role === 'provider' ? 'Gri' : 'Tea';
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      // 生成6位隨機數字（100000-999999）
+      const randomNum = Math.floor(100000 + Math.random() * 900000);
+      const id = `#${prefix}${randomNum}`;
+      
+      // 檢查ID是否已存在
+      const existingUser = await userModel.findById(id);
+      if (!existingUser) {
+        return id;
+      }
+      
+      attempts++;
+    }
+    
+    // 如果10次嘗試都失敗，使用時間戳作為後綴確保唯一性
+    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    const timestamp = Date.now().toString().slice(-4);
+    return `#${prefix}${randomNum}${timestamp}`;
+  },
+
   // 创建用户
   create: async (userData: CreateUserData): Promise<User> => {
-    const { v4: uuidv4 } = await import('uuid');
-    const id = `user_${Date.now()}_${uuidv4().substring(0, 9)}`;
+    const role = userData.role || 'client';
+    const id = await userModel.generateUserId(role);
     const hashedPassword = await bcrypt.hash(userData.password, 10);
     
     await query(`
@@ -219,15 +250,15 @@ export const userModel = {
     getMembershipBenefits: (level: MembershipLevel) => {
       const benefits: Record<MembershipLevel, string[]> = {
         tea_guest: ['基本功能'],
-        tea_scholar: ['基本功能', '解鎖部分內容', '優先客服'],
-        royal_tea_scholar: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤'],
-        royal_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章'],
-        tea_king_attendant: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務'],
-        imperial_chief_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問'],
-        tea_king_confidant: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約'],
-        tea_king_personal_selection: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約', '茶王親選', '獨家內容'],
-        imperial_golden_seal_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約', '茶王親選', '獨家內容', '金印特權', '尊貴服務'],
-        national_master_tea_officer: ['基本功能', '解鎖部分內容', '優先客服', '更多內容', '專屬標籤', '全部內容', '專屬徽章', '最高權限', '專屬服務', '御前特權', '專屬顧問', '心腹特權', '優先預約', '茶王親選', '獨家內容', '金印特權', '尊貴服務', '國師級特權', '至尊服務', '無限權限'],
+        tea_scholar: ['基本功能', '解鎖部分內容'],
+        royal_tea_scholar: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤'],
+        royal_tea_officer: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章'],
+        tea_king_attendant: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章'],
+        imperial_chief_tea_officer: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章', '御前特權'],
+        tea_king_confidant: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章', '御前特權', '心腹特權'],
+        tea_king_personal_selection: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章', '御前特權', '心腹特權', '茶王親選', '獨家內容'],
+        imperial_golden_seal_tea_officer: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章', '御前特權', '心腹特權', '茶王親選', '獨家內容', '金印特權', '尊貴服務'],
+        national_master_tea_officer: ['基本功能', '解鎖部分內容', '更多內容', '專屬標籤', '專屬徽章', '御前特權', '心腹特權', '茶王親選', '獨家內容', '金印特權', '尊貴服務', '國師級特權', '至尊服務', '無限權限'],
       };
       return benefits[level] || benefits.tea_guest;
     },
@@ -309,23 +340,60 @@ export const userModel = {
     const values: any[] = [];
     let paramIndex = 1;
 
-    // 检查是否需要更新昵称，如果需要则检查是否在1个月内修改过
+    // 检查是否需要更新昵称，如果需要则检查修改限制
     if (userData.userName !== undefined) {
       // 先获取当前用户信息
       const currentUser = await userModel.findById(id);
       if (currentUser && currentUser.userName && currentUser.userName !== userData.userName) {
-        // 昵称有变化，检查是否在1个月内修改过
+        // 昵称有变化，检查修改限制
+        const changeCount = currentUser.nicknameChangeCount || 0;
+        
+        // 檢查是否有活躍的VIP訂閱
+        const { subscriptionModel } = await import('./Subscription.js');
+        const activeSubscription = await subscriptionModel.getActiveByUserId(id);
+        const isVip = activeSubscription !== null && 
+          activeSubscription.isActive && 
+          (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+        
         if (currentUser.nicknameChangedAt) {
           const lastChangeDate = new Date(currentUser.nicknameChangedAt);
-          const oneMonthAgo = new Date();
-          oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+          const now = new Date();
           
-          if (lastChangeDate > oneMonthAgo) {
-            throw new Error('暱稱1個月內只能修改一次，請稍後再試');
+          // VIP用戶：每7天可以修改一次
+          if (isVip) {
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (lastChangeDate > sevenDaysAgo) {
+              const daysLeft = Math.ceil((lastChangeDate.getTime() + 7 * 24 * 60 * 60 * 1000 - now.getTime()) / (24 * 60 * 60 * 1000));
+              throw new Error(`VIP會員每7天可以修改一次暱稱，距離上次修改還需等待 ${daysLeft} 天`);
+            }
+          } else {
+            // 非VIP用戶：根據修改次數決定冷卻時間
+            let cooldownDays = 0;
+            if (changeCount === 0) {
+              // 第一次修改：7天後才能改
+              cooldownDays = 7;
+            } else if (changeCount === 1) {
+              // 第二次修改：30天後才能改
+              cooldownDays = 30;
+            } else {
+              // 第三次以後：每30天後才能改
+              cooldownDays = 30;
+            }
+            
+            const cooldownDate = new Date(lastChangeDate.getTime() + cooldownDays * 24 * 60 * 60 * 1000);
+            if (now < cooldownDate) {
+              const daysLeft = Math.ceil((cooldownDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+              throw new Error(`暱稱修改冷卻時間未到，還需等待 ${daysLeft} 天`);
+            }
           }
         }
-        // 更新昵称修改时间
+        
+        // 更新昵称修改时间和次數
         fields.push(`nickname_changed_at = CURRENT_TIMESTAMP`);
+        // VIP用戶不增加修改次數，非VIP用戶增加修改次數
+        if (!isVip) {
+          fields.push(`nickname_change_count = COALESCE(nickname_change_count, 0) + 1`);
+        }
       }
       fields.push(`user_name = $${paramIndex++}`);
       values.push(userData.userName || null);
