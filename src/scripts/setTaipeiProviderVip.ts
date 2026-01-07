@@ -1,6 +1,7 @@
 import { userModel } from '../models/User.js';
 import { subscriptionModel } from '../models/Subscription.js';
 import { query } from '../db/database.js';
+import type { LadyMembershipLevel } from '../models/User.js';
 
 async function setTaipeiProviderVip() {
   try {
@@ -63,7 +64,7 @@ async function setTaipeiProviderVip() {
     
     // 升級到「鑽石佳麗」(lady_premium)
     console.log('💎 升級到「鑽石佳麗」(lady_premium)...');
-    await userModel.updateMembershipLevel(targetUser.id, 'lady_premium' as any);
+    await userModel.updateMembership(targetUser.id, 'lady_premium' as any);
     
     // 重新獲取用戶資訊以確認
     const updatedUser = await userModel.findById(targetUser.id);
@@ -76,7 +77,7 @@ async function setTaipeiProviderVip() {
       console.log(`   會員等級: ${updatedUser.membershipLevel}`);
       console.log(`   VIP 訂閱: ✅ 活躍 (到期日: ${newSubscription.expiresAt || '永久'})`);
       
-      if (updatedUser.membershipLevel === 'lady_premium' && newSubscription.isActive) {
+      if ((updatedUser.membershipLevel as LadyMembershipLevel) === 'lady_premium' && newSubscription.isActive) {
         console.log('\n🎉 用戶已成功設置為 VIP 並升級到「鑽石佳麗」！');
       }
     } else {

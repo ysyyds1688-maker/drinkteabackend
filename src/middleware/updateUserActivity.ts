@@ -6,9 +6,27 @@ import { userModel } from '../models/User.js';
 const activityUpdateCache = new Map<string, number>();
 const CACHE_TTL = 5 * 60 * 1000; // 5分鐘內不重複更新
 
+// 訪客追蹤：記錄訪客的 IP 和最後訪問時間（用於在線人數統計）
+const guestActivityCache = new Map<string, number>();
+const GUEST_CACHE_TTL = 5 * 60 * 1000; // 5分鐘內視為在線
+
+/**
+ * 獲取客戶端 IP 地址
+ */
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return forwarded[0].trim();
+  }
+  return req.ip || req.socket.remoteAddress || 'unknown';
+};
+
 /**
  * 中間件：更新用戶的活躍時間（用於在線人數統計）
- * 只在有認證的請求時更新，並且使用緩存避免過度更新資料庫
+ * 同時追蹤訪客（未登入用戶）的活動
  */
 export const updateUserActivity = async (
   req: Request,
@@ -17,19 +35,39 @@ export const updateUserActivity = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
+    const now = Date.now();
+    
+    // 追蹤訪客（未登入用戶）
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(); // 沒有認證，跳過
+      const clientIp = getClientIp(req);
+      // 更新訪客活動時間
+      guestActivityCache.set(clientIp, now);
+      
+      // 清理過期的訪客緩存（每1000次請求清理一次）
+      if (Math.random() < 0.001) {
+        const cutoff = now - GUEST_CACHE_TTL;
+        for (const [ip, timestamp] of guestActivityCache.entries()) {
+          if (timestamp < cutoff) {
+            guestActivityCache.delete(ip);
+          }
+        }
+      }
+      
+      return next();
     }
 
+    // 處理已登入用戶
     const token = authHeader.substring(7);
     const payload = verifyToken(token);
     
     if (!payload || !payload.userId) {
-      return next(); // Token 無效，跳過
+      // Token 無效，視為訪客
+      const clientIp = getClientIp(req);
+      guestActivityCache.set(clientIp, now);
+      return next();
     }
 
     const userId = payload.userId;
-    const now = Date.now();
     const lastUpdate = activityUpdateCache.get(userId);
 
     // 如果5分鐘內已經更新過，跳過
@@ -61,6 +99,23 @@ export const updateUserActivity = async (
     console.error('updateUserActivity middleware error:', error);
     next();
   }
+};
+
+/**
+ * 獲取當前在線的訪客數量（導出供 stats 路由使用）
+ */
+export const getGuestOnlineCount = (): number => {
+  const now = Date.now();
+  const cutoff = now - GUEST_CACHE_TTL;
+  let count = 0;
+  
+  for (const timestamp of guestActivityCache.values()) {
+    if (timestamp > cutoff) {
+      count++;
+    }
+  }
+  
+  return count;
 };
 
 

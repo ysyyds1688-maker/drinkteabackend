@@ -529,6 +529,7 @@ router.put('/:id/status', async (req, res) => {
             
             // 創建確認訊息（sender_id 使用 providerId，表示是佳麗發送的確認訊息）
             const confirmationMessageId = uuidv4();
+            const hasContactInfo = !!(profile.contactInfo && Object.keys(profile.contactInfo).length > 0);
             console.log(`[預約確認] 準備發送確認訊息:`, {
               messageId: confirmationMessageId,
               senderId: providerId,
