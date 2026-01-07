@@ -191,13 +191,19 @@ router.get('/my', async (req: any, res) => {
     // - 茶客（client）：查看發送的訊息（sender_id = userId）
     const isProvider = user.role === 'provider';
     const whereCondition = isProvider 
-      ? 'm.recipient_id = $1' 
-      : 'm.sender_id = $1';
+      ? 'recipient_id = $1' 
+      : 'sender_id = $1';
 
     // 獲取訊息（按 thread_id 分組，只返回每個對話串的最新訊息）
-    // 使用子查詢獲取每個對話串的最新訊息
+    // 使用子查詢先找出每個對話串的最新訊息 ID，然後 JOIN 回來
     const result = await query(
-      `SELECT 
+      `WITH latest_messages AS (
+         SELECT DISTINCT ON (thread_id) id, thread_id
+         FROM messages
+         WHERE ${whereCondition}
+         ORDER BY thread_id, created_at DESC
+       )
+       SELECT 
         m.id,
         m.sender_id as "senderId",
         m.recipient_id as "recipientId",
@@ -218,17 +224,11 @@ router.get('/my', async (req: any, res) => {
         p.name as "profileName",
         p."imageUrl" as "profileImageUrl",
         (SELECT COUNT(*) FROM messages WHERE thread_id = m.thread_id) as "threadCount"
-       FROM messages m
+       FROM latest_messages lm
+       INNER JOIN messages m ON m.id = lm.id
        LEFT JOIN users u ON m.sender_id = u.id
        LEFT JOIN users r ON m.recipient_id = r.id
        LEFT JOIN profiles p ON m.profile_id = p.id
-       WHERE ${whereCondition}
-         AND m.id = (
-           SELECT id FROM messages 
-           WHERE thread_id = m.thread_id 
-           ORDER BY created_at DESC 
-           LIMIT 1
-         )
        ORDER BY m.created_at DESC
        LIMIT $2 OFFSET $3`,
       [userId, limit, offset]

@@ -81,11 +81,13 @@ export const bookingModel = {
   },
 
   // 根据 Provider ID 获取预约
+  // 同時通過 provider_id 和 profile.userId 來查找（因為預約可能通過 profile 關聯）
   getByProviderId: async (providerId: string): Promise<Booking[]> => {
     const result = await query(`
-      SELECT * FROM bookings 
-      WHERE provider_id = $1 
-      ORDER BY booking_date DESC, booking_time DESC
+      SELECT b.* FROM bookings b
+      LEFT JOIN profiles p ON b.profile_id = p.id
+      WHERE b.provider_id = $1 OR p."userId" = $1
+      ORDER BY b.booking_date DESC, b.booking_time DESC
     `, [providerId]);
     
     return result.rows.map(row => ({
@@ -250,6 +252,22 @@ export const bookingModel = {
     `, [profileId, bookingDate]);
     
     return result.rows.map(row => row.booking_time);
+  },
+
+  // 檢查佳麗在特定日期和時間是否已有預約（用於時間衝突檢查）
+  checkProviderTimeConflict: async (providerId: string, bookingDate: string, bookingTime: string): Promise<boolean> => {
+    const result = await query(`
+      SELECT COUNT(*) as count
+      FROM bookings b
+      LEFT JOIN profiles p ON b.profile_id = p.id
+      WHERE (b.provider_id = $1 OR p."userId" = $1)
+        AND b.booking_date = $2
+        AND b.booking_time = $3
+        AND b.status IN ('pending', 'accepted', 'completed')
+    `, [providerId, bookingDate, bookingTime]);
+    
+    const count = parseInt(result.rows[0]?.count || '0', 10);
+    return count > 0;
   },
 
   // 獲取茶客在特定日期的預約數量（特選魚市）

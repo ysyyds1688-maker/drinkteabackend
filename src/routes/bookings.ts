@@ -223,6 +223,19 @@ router.post('/', async (req, res) => {
       }
     }
     
+    // 時間衝突檢查：檢查該佳麗在相同日期和時間是否已有預約（僅針對特選魚市）
+    if (providerId) {
+      const hasConflict = await bookingModel.checkProviderTimeConflict(providerId, bookingDate, bookingTime);
+      if (hasConflict) {
+        return res.status(403).json({
+          error: `該佳麗在 ${bookingDate} ${bookingTime} 時段已有預約，請選擇其他時間。`,
+          conflictType: 'time_slot',
+          bookingDate,
+          bookingTime,
+        });
+      }
+    }
+    
     // 茶客保護機制：檢查佳麗是否有被檢舉的記錄
     if (providerId) {
       const { reportModel } = await import('../models/Report.js');
@@ -447,7 +460,7 @@ router.get('/all', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, cancellationReason } = req.body; // 添加取消原因參數
     
     const user = await getUserFromRequest(req);
     if (!user) {
@@ -462,6 +475,16 @@ router.put('/:id/status', async (req, res) => {
     const existingBooking = await bookingModel.getById(id);
     if (!existingBooking) {
       return res.status(404).json({ error: '預約不存在' });
+    }
+    
+    // 如果是佳麗取消預約，必須提供取消原因
+    if (status === 'cancelled' && user.role === 'provider' && existingBooking.providerId === user.id) {
+      if (!cancellationReason || cancellationReason.trim().length === 0) {
+        return res.status(400).json({ error: '取消預約必須填寫原因說明' });
+      }
+      if (cancellationReason.trim().length < 5) {
+        return res.status(400).json({ error: '取消原因說明至少需要5個字元' });
+      }
     }
     
     const booking = await bookingModel.updateStatus(id, status, user.id, user.role);
@@ -501,71 +524,8 @@ router.put('/:id/status', async (req, res) => {
             const { v4: uuidv4 } = await import('uuid');
             const threadId = booking.id;
             
-            // 構建確認訊息內容
-            let confirmationMessage = `✅ 預約已確認！\n\n`;
-            confirmationMessage += `預約詳情：\n`;
-            confirmationMessage += `• 佳麗：${profile.name}\n`;
-            if (booking.serviceType) {
-              const serviceTypeDesc = profile.prices?.[booking.serviceType as keyof typeof profile.prices]?.desc || booking.serviceType;
-              const serviceTypePrice = profile.prices?.[booking.serviceType as keyof typeof profile.prices]?.price || 0;
-              confirmationMessage += `• 服務類型：${serviceTypeDesc}${serviceTypePrice > 0 ? ` (NT$ ${serviceTypePrice.toLocaleString()})` : ''}\n`;
-            }
-            confirmationMessage += `• 預約日期：${booking.bookingDate}\n`;
-            confirmationMessage += `• 預約時間：${booking.bookingTime}\n`;
-            if (booking.location) {
-              confirmationMessage += `• 地點：${booking.location}\n`;
-            }
-            if (booking.notes) {
-              confirmationMessage += `• 備註：${booking.notes}\n`;
-            }
-            
-            // 添加聯絡方式部分（如果有的話）
-            const hasContactInfo = profile.contactInfo && (
-              profile.contactInfo.line ||
-              profile.contactInfo.phone ||
-              profile.contactInfo.telegram ||
-              profile.contactInfo.email ||
-              (profile.contactInfo.socialAccounts && Object.keys(profile.contactInfo.socialAccounts).length > 0)
-            );
-            
-            if (hasContactInfo) {
-              confirmationMessage += `\n📞 聯繫方式：\n`;
-              if (profile.contactInfo?.line) {
-                confirmationMessage += `• LINE ID: ${profile.contactInfo.line}\n`;
-              }
-              if (profile.contactInfo?.phone) {
-                confirmationMessage += `• 電話: ${profile.contactInfo.phone}\n`;
-              }
-              if (profile.contactInfo?.telegram) {
-                confirmationMessage += `• Telegram: ${profile.contactInfo.telegram}\n`;
-              }
-              if (profile.contactInfo?.email) {
-                confirmationMessage += `• Email: ${profile.contactInfo.email}\n`;
-              }
-              if (profile.contactInfo?.socialAccounts && Object.keys(profile.contactInfo.socialAccounts).length > 0) {
-                confirmationMessage += `• 其他社群帳號：\n`;
-                Object.entries(profile.contactInfo.socialAccounts).forEach(([platform, account]) => {
-                  confirmationMessage += `  - ${platform}: ${account}\n`;
-                });
-              }
-            } else {
-              // 即使沒有聯絡資訊，也記錄日誌以便調試
-              console.warn(`⚠️ Profile ${profile.id} (${profile.name}) 沒有聯絡資訊`);
-            }
-            
-            if (profile.bookingProcess) {
-              confirmationMessage += `\n📋 預約流程：\n${profile.bookingProcess}\n`;
-            }
-            
-            if (profile.contactInfo?.contactInstructions) {
-              confirmationMessage += `\n⚠️ 預約注意事項：\n${profile.contactInfo.contactInstructions}\n`;
-            }
-            
-            if (hasContactInfo) {
-              confirmationMessage += `\n請透過以上方式與佳麗聯繫，確認最終預約細節。`;
-            } else {
-              confirmationMessage += `\n請等待佳麗主動聯繫您，或透過系統訊息功能與佳麗聯繫。`;
-            }
+            // 構建確認訊息內容（簡短版本）
+            let confirmationMessage = `我已確認 請用聯繫方式聯絡我一起品茶! ❤️`;
             
             // 創建確認訊息（sender_id 使用 providerId，表示是佳麗發送的確認訊息）
             const confirmationMessageId = uuidv4();
@@ -575,8 +535,7 @@ router.put('/:id/status', async (req, res) => {
               recipientId: booking.clientId,
               profileId: booking.profileId,
               threadId: threadId,
-              hasContactInfo: hasContactInfo,
-              contactInfo: profile.contactInfo ? JSON.stringify(profile.contactInfo).substring(0, 100) : '無'
+              hasContactInfo: hasContactInfo
             });
             
             await query(
@@ -602,8 +561,7 @@ router.put('/:id/status', async (req, res) => {
               },
             });
             
-            console.log(`✅ 已發送確認訊息給茶客 ${booking.clientId}，${hasContactInfo ? '包含' : '不包含'}聯絡方式`);
-            console.log(`訊息內容預覽:`, confirmationMessage.substring(0, 300) + '...');
+            console.log(`✅ 已發送確認訊息給茶客 ${booking.clientId}`);
           } catch (error: any) {
             console.error('❌ 創建確認訊息失敗:', error);
             console.error('錯誤詳情:', error.stack);
@@ -611,7 +569,6 @@ router.put('/:id/status', async (req, res) => {
             console.error('茶客ID:', booking.clientId);
             console.error('佳麗ID:', booking.providerId);
             console.error('Profile ID:', booking.profileId);
-            console.error('Profile contactInfo:', JSON.stringify(profile?.contactInfo || null));
             // 不阻止預約確認，只記錄錯誤
           }
         } else if (status === 'rejected') {
@@ -655,7 +612,41 @@ router.put('/:id/status', async (req, res) => {
           notificationContent = `您的預約已完成，請記得給予評論！`;
         } else if (status === 'cancelled') {
           notificationTitle = '預約已取消';
+          const cancellationReason = req.body.cancellationReason || '未提供原因';
           notificationContent = `${providerName} 已取消您的預約`;
+          
+          // 創建取消訊息給茶客（包含取消原因）
+          try {
+            const { v4: uuidv4 } = await import('uuid');
+            const threadId = booking.id;
+            
+            const cancellationMessage = `❌ 預約已取消\n\n很抱歉，${profile.name} 已取消您的預約。\n\n預約詳情：\n• 預約日期：${booking.bookingDate}\n• 預約時間：${booking.bookingTime}${booking.location ? `\n• 地點：${booking.location}` : ''}\n\n取消原因：\n${cancellationReason}\n\n如有疑問，請聯繫客服。`;
+            
+            const cancellationMessageId = uuidv4();
+            await query(
+              `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [cancellationMessageId, providerId, booking.clientId, booking.profileId, threadId, cancellationMessage, new Date(), false]
+            );
+            
+            await notificationModel.create({
+              userId: booking.clientId,
+              type: 'booking',
+              title: '預約已取消',
+              content: `${providerName} 已取消您的預約\n\n取消原因：${cancellationReason}\n\n請前往訊息收件箱查看詳情。`,
+              link: `/user-profile?tab=messages`,
+              metadata: {
+                bookingId: booking.id,
+                profileId: booking.profileId,
+                messageId: cancellationMessageId,
+                threadId: threadId,
+              },
+            });
+            
+            console.log(`已發送取消訊息給茶客 ${booking.clientId}`);
+          } catch (error) {
+            console.error('創建取消訊息失敗:', error);
+          }
         }
         
         if (notificationTitle) {

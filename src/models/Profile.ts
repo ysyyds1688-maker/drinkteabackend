@@ -19,20 +19,160 @@ export const profileModel = {
       const countResult = await query(countSql, countParams);
       const total = parseInt(countResult.rows[0].total, 10);
       
-      // 明确指定所有列名，确保正确获取userId字段
-      let sql = `SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
-                 type, "imageUrl", gallery, albums, price, prices, tags, 
-                 "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
-                 views, contact_count, "createdAt", "updatedAt" FROM profiles`;
+      // 明確指定所有列名，並加入會員等級 / VIP / 平均評分等欄位，供排序使用
+      // 說明：
+      // - level_value：將 membership_level 映射為數值（等級越高數值越大）
+      // - avg_rating：該 profile 的平均評分（僅計算可見評論）
+      //
+      // 曝光排序權重（只用於 ORDER BY，不會影響返回資料結構）：
+      // ExposureScore = 2.0 * level_value + 1.0 * avg_rating + 3.0 * isVip
+      let sql = `
+        SELECT 
+          p.id,
+          p."userId",
+          p.name,
+          p.nationality,
+          p.age,
+          p.height,
+          p.weight,
+          p.cup,
+          p.location,
+          p.district,
+          p.type,
+          p."imageUrl",
+          p.gallery,
+          p.albums,
+          p.price,
+          p.prices,
+          p.tags,
+          p."basicServices",
+          p."addonServices",
+          p."contactInfo",
+          p.remarks,
+          p.videos,
+          p."bookingProcess",
+          p."isNew",
+          p."isAvailable",
+          p."availableTimes",
+          p.views,
+          p.contact_count,
+          p."createdAt",
+          p."updatedAt",
+          -- 會員等級數值映射（茶客 + 佳麗）
+          CASE u.membership_level
+            -- 茶客等級（1~10）
+            WHEN 'tea_guest' THEN 1
+            WHEN 'tea_scholar' THEN 2
+            WHEN 'royal_tea_scholar' THEN 3
+            WHEN 'royal_tea_officer' THEN 4
+            WHEN 'tea_king_attendant' THEN 5
+            WHEN 'imperial_chief_tea_officer' THEN 6
+            WHEN 'tea_king_confidant' THEN 7
+            WHEN 'tea_king_personal_selection' THEN 8
+            WHEN 'imperial_golden_seal_tea_officer' THEN 9
+            WHEN 'national_master_tea_officer' THEN 10
+            -- 佳麗等級（1~10）
+            WHEN 'lady_trainee' THEN 1
+            WHEN 'lady_apprentice' THEN 2
+            WHEN 'lady_junior' THEN 3
+            WHEN 'lady_senior' THEN 4
+            WHEN 'lady_expert' THEN 5
+            WHEN 'lady_master' THEN 6
+            WHEN 'lady_elite' THEN 7
+            WHEN 'lady_premium' THEN 8
+            WHEN 'lady_royal' THEN 9
+            WHEN 'lady_empress' THEN 10
+            ELSE 0
+          END AS level_value,
+          -- 平均評分（只計算可見評論）
+          (
+            SELECT COALESCE(AVG(r.rating), 0)
+            FROM reviews r
+            WHERE r.profile_id = p.id
+              AND r.is_visible = TRUE
+          ) AS avg_rating,
+          -- 是否 VIP（布林轉 0/1）
+          CASE 
+            WHEN u.role = 'provider' THEN 
+              CASE 
+                WHEN EXISTS (
+                  SELECT 1 FROM subscriptions s 
+                  WHERE s.user_id = u.id 
+                    AND s.is_active = TRUE 
+                    AND (s.expires_at IS NULL OR s.expires_at > NOW())
+                ) THEN 1
+                ELSE 0
+              END
+            ELSE 0
+          END AS is_vip_value,
+          -- Provider 的 Email 驗證狀態（僅特選魚市需要）
+          CASE 
+            WHEN u.role = 'provider' THEN u.email_verified
+            ELSE NULL
+          END AS provider_email_verified
+        FROM profiles p
+        LEFT JOIN users u ON p."userId" = u.id
+      `;
       const params: any[] = [];
       let paramIndex = 1;
       
       if (userId) {
-        sql += ` WHERE "userId" = $${paramIndex++}`;
+        sql += ` WHERE p."userId" = $${paramIndex++}`;
         params.push(userId);
       }
       
-      sql += ' ORDER BY "createdAt" DESC';
+      // 排序說明：
+      // - 先依照曝光分數（等級 + 評分 + VIP）由高到低
+      // - 再依照建立時間由新到舊
+      // 注意：在 ORDER BY 中重複計算，避免別名引用問題
+      sql += `
+        ORDER BY 
+          (
+            2.0 * COALESCE(
+              CASE u.membership_level
+                WHEN 'tea_guest' THEN 1
+                WHEN 'tea_scholar' THEN 2
+                WHEN 'royal_tea_scholar' THEN 3
+                WHEN 'royal_tea_officer' THEN 4
+                WHEN 'tea_king_attendant' THEN 5
+                WHEN 'imperial_chief_tea_officer' THEN 6
+                WHEN 'tea_king_confidant' THEN 7
+                WHEN 'tea_king_personal_selection' THEN 8
+                WHEN 'imperial_golden_seal_tea_officer' THEN 9
+                WHEN 'national_master_tea_officer' THEN 10
+                WHEN 'lady_trainee' THEN 1
+                WHEN 'lady_apprentice' THEN 2
+                WHEN 'lady_junior' THEN 3
+                WHEN 'lady_senior' THEN 4
+                WHEN 'lady_expert' THEN 5
+                WHEN 'lady_master' THEN 6
+                WHEN 'lady_elite' THEN 7
+                WHEN 'lady_premium' THEN 8
+                WHEN 'lady_royal' THEN 9
+                WHEN 'lady_empress' THEN 10
+                ELSE 0
+              END, 0
+            ) +
+            1.0 * COALESCE((
+              SELECT AVG(r.rating)
+              FROM reviews r
+              WHERE r.profile_id = p.id
+                AND r.is_visible = TRUE
+            ), 0) +
+            3.0 * COALESCE(
+              CASE 
+                WHEN u.role = 'provider' AND EXISTS (
+                  SELECT 1 FROM subscriptions s 
+                  WHERE s.user_id = u.id 
+                    AND s.is_active = TRUE 
+                    AND (s.expires_at IS NULL OR s.expires_at > NOW())
+                ) THEN 1
+                ELSE 0
+              END, 0
+            )
+          ) DESC,
+          p."createdAt" DESC
+      `;
       
       // 添加分頁
       if (options?.limit) {
@@ -73,6 +213,9 @@ export const profileModel = {
             isAvailable: Boolean(row.isAvailable),
             views: row.views || 0,
             contactCount: row.contact_count || 0,
+            // Provider 相關資訊（僅特選魚市）
+            isVip: Boolean(row.is_vip_value === 1),
+            providerEmailVerified: row.provider_email_verified ? Boolean(row.provider_email_verified) : undefined,
           };
         } catch (parseError: any) {
           console.error('Error parsing profile row:', row.id, parseError);
@@ -91,6 +234,9 @@ export const profileModel = {
             availableTimes: { today: '12:00~02:00', tomorrow: '12:00~02:00' },
             isNew: Boolean(row.isNew),
             isAvailable: Boolean(row.isAvailable),
+            // Provider 相關資訊（僅特選魚市）
+            isVip: Boolean(row.is_vip_value === 1),
+            providerEmailVerified: row.provider_email_verified ? Boolean(row.provider_email_verified) : undefined,
           };
         }
       });
