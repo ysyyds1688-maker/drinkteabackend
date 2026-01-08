@@ -293,5 +293,42 @@ router.post('/test', async (req, res) => {
   }
 });
 
+/**
+ * 檢查 Telegram 配置狀態
+ */
+router.get('/config', async (req, res) => {
+  try {
+    const adminUser = await getUserFromRequest(req);
+    
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+
+    const isConfigured = telegramService.isConfigured();
+    const hasBotToken = !!process.env.TELEGRAM_BOT_TOKEN;
+    const hasGroupId = !!process.env.TELEGRAM_GROUP_ID;
+    const hasChatId = !!process.env.TELEGRAM_CHAT_ID;
+    const hasAdminChatId = !!process.env.TELEGRAM_ADMIN_CHAT_ID;
+    const hasMessageThreadId = !!process.env.TELEGRAM_MESSAGE_THREAD_ID;
+
+    res.json({
+      configured: isConfigured,
+      hasBotToken,
+      hasGroupId,
+      hasChatId,
+      hasAdminChatId,
+      hasMessageThreadId,
+      message: isConfigured 
+        ? 'Telegram 配置完整' 
+        : '請設置環境變數 TELEGRAM_BOT_TOKEN 和 TELEGRAM_CHAT_ID'
+    });
+  } catch (error: any) {
+    console.error('[Telegram] 配置檢查失敗:', error);
+    res.status(500).json({ 
+      error: error.message || '檢查配置失敗'
+    });
+  }
+});
+
 export default router;
 
