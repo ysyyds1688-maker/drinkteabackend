@@ -1010,9 +1010,9 @@ router.get('/', (req, res) => {
             <div style="padding: 1.5rem;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                     <div><strong>公開ID：</strong><span id="userDetailId">-</span></div>
-                    <div><strong>暱稱：</strong><span id="userDetailUserName">-</span></div>
                     <div><strong>Email：</strong><span id="userDetailEmail">-</span></div>
                     <div><strong>手機號：</strong><span id="userDetailPhone">-</span></div>
+                    <div><strong>暱稱：</strong><span id="userDetailUserName">-</span></div>
                     <div><strong>身份：</strong><span id="userDetailRole">-</span></div>
                     <div><strong>會員等級：</strong><span id="userDetailLevel">-</span></div>
                     <div><strong>驗證勳章：</strong><span id="userDetailBadges">-</span></div>
@@ -3145,9 +3145,11 @@ router.get('/', (req, res) => {
                         const tags = getUserTagsDisplay(u);
                         const publicId = u.publicId || u.id || '-';
                         const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeUserName = String(u.userName || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         const banStatus = u.isBanned ? '<span style="color: #ef4444; font-size: 0.875rem;">❌ 已封禁</span>' : '<span style="color: #10b981; font-size: 0.875rem;">✅ 正常</span>';
                         return '<div class="table-card">' +
                             '<div class="table-card-header"><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">' + safePublicId + '</code> ' + banStatus + '</div>' +
+                            '<div class="table-card-row"><span class="table-card-label">暱稱:</span><span class="table-card-value">' + safeUserName + '</span></div>' +
                             '<div class="table-card-row"><span class="table-card-label">身份:</span><span class="table-card-value">' + role + '</span></div>' +
                             '<div class="table-card-row"><span class="table-card-label">標記:</span><span class="table-card-value">' + tags + '</span></div>' +
                             '<div class="table-card-row"><span class="table-card-label">會員等級:</span><span class="table-card-value">' + membership + '</span></div>' +
@@ -3158,8 +3160,8 @@ router.get('/', (req, res) => {
                     }).join('') + '</div>' +
                     '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
             } else {
-                // 桌面：表格布局（簡化版，只保留：公開ID、身份、標記、會員等級、驗證、狀態、操作）
-                list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>公開ID</th><th>身份</th><th>標記</th><th>會員等級</th><th>驗證</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                // 桌面：表格布局（簡化版，只保留：公開ID、暱稱、身份、標記、會員等級、驗證、狀態、操作）
+                list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>公開ID</th><th>暱稱</th><th>身份</th><th>標記</th><th>會員等級</th><th>驗證</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
                     users.map(u => {
                         const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
                         const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
@@ -3167,9 +3169,11 @@ router.get('/', (req, res) => {
                         const tags = getUserTagsDisplay(u);
                         const publicId = u.publicId || u.id || '-';
                         const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeUserName = String(u.userName || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         const banStatus = u.isBanned ? '<span style="color: #ef4444; font-size: 0.875rem;">❌ 已封禁</span>' : '<span style="color: #10b981; font-size: 0.875rem;">✅ 正常</span>';
                         return '<tr>' +
                             '<td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">' + safePublicId + '</code></td>' +
+                            '<td>' + safeUserName + '</td>' +
                             '<td>' + role + '</td>' +
                             '<td>' + tags + '</td>' +
                             '<td>' + membership + '</td>' +
