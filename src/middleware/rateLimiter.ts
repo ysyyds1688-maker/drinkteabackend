@@ -1,5 +1,6 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request, Response } from 'express';
+import { verifyToken } from '../services/authService.js';
 
 // Rate Limit 日誌記錄函數
 const logRateLimit = (req: Request, limiterName: string, limit: number, windowMs: number) => {
@@ -96,10 +97,16 @@ export const writeLimiter = rateLimit({
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
-        // TODO: 解析 JWT token 獲取用戶 ID
-        // 暫時使用 IP，實際應該從 token 中提取 userId
-        return `user:${ipKeyGenerator(ip)}`;
-      } catch {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload && payload.userId) {
+          // 使用用戶 ID 進行限流
+          return `user:${payload.userId}`;
+        }
+        // Token 無效，回退到 IP
+        return `ip:${ipKeyGenerator(ip)}`;
+      } catch (error) {
+        // 解析失敗，回退到 IP
         return `ip:${ipKeyGenerator(ip)}`;
       }
     }
@@ -230,10 +237,16 @@ export const createUserBasedLimiter = (windowMs: number, max: number) => {
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
       if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
-          // 這裡可以解析 JWT token 獲取用戶 ID
-          // 暫時使用 IP，實際應該從 token 中提取
+          const token = authHeader.substring(7);
+          const payload = verifyToken(token);
+          if (payload && payload.userId) {
+            // 使用用戶 ID 進行限流
+            return `user:${payload.userId}`;
+          }
+          // Token 無效，回退到 IP
           return ipKeyGenerator(ip);
-        } catch {
+        } catch (error) {
+          // 解析失敗，回退到 IP
           return ipKeyGenerator(ip);
         }
       }

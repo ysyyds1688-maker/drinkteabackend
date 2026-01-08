@@ -810,14 +810,35 @@ router.post('/send-verification-phone', verificationLimiter, async (req, res) =>
     // 存儲驗證碼（優先使用 Redis）
     await setVerificationCode('phone', user.id, code, 600); // 10分鐘過期
     
-    // TODO: 這裡應該發送真實的 SMS，目前先返回驗證碼（開發環境）
-    // 生產環境應該移除這個返回，只返回成功消息
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[開發環境] 用戶 ${user.phoneNumber} 的驗證碼: ${code}`);
+    // 發送 SMS 驗證碼
+    try {
+      const { sendSMS } = await import('../services/smsService.js');
+      await sendSMS(user.phoneNumber, `您的驗證碼是: ${code}，有效期10分鐘`);
+    } catch (smsError: any) {
+      // 如果是開發環境且未配置 SMS，返回驗證碼供測試
+      if (process.env.NODE_ENV === 'development' && !process.env.SMS_PROVIDER) {
+        console.log(`[開發環境] 用戶 ${user.phoneNumber} 的驗證碼: ${code}`);
+        res.json({ 
+          message: '驗證碼已生成（開發環境，未配置 SMS）',
+          code, // 開發環境返回驗證碼
+          warning: 'SMS 未配置，驗證碼未實際發送'
+        });
+        return;
+      }
+      // 生產環境發送失敗則返回錯誤
+      console.error('SMS 配置檢查:', {
+        SMS_ENABLED: process.env.SMS_ENABLED !== 'false' ? 'true (已啟用)' : 'false (已禁用)',
+        SMS_PROVIDER: process.env.SMS_PROVIDER || '未設置',
+        TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ? '已設置' : '未設置',
+        TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ? '已設置' : '未設置',
+        TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER ? '已設置' : '未設置',
+        NODE_ENV: process.env.NODE_ENV || '未設置',
+      });
+      return res.status(500).json({ 
+        error: '發送驗證碼失敗，請稍後再試',
+        details: process.env.NODE_ENV === 'development' ? smsError.message : undefined
+      });
     }
-    
-    // TODO: 發送 SMS
-    // await sendSMS(user.phoneNumber, `您的驗證碼是: ${code}，有效期10分鐘`);
     
     res.json({ 
       message: '驗證碼已發送',
