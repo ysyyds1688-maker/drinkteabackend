@@ -407,6 +407,35 @@ initDatabase()
       cleanupOldLogs(7); // 保留最近 7 天的日誌
     }, 24 * 60 * 60 * 1000); // 每 24 小時運行一次
     
+    // 啟動 Telegram 通知定時任務（每 5 分鐘檢查一次）
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+      const { checkAndReportTelegram } = await import('./routes/telegram-notifications.js');
+      // 立即執行一次（延遲 30 秒，等待服務器完全啟動）
+      setTimeout(async () => {
+        try {
+          const result = await checkAndReportTelegram(false);
+          if (result.success) {
+            console.log('✅ Telegram 通知定時任務已啟動（每 5 分鐘檢查一次）');
+          } else {
+            console.warn('⚠️  Telegram 通知定時任務啟動失敗:', result.error);
+          }
+        } catch (error: any) {
+          console.error('❌ Telegram 通知定時任務初始化失敗:', error.message);
+        }
+      }, 30000); // 30 秒後執行第一次
+      
+      // 每 5 分鐘執行一次
+      setInterval(async () => {
+        try {
+          await checkAndReportTelegram(false);
+        } catch (error: any) {
+          console.error('[Telegram] 定時任務執行失敗:', error.message);
+        }
+      }, 5 * 60 * 1000); // 每 5 分鐘
+    } else {
+      console.log('ℹ️  Telegram 通知未配置，跳過定時任務');
+    }
+    
     // 启动定时任务
     schedulerService.startAllTasks();
     

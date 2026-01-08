@@ -3,14 +3,14 @@
  * 每 5 分鐘檢查並發送統計報告
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { telegramService } from '../services/telegramService.js';
 import { bookingModel } from '../models/Booking.js';
 import { query } from '../db/database.js';
 import { getUserFromRequest } from '../middleware/auth.js';
 import { userModel } from '../models/User.js';
 
-const router = Router();
+const router: Router = Router();
 
 // 存儲上次檢查的時間戳
 let lastCheckTime: Date = new Date();
@@ -28,21 +28,15 @@ let lastStats: {
 };
 
 /**
- * 檢查並發送統計報告（每 5 分鐘）
+ * 執行檢查並發送統計報告（內部函數，可被定時任務和 API 調用）
  */
-router.post('/check-and-report', async (req, res) => {
+export async function checkAndReportTelegram(requireAdmin: boolean = false): Promise<{ success: boolean; stats?: any; error?: string }> {
   try {
-    const adminUser = await getUserFromRequest(req);
-    
-    if (!adminUser || adminUser.role !== 'admin') {
-      return res.status(403).json({ error: '無權訪問' });
-    }
-
     if (!telegramService.isConfigured()) {
-      return res.status(400).json({ 
-        error: 'Telegram Bot 未配置',
-        message: '請設置環境變數 TELEGRAM_BOT_TOKEN 和 TELEGRAM_CHAT_ID'
-      });
+      return { 
+        success: false,
+        error: 'Telegram Bot 未配置，請設置環境變數 TELEGRAM_BOT_TOKEN 和 TELEGRAM_CHAT_ID'
+      };
     }
 
     const now = new Date();
@@ -216,18 +210,46 @@ router.post('/check-and-report', async (req, res) => {
       guestCount: onlineStats.guestCount,
     };
 
+    return {
+      success: true,
+      stats,
+    };
+  } catch (error: any) {
+    console.error('[Telegram] 檢查並發送報告失敗:', error);
+    return {
+      success: false,
+      error: error.message || '檢查並發送報告失敗',
+    };
+  }
+}
+
+/**
+ * 檢查並發送統計報告（API 端點，每 5 分鐘）
+ */
+router.post('/check-and-report', async (req: Request, res: Response) => {
+  try {
+    const adminUser = await getUserFromRequest(req);
+    
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+
+    const result = await checkAndReportTelegram(true);
+    
+    if (!result.success) {
+      return res.status(400).json({ 
+        error: result.error || '檢查失敗',
+        message: result.error
+      });
+    }
+
     res.json({
       success: true,
       message: '檢查完成並已發送通知',
-      stats,
-      details: {
-        newUsers: newUsers.length,
-        newBookings: newBookings.length,
-        newPosts: newPosts.length,
-      },
+      stats: result.stats,
     });
   } catch (error: any) {
-    console.error('[Telegram] 檢查並發送報告失敗:', error);
+    console.error('[Telegram] API 端點錯誤:', error);
     res.status(500).json({ 
       error: error.message || '檢查並發送報告失敗',
       details: error.stack 
@@ -238,7 +260,7 @@ router.post('/check-and-report', async (req, res) => {
 /**
  * 測試 Telegram 連接
  */
-router.post('/test', async (req, res) => {
+router.post('/test', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
     
@@ -294,7 +316,7 @@ router.post('/test', async (req, res) => {
 /**
  * 檢查 Telegram 配置狀態
  */
-router.get('/config', async (req, res) => {
+router.get('/config', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
     
