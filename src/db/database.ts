@@ -297,6 +297,33 @@ export const initDatabase = async () => {
       }
     }
 
+    // 添加封禁相關欄位
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS ban_reason TEXT,
+        ADD COLUMN IF NOT EXISTS banned_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS banned_by VARCHAR(255)
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加封禁欄位時出現警告:', error.message);
+      }
+    }
+
+    // 添加用戶標記欄位（管理員、內部人員、水軍等）
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS user_tags TEXT DEFAULT '[]'
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加用戶標記欄位時出現警告:', error.message);
+      }
+    }
+
     try {
       await pool.query(`
         ALTER TABLE users 

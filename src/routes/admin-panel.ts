@@ -208,6 +208,44 @@ router.get('/', (req, res) => {
             opacity: 0.6;
             pointer-events: none;
         }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+        }
+        .error-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
         .ai-parse-section {
             background: #f8f9fa;
             padding: 1.5rem;
@@ -502,6 +540,247 @@ router.get('/', (req, res) => {
         .logout-btn:hover {
             background: #dc2626;
         }
+
+        /* ==================== 響應式設計 (RWD) ==================== */
+        /* 平板 (768px - 1024px) */
+        @media (max-width: 1024px) {
+            .container {
+                padding: 0 1rem;
+            }
+            .stats {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+            .stat-card .value {
+                font-size: 1.75rem;
+            }
+            .tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            .tab {
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+            }
+            table {
+                font-size: 0.875rem;
+            }
+            th, td {
+                padding: 0.75rem 0.5rem;
+            }
+            .modal-content {
+                max-width: 90%;
+                padding: 1.5rem;
+            }
+        }
+
+        /* 手機 (最大 768px) */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.75rem 1rem;
+            }
+            .header h1 {
+                font-size: 1.25rem;
+            }
+            .user-info {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-end;
+            }
+            .user-info span {
+                font-size: 0.75rem;
+            }
+            .logout-btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.75rem;
+            }
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.75rem;
+            }
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            .stat-card {
+                padding: 1rem;
+            }
+            .stat-card h3 {
+                font-size: 0.75rem;
+                margin-bottom: 0.25rem;
+            }
+            .stat-card .value {
+                font-size: 1.5rem;
+            }
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                flex-wrap: nowrap;
+                gap: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
+            .tabs::-webkit-scrollbar {
+                height: 4px;
+            }
+            .tabs::-webkit-scrollbar-thumb {
+                background: #ccc;
+                border-radius: 2px;
+            }
+            .tab {
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            .content {
+                padding: 1rem;
+            }
+            .content h2 {
+                font-size: 1.25rem;
+            }
+            /* 表格改為卡片式（手機） */
+            table {
+                display: none;
+            }
+            .table-mobile {
+                display: block;
+            }
+            .table-mobile .table-card {
+                background: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            .table-mobile .table-card-header {
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+                color: #1a1a1a;
+            }
+            .table-mobile .table-card-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .table-mobile .table-card-row:last-child {
+                border-bottom: none;
+            }
+            .table-mobile .table-card-label {
+                font-weight: 500;
+                color: #666;
+                font-size: 0.875rem;
+            }
+            .table-mobile .table-card-value {
+                color: #1a1a1a;
+                font-size: 0.875rem;
+                text-align: right;
+            }
+            .table-mobile .table-card-actions {
+                display: flex;
+                gap: 0.5rem;
+                margin-top: 0.75rem;
+                flex-wrap: wrap;
+            }
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.75rem;
+                margin-right: 0.25rem;
+                margin-bottom: 0.25rem;
+            }
+            .modal.active {
+                padding: 0.5rem;
+            }
+            .modal-content {
+                max-width: 100%;
+                max-height: 95vh;
+                padding: 1rem;
+            }
+            .modal-header h2 {
+                font-size: 1.25rem;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .success-message,
+            .error-message {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                padding: 0.75rem 1rem;
+                font-size: 0.875rem;
+            }
+            /* 用戶搜索欄位 */
+            #userSearchInput {
+                min-width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            /* 統計卡片中的在線人數 */
+            .stat-card[style*="background: linear-gradient"] {
+                grid-column: 1 / -1;
+            }
+            .stat-card[style*="background: linear-gradient"] .value {
+                font-size: 2rem;
+            }
+        }
+
+        /* 小手機 (最大 480px) */
+        @media (max-width: 480px) {
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            .stat-card .value {
+                font-size: 1.25rem;
+            }
+            .tab {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.75rem;
+            }
+            .content h2 {
+                font-size: 1rem;
+            }
+            .btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.7rem;
+            }
+        }
+
+        /* 桌面增強 (最小 1025px) */
+        @media (min-width: 1025px) {
+            .stats {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            }
+            .stat-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                transition: all 0.2s ease;
+            }
+            .btn {
+                transition: all 0.2s ease;
+            }
+            .btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+        }
+
+        /* 表格響應式切換 */
+        .table-mobile {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .table-desktop {
+                display: none;
+            }
+            .table-mobile {
+                display: block;
+            }
+            .user-detail-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .modal-content[style*="max-width: 800px"] {
+                max-width: 95% !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -556,7 +835,7 @@ router.get('/', (req, res) => {
                 <div class="value" id="totalUsers">-</div>
             </div>
             <div class="stat-card">
-                <h3>供茶人數</h3>
+                <h3>佳麗人數</h3>
                 <div class="value" id="totalProviders">-</div>
             </div>
             <div class="stat-card">
@@ -570,6 +849,13 @@ router.get('/', (req, res) => {
             <div class="stat-card">
                 <h3>待處理預約</h3>
                 <div class="value" id="pendingBookings">-</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #1a5f3f 0%, #15803d 100%); color: white;">
+                <h3 style="color: rgba(255,255,255,0.9);">🟢 在線人數</h3>
+                <div class="value" id="onlineCount" style="color: white; font-size: 2.5rem;">-</div>
+                <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.9;">
+                    <span id="onlineLoggedIn">已登入: -</span> | <span id="onlineGuests">訪客: -</span>
+                </div>
             </div>
             <div class="stat-card">
                 <h3>國家 / 國籍篩選</h3>
@@ -591,11 +877,13 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="tabs">
-            <button class="tab active" data-tab="profiles" onclick="showTab(event, &#39;profiles&#39;)">高級茶管理</button>
-            <button class="tab" data-tab="provider-profiles" onclick="showTab(event, &#39;provider-profiles&#39;)">Provider 管理</button>
+            <button class="tab active" data-tab="dashboard" onclick="showTab(event, &#39;dashboard&#39;)">📊 儀表板</button>
+            <button class="tab" data-tab="profiles" onclick="showTab(event, &#39;profiles&#39;)">高級茶管理</button>
+            <button class="tab" data-tab="provider-profiles" onclick="showTab(event, &#39;provider-profiles&#39;)">佳麗管理</button>
             <button class="tab" data-tab="articles" onclick="showTab(event, &#39;articles&#39;)">Articles 管理</button>
             <button class="tab" data-tab="users" onclick="showTab(event, &#39;users&#39;)">用戶管理</button>
             <button class="tab" data-tab="bookings" onclick="showTab(event, &#39;bookings&#39;)">預約管理</button>
+            <button class="tab" data-tab="stats-detail" onclick="showTab(event, &#39;stats-detail&#39;)">📈 統計詳情</button>
         </div>
 
         <div class="content">
@@ -609,7 +897,7 @@ router.get('/', (req, res) => {
 
             <div id="provider-profiles-tab" class="hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2>Provider 管理（茶茶上架）</h2>
+                    <h2>佳麗管理（茶茶上架）</h2>
                 </div>
                 <div id="provider-profiles-list"></div>
             </div>
@@ -651,6 +939,58 @@ router.get('/', (req, res) => {
                     <button class="tab" data-booking-tab="fish-market" onclick="showBookingTab(event, 'fish-market')" style="padding: 0.75rem 1.5rem; background: none; border: none; cursor: pointer; font-size: 0.875rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px;">特選魚市的預約</button>
                 </div>
                 <div id="bookings-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用戶詳情 Modal -->
+    <div id="userDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>👤 用戶詳情</h2>
+                <button class="close-btn" onclick="closeUserDetailModal()">&times;</button>
+            </div>
+            <div style="padding: 1.5rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div><strong>公開ID：</strong><span id="userDetailId">-</span></div>
+                    <div><strong>Email：</strong><span id="userDetailEmail">-</span></div>
+                    <div><strong>手機號：</strong><span id="userDetailPhone">-</span></div>
+                    <div><strong>身份：</strong><span id="userDetailRole">-</span></div>
+                    <div><strong>會員等級：</strong><span id="userDetailLevel">-</span></div>
+                    <div><strong>驗證勳章：</strong><span id="userDetailBadges">-</span></div>
+                    <div><strong>註冊時間：</strong><span id="userDetailCreated">-</span></div>
+                    <div><strong>最後登入：</strong><span id="userDetailLastLogin">-</span></div>
+                    <div><strong>會員到期：</strong><span id="userDetailExpires">-</span></div>
+                    <div><strong>狀態：</strong><span id="userDetailBanStatus">-</span></div>
+                    <div><strong>用戶標記：</strong><span id="userDetailTags">-</span></div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+                    <h3 style="margin-bottom: 1rem;">用戶標記</h3>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                        <button class="btn" id="tagAdminBtn" onclick="toggleUserTag('admin')" style="background: #fbbf24; color: #1a1a1a; opacity: 0.5;">👑 管理員</button>
+                        <button class="btn" id="tagStaffBtn" onclick="toggleUserTag('staff')" style="background: #3b82f6; color: white; opacity: 0.5;">👔 內部人員</button>
+                        <button class="btn" id="tagTrollBtn" onclick="toggleUserTag('troll')" style="background: #ef4444; color: white; opacity: 0.5;">🤖 水軍</button>
+                        <button class="btn" id="tagVipBtn" onclick="toggleUserTag('vip')" style="background: #10b981; color: white; opacity: 0.5;">💎 VIP</button>
+                        <button class="btn" id="tagVerifiedBtn" onclick="toggleUserTag('verified')" style="background: #8b5cf6; color: white; opacity: 0.5;">✅ 已驗證</button>
+                        <button class="btn" id="tagTestBtn" onclick="toggleUserTag('test')" style="background: #6b7280; color: white; opacity: 0.5;">🧪 測試帳號</button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+                    <h3 style="margin-bottom: 1rem;">操作</h3>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn" onclick="editUserLevel()">修改等級</button>
+                        <button class="btn" id="userDetailBanBtn" onclick="banUser()">封禁用戶</button>
+                        <button class="btn" id="userDetailUnbanBtn" style="display: none;" onclick="unbanUser()">解封用戶</button>
+                        <button class="btn" onclick="resetUserPassword()">重置密碼</button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
+                    <h3 style="margin-bottom: 1rem;">預約記錄 (<span id="userDetailBookings">0</span>)</h3>
+                    <div id="userDetailBookingsList"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -1023,12 +1363,22 @@ router.get('/', (req, res) => {
             if (checkAuth()) {
                 loadStats();
                 loadProfiles();
+                startOnlineStatsUpdate(); // 開始在線人數更新
             }
         });
 
         // 載入統計資訊
         async function loadStats() {
             try {
+                // 顯示加載狀態
+                const statCards = document.querySelectorAll('.stat-card .value');
+                statCards.forEach(card => {
+                    if (card.textContent === '-') {
+                        card.textContent = '載入中...';
+                        card.style.opacity = '0.6';
+                    }
+                });
+                
                 const res = await fetch(API_BASE + '/api/admin/stats', {
                     headers: getAuthHeaders()
                 });
@@ -1037,9 +1387,82 @@ router.get('/', (req, res) => {
                 document.getElementById('availableProfiles').textContent = stats.profiles.available;
                 document.getElementById('totalArticles').textContent = stats.articles.total;
                 document.getElementById('totalViews').textContent = stats.articles.totalViews.toLocaleString();
+                
+                // 載入用戶統計（如果有的話）
+                if (stats.users) {
+                    document.getElementById('totalUsers').textContent = stats.users.total || '-';
+                    document.getElementById('totalProviders').textContent = stats.users.providers || '-';
+                    document.getElementById('totalClients').textContent = stats.users.clients || '-';
+                }
+                if (stats.bookings) {
+                    document.getElementById('totalBookings').textContent = stats.bookings.total || '-';
+                    document.getElementById('pendingBookings').textContent = stats.bookings.pending || '-';
+                }
+                
+                // 恢復正常透明度
+                statCards.forEach(card => {
+                    card.style.opacity = '1';
+                });
             } catch (error) {
                 console.error('載入統計失敗:', error);
+                // 顯示錯誤狀態
+                const statCards = document.querySelectorAll('.stat-card .value');
+                statCards.forEach(card => {
+                    if (card.textContent === '載入中...') {
+                        card.textContent = '載入失敗';
+                        card.style.color = '#ef4444';
+                    }
+                });
             }
+        }
+
+        // 載入在線人數（實時更新）
+        async function loadOnlineStats() {
+            try {
+                // 檢查 API_BASE 是否正確
+                if (!API_BASE || API_BASE === 'null' || API_BASE === 'undefined') {
+                    console.warn('API_BASE 未正確設置，跳過在線人數更新');
+                    return;
+                }
+                
+                const res = await fetch(API_BASE + '/api/stats/online', {
+                    headers: getAuthHeaders(),
+                    method: 'GET'
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const onlineCountEl = document.getElementById('onlineCount');
+                    const onlineLoggedInEl = document.getElementById('onlineLoggedIn');
+                    const onlineGuestsEl = document.getElementById('onlineGuests');
+                    
+                    if (onlineCountEl) {
+                        onlineCountEl.textContent = data.onlineCount || 0;
+                    }
+                    // 嘗試獲取詳細信息（如果API支持）
+                    if (data.loggedInCount !== undefined && onlineLoggedInEl) {
+                        onlineLoggedInEl.textContent = '已登入: ' + data.loggedInCount;
+                    }
+                    if (data.guestCount !== undefined && onlineGuestsEl) {
+                        onlineGuestsEl.textContent = '訪客: ' + data.guestCount;
+                    }
+                } else {
+                    console.warn('載入在線人數失敗，HTTP狀態:', res.status);
+                }
+            } catch (error) {
+                // 靜默處理錯誤，避免影響其他功能
+                if (error.message && !error.message.includes('Failed to fetch')) {
+                    console.error('載入在線人數失敗:', error);
+                }
+            }
+        }
+
+        // 定期更新在線人數（每10秒）
+        let onlineStatsInterval = null;
+        function startOnlineStatsUpdate() {
+            loadOnlineStats(); // 立即載入一次
+            if (onlineStatsInterval) clearInterval(onlineStatsInterval);
+            onlineStatsInterval = setInterval(loadOnlineStats, 10000); // 每10秒更新
         }
 
         // 載入高級茶 Profiles（只顯示後台管理員上架的，userId為空）
@@ -1061,48 +1484,11 @@ router.get('/', (req, res) => {
                 }
 
                 const list = document.getElementById('profiles-list');
-                list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
-                    profiles.map(p => {
-                        const district = p.district ? ' - ' + p.district : '';
-                        const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
-                        const safeName = String(p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        return '<tr>' +
-                            '<td>' + p.id + '</td>' +
-                            '<td>' + safeName + ' ' + safeNationality + '</td>' +
-                            '<td>' + safeLocation + safeDistrict + '</td>' +
-                            '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
-                            '<td>' + availability + '</td>' +
-                            '<td>' +
-                            '<button class="btn" onclick="editProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">編輯</button>' +
-                            '<button class="btn btn-danger" onclick="deleteProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">刪除</button>' +
-                            '</td>' +
-                            '</tr>';
-                    }).join('') + '</tbody></table>';
-            } catch (error) {
-                console.error('載入 Profiles 失敗:', error);
-                alert('載入 Profiles 失敗: ' + error.message);
-            }
-        }
-
-        // 載入 Provider Profiles（只顯示Provider上架的，userId不為空）
-        async function loadProviderProfiles() {
-            try {
-                const res = await fetch(API_BASE + '/api/admin/profiles', {
-                    headers: getAuthHeaders()
-                });
-                let profiles = await res.json();
-
-                // 只顯示Provider上架的（userId不為空）
-                profiles = profiles.filter(p => p.userId && p.userId !== '' && p.userId !== null);
-
-                const list = document.getElementById('provider-profiles-list');
-                if (profiles.length === 0) {
-                    list.innerHTML = '<p style="text-align: center; padding: 2rem; color: #666;">目前沒有Provider上架的資料</p>';
-                } else {
-                    list.innerHTML = '<table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>Provider ID</th><th>狀態</th></tr></thead><tbody>' +
+                const isMobile = window.innerWidth <= 768;
+                
+                if (isMobile) {
+                    // 手機：卡片式布局
+                    list.innerHTML = '<div class="table-mobile">' +
                         profiles.map(p => {
                             const district = p.district ? ' - ' + p.district : '';
                             const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
@@ -1110,25 +1496,124 @@ router.get('/', (req, res) => {
                             const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                             const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                             const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                            const safeUserId = String(p.userId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            return '<div class="table-card">' +
+                                '<div class="table-card-header">' + safeName + ' ' + safeNationality + '</div>' +
+                                '<div class="table-card-row"><span class="table-card-label">ID:</span><span class="table-card-value">' + p.id.substring(0, 12) + '...</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">地區:</span><span class="table-card-value">' + safeLocation + safeDistrict + '</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">價格:</span><span class="table-card-value">NT$ ' + (p.price || 0).toLocaleString() + '</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">狀態:</span><span class="table-card-value">' + availability + '</span></div>' +
+                                '<div class="table-card-actions">' +
+                                '<button class="btn" onclick="editProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">編輯</button>' +
+                                '<button class="btn btn-danger" onclick="deleteProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">刪除</button>' +
+                                '</div></div>';
+                        }).join('') + '</div>';
+                } else {
+                    // 桌面：表格布局
+                    list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                        profiles.map(p => {
+                            const district = p.district ? ' - ' + p.district : '';
+                            const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                            const safeName = String(p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                            const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                             return '<tr>' +
                                 '<td>' + p.id + '</td>' +
                                 '<td>' + safeName + ' ' + safeNationality + '</td>' +
                                 '<td>' + safeLocation + safeDistrict + '</td>' +
                                 '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
-                                '<td>' + safeUserId + '</td>' +
                                 '<td>' + availability + '</td>' +
+                                '<td>' +
+                                '<button class="btn" onclick="editProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">編輯</button>' +
+                                '<button class="btn btn-danger" onclick="deleteProfile(' + JSON.stringify(p.id).replace(/"/g, '&quot;') + ')">刪除</button>' +
+                                '</td>' +
                                 '</tr>';
-                        }).join('') + '</tbody></table>';
+                        }).join('') + '</tbody></table></div>';
                 }
             } catch (error) {
-                console.error('載入 Provider Profiles 失敗:', error);
-                alert('載入 Provider Profiles 失敗: ' + error.message);
+                console.error('載入 Profiles 失敗:', error);
+                alert('載入 Profiles 失敗: ' + error.message);
+            }
+        }
+
+        // 載入佳麗 Profiles（只顯示佳麗上架的，userId不為空）
+        async function loadProviderProfiles() {
+            const list = document.getElementById('provider-profiles-list');
+            if (list) {
+                list.innerHTML = '<div style="text-align: center; padding: 2rem; color: #666;"><div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1a5f3f; border-radius: 50%; animation: spin 1s linear infinite;"></div> 載入中...</div>';
+            }
+            try {
+                const res = await fetch(API_BASE + '/api/admin/profiles', {
+                    headers: getAuthHeaders()
+                });
+                let profiles = await res.json();
+
+                // 只顯示佳麗上架的（userId不為空）
+                profiles = profiles.filter(p => p.userId && p.userId !== '' && p.userId !== null);
+
+                const list = document.getElementById('provider-profiles-list');
+                const isMobile = window.innerWidth <= 768;
+                
+                if (profiles.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; padding: 2rem; color: #666;">目前沒有佳麗上架的資料</p>';
+                } else {
+                    if (isMobile) {
+                        // 手機：卡片式布局
+                        list.innerHTML = '<div class="table-mobile">' +
+                            profiles.map(p => {
+                                const district = p.district ? ' - ' + p.district : '';
+                                const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                                const safeName = String(p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeUserId = String(p.userId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                return '<div class="table-card">' +
+                                    '<div class="table-card-header">' + safeName + ' ' + safeNationality + '</div>' +
+                                    '<div class="table-card-row"><span class="table-card-label">ID:</span><span class="table-card-value">' + p.id.substring(0, 12) + '...</span></div>' +
+                                    '<div class="table-card-row"><span class="table-card-label">地區:</span><span class="table-card-value">' + safeLocation + safeDistrict + '</span></div>' +
+                                    '<div class="table-card-row"><span class="table-card-label">價格:</span><span class="table-card-value">NT$ ' + (p.price || 0).toLocaleString() + '</span></div>' +
+                                    '<div class="table-card-row"><span class="table-card-label">佳麗ID:</span><span class="table-card-value">' + safeUserId.substring(0, 12) + '...</span></div>' +
+                                    '<div class="table-card-row"><span class="table-card-label">狀態:</span><span class="table-card-value">' + availability + '</span></div>' +
+                                    '</div>';
+                            }).join('') + '</div>';
+                    } else {
+                        // 桌面：表格布局
+                        list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>ID</th><th>姓名 / 國籍</th><th>地區</th><th>價格</th><th>佳麗 ID</th><th>狀態</th></tr></thead><tbody>' +
+                            profiles.map(p => {
+                                const district = p.district ? ' - ' + p.district : '';
+                                const availability = p.isAvailable ? '✅ 可用' : '❌ 不可用';
+                                const safeName = String(p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeNationality = String(p.nationality || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeLocation = String(p.location || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeDistrict = String(district || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                const safeUserId = String(p.userId || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                return '<tr>' +
+                                    '<td>' + p.id + '</td>' +
+                                    '<td>' + safeName + ' ' + safeNationality + '</td>' +
+                                    '<td>' + safeLocation + safeDistrict + '</td>' +
+                                    '<td>NT$ ' + (p.price || 0).toLocaleString() + '</td>' +
+                                    '<td>' + safeUserId + '</td>' +
+                                    '<td>' + availability + '</td>' +
+                                    '</tr>';
+                            }).join('') + '</tbody></table></div>';
+                    }
+                }
+            } catch (error) {
+                console.error('載入佳麗 Profiles 失敗:', error);
+                const list = document.getElementById('provider-profiles-list');
+                if (list) {
+                    list.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">❌ 載入失敗: ' + error.message + '</div>';
+                }
             }
         }
 
         // 載入 Articles
         async function loadArticles() {
+            const list = document.getElementById('articles-list');
+            if (list) {
+                list.innerHTML = '<div style="text-align: center; padding: 2rem; color: #666;"><div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #1a5f3f; border-radius: 50%; animation: spin 1s linear infinite;"></div> 載入中...</div>';
+            }
             try {
                 const res = await fetch(API_BASE + '/api/admin/articles', {
                     headers: getAuthHeaders()
@@ -1154,7 +1639,10 @@ router.get('/', (req, res) => {
                     }).join('') + '</tbody></table>';
             } catch (error) {
                 console.error('載入 Articles 失敗:', error);
-                alert('載入 Articles 失敗: ' + error.message);
+                const list = document.getElementById('articles-list');
+                if (list) {
+                    list.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">❌ 載入失敗: ' + error.message + '</div>';
+                }
             }
         }
 
@@ -1175,7 +1663,7 @@ router.get('/', (req, res) => {
                 const buttons = document.querySelectorAll('.tab');
                 buttons.forEach(btn => {
                     if (btn.textContent.trim() === '高級茶管理' && tab === 'profiles') btn.classList.add('active');
-                    else if (btn.textContent.trim() === 'Provider 管理' && tab === 'provider-profiles') btn.classList.add('active');
+                    else if (btn.textContent.trim() === '佳麗管理' && tab === 'provider-profiles') btn.classList.add('active');
                     else if (btn.textContent.trim() === 'Articles 管理' && tab === 'articles') btn.classList.add('active');
                     else if (btn.textContent.trim() === '用戶管理' && tab === 'users') btn.classList.add('active');
                     else if (btn.textContent.trim() === '預約管理' && tab === 'bookings') btn.classList.add('active');
@@ -1208,9 +1696,21 @@ router.get('/', (req, res) => {
             }
         }
 
+        // 顯示成功/錯誤消息
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+            setTimeout(() => {
+                messageDiv.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => messageDiv.remove(), 300);
+            }, 3000);
+        }
+
         // 刪除 Profile
         async function deleteProfile(id) {
-            if (!confirm('確定要刪除這個 Profile 嗎？')) return;
+            if (!confirm('確定要刪除這個 Profile 嗎？此操作無法復原。')) return;
             try {
                 const res = await fetch(API_BASE + '/api/admin/profiles/' + id, { 
                     method: 'DELETE',
@@ -1219,15 +1719,15 @@ router.get('/', (req, res) => {
                 if (!res.ok) throw new Error('刪除失敗');
                 loadProfiles();
                 loadStats();
-                alert('刪除成功！');
+                showMessage('✅ 刪除成功！');
             } catch (error) {
-                alert('刪除失敗: ' + error.message);
+                showMessage('❌ 刪除失敗: ' + error.message, 'error');
             }
         }
 
         // 刪除 Article
         async function deleteArticle(id) {
-            if (!confirm('確定要刪除這篇文章嗎？')) return;
+            if (!confirm('確定要刪除這篇文章嗎？此操作無法復原。')) return;
             try {
                 const res = await fetch(API_BASE + '/api/admin/articles/' + id, { 
                     method: 'DELETE',
@@ -1236,9 +1736,9 @@ router.get('/', (req, res) => {
                 if (!res.ok) throw new Error('刪除失敗');
                 loadArticles();
                 loadStats();
-                alert('刪除成功！');
+                showMessage('✅ 刪除成功！');
             } catch (error) {
-                alert('刪除失敗: ' + error.message);
+                showMessage('❌ 刪除失敗: ' + error.message, 'error');
             }
         }
 
@@ -2493,92 +2993,382 @@ router.get('/', (req, res) => {
                 return;
             }
             
-            list.innerHTML = '<table><thead><tr><th>公開ID</th><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
-                users.map(u => {
-                    const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
-                    const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
-                    const badges = getVerificationBadges(u);
-                    const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
-                    const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
-                    const publicId = u.publicId || u.id || '-';
-                    const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                    const safeEmail = String(u.email || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                    const safePhone = String(u.phoneNumber || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                    return '<tr>' +
-                        '<td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">' + safePublicId + '</code></td>' +
-                        '<td>' + safeEmail + '</td>' +
-                        '<td>' + safePhone + '</td>' +
-                        '<td>' + role + '</td>' +
-                        '<td>' + membership + '</td>' +
-                        '<td>' + badges + '</td>' +
-                        '<td>' + createdAt + '</td>' +
-                        '<td>' + lastLogin + '</td>' +
-                        '<td>' +
-                        '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
-                        '</td>' +
-                        '</tr>';
-                }).join('') + '</tbody></table>' +
-                '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // 手機：卡片式布局
+                list.innerHTML = '<div class="table-mobile">' +
+                    users.map(u => {
+                        const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
+                        const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
+                        const badges = getVerificationBadges(u);
+                        const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
+                        const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
+                        const publicId = u.publicId || u.id || '-';
+                        const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeEmail = String(u.email || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safePhone = String(u.phoneNumber || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const banStatus = u.isBanned ? '<span style="color: #ef4444; font-size: 0.875rem;">❌ 已封禁</span>' : '<span style="color: #10b981; font-size: 0.875rem;">✅ 正常</span>';
+                        return '<div class="table-card">' +
+                            '<div class="table-card-header">' + safeEmail + ' ' + banStatus + '</div>' +
+                            '<div class="table-card-row"><span class="table-card-label">公開ID:</span><span class="table-card-value"><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">' + safePublicId.substring(0, 12) + '...</code></span></div>' +
+                            '<div class="table-card-row"><span class="table-card-label">手機號:</span><span class="table-card-value">' + safePhone + '</span></div>' +
+                            '<div class="table-card-row"><span class="table-card-label">身份:</span><span class="table-card-value">' + role + '</span></div>' +
+                            '<div class="table-card-row"><span class="table-card-label">會員等級:</span><span class="table-card-value">' + membership + '</span></div>' +
+                            '<div class="table-card-row"><span class="table-card-label">驗證勳章:</span><span class="table-card-value">' + badges + '</span></div>' +
+                            '<div class="table-card-actions">' +
+                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
+                            '</div></div>';
+                    }).join('') + '</div>' +
+                    '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
+            } else {
+                // 桌面：表格布局
+                list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>公開ID</th><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                    users.map(u => {
+                        const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
+                        const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
+                        const badges = getVerificationBadges(u);
+                        const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
+                        const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
+                        const publicId = u.publicId || u.id || '-';
+                        const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safeEmail = String(u.email || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const safePhone = String(u.phoneNumber || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                        const banStatus = u.isBanned ? '<span style="color: #ef4444; font-size: 0.875rem;">❌ 已封禁</span>' : '<span style="color: #10b981; font-size: 0.875rem;">✅ 正常</span>';
+                        return '<tr>' +
+                            '<td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">' + safePublicId + '</code></td>' +
+                            '<td>' + safeEmail + '</td>' +
+                            '<td>' + safePhone + '</td>' +
+                            '<td>' + role + '</td>' +
+                            '<td>' + membership + '</td>' +
+                            '<td>' + badges + '</td>' +
+                            '<td>' + createdAt + '</td>' +
+                            '<td>' + lastLogin + '</td>' +
+                            '<td>' + banStatus + '</td>' +
+                            '<td style="white-space: nowrap;">' +
+                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')" style="margin-right: 0.5rem;">查看詳情</button>' +
+                            '</td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table></div>' +
+                    '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
+            }
         }
+
+        // 當前查看的用戶ID
+        let currentViewingUserId = null;
 
         // 查看用戶詳情
         async function viewUserDetail(userId) {
             try {
+                currentViewingUserId = userId;
                 const token = localStorage.getItem('auth_token');
                 if (!token) {
-                    alert('請先登入');
+                    showMessage('請先登入', 'error');
                     return;
                 }
-                const res = await fetch(API_BASE + '/api/admin/users/' + userId, {
-                    headers: getAuthHeaders()
-                });
-                if (!res.ok) {
-                    throw new Error('載入用戶詳情失敗');
+                
+                // 檢查 API_BASE 是否正確
+                if (!API_BASE || API_BASE === 'null' || API_BASE === 'undefined') {
+                    console.error('API_BASE 未正確設置:', API_BASE);
+                    showMessage('❌ 無法連接到服務器，請刷新頁面重試', 'error');
+                    return;
                 }
+                
+                const url = API_BASE + '/api/admin/users/' + userId;
+                console.log('請求用戶詳情:', url);
+                
+                const res = await fetch(url, {
+                    headers: getAuthHeaders(),
+                    method: 'GET'
+                });
+                
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        showMessage('❌ 登入已過期，請重新登入', 'error');
+                        handleLogout();
+                        return;
+                    }
+                    if (res.status === 403) {
+                        showMessage('❌ 無權訪問此資源', 'error');
+                        return;
+                    }
+                    throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+                }
+                
                 const data = await res.json();
                 const user = data.user;
                 const bookings = data.bookings || [];
                 
-                let bookingsHtml = '';
-                if (bookings.length === 0) {
-                    bookingsHtml = '<p>暫無預約記錄</p>';
-                } else {
-                    bookingsHtml = '<table style="margin-top: 1rem;"><thead><tr><th>預約ID</th><th>Profile</th><th>日期</th><th>時間</th><th>狀態</th></tr></thead><tbody>' +
-                        bookings.map(b => {
-                            const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
-                            return '<tr>' +
-                                '<td>' + b.id.substring(0, 8) + '...</td>' +
-                                '<td>' + b.profileId.substring(0, 8) + '...</td>' +
-                                '<td>' + b.bookingDate + '</td>' +
-                                '<td>' + b.bookingTime + '</td>' +
-                                '<td>' + statusText + '</td>' +
-                                '</tr>';
-                        }).join('') + '</tbody></table>';
+                // 檢查 user 是否存在
+                if (!user) {
+                    showMessage('❌ 無法獲取用戶資料', 'error');
+                    console.error('用戶資料為空:', data);
+                    return;
                 }
                 
-                const roleText = user.role === 'client' ? '品茶客' : user.role === 'provider' ? '後宮佳麗' : '管理員';
-                const membershipLabels = {
-                    'tea_guest': '茶客',
-                    'tea_scholar': '入門茶士',
-                    'royal_tea_scholar': '御前茶士',
-                    'royal_tea_officer': '御用茶官',
-                    'tea_king_attendant': '茶王近侍',
-                    'imperial_chief_tea_officer': '御前總茶官',
-                    'tea_king_confidant': '茶王心腹',
-                    'tea_king_personal_selection': '茶王親選',
-                    'imperial_golden_seal_tea_officer': '御賜金印茶官',
-                    'national_master_tea_officer': '國師級茶官'
-                };
-                const membershipText = membershipLabels[user.membershipLevel] || user.membershipLevel || '茶客';
-                const badgesText = user.verificationBadges && user.verificationBadges.length > 0 
-                    ? user.verificationBadges.join(', ') 
-                    : '無';
-                const createdAtText = new Date(user.createdAt).toLocaleString('zh-TW');
-                const expiresAtText = user.membershipExpiresAt ? new Date(user.membershipExpiresAt).toLocaleString('zh-TW') : '無';
-                alert('用戶詳情：\\n\\nID: ' + user.id + '\\nEmail: ' + (user.email || '-') + '\\n手機號: ' + (user.phoneNumber || '-') + '\\n身份: ' + roleText + '\\n會員等級: ' + membershipText + '\\n會員到期: ' + expiresAtText + '\\n驗證勳章: ' + badgesText + '\\n註冊時間: ' + createdAtText + '\\n\\n預約記錄：' + bookings.length + ' 筆');
+                // 顯示用戶詳情 Modal
+                showUserDetailModal(user, bookings);
             } catch (error) {
                 console.error('載入用戶詳情失敗:', error);
-                alert('載入用戶詳情失敗: ' + error.message);
+                if (error.message && error.message.includes('Failed to fetch')) {
+                    showMessage('❌ 無法連接到服務器，請確認後端服務器正在運行', 'error');
+                } else {
+                    showMessage('❌ 載入用戶詳情失敗: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // 顯示用戶詳情 Modal
+        function showUserDetailModal(user, bookings) {
+            const modal = document.getElementById('userDetailModal');
+            if (!modal) {
+                // 如果 Modal 不存在，創建它
+                createUserDetailModal();
+            }
+            
+            const roleText = user.role === 'client' ? '👤 品茶客' : user.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
+            const membershipLabels = {
+                'tea_guest': '茶客',
+                'tea_scholar': '🥉 入門茶士',
+                'royal_tea_scholar': '🥈 御前茶士',
+                'royal_tea_officer': '🥇 御用茶官',
+                'tea_king_attendant': '💎 茶王近侍',
+                'imperial_chief_tea_officer': '👑 御前總茶官',
+                'tea_king_confidant': '🤝 茶王心腹',
+                'tea_king_personal_selection': '⭐ 茶王親選',
+                'imperial_golden_seal_tea_officer': '🏆 御賜金印茶官',
+                'national_master_tea_officer': '🌟 國師級茶官',
+                'lady_trainee': '🌸 初級佳麗',
+                'lady_apprentice': '🌺 見習佳麗',
+                'lady_junior': '🌷 中級佳麗',
+                'lady_senior': '🌹 高級佳麗',
+                'lady_expert': '🌻 專家佳麗',
+                'lady_master': '🌼 大師佳麗',
+                'lady_elite': '🌺 精英佳麗',
+                'lady_premium': '🌹 高級佳麗',
+                'lady_royal': '👑 皇家佳麗',
+                'lady_empress': '👸 皇后佳麗'
+            };
+            const membershipText = membershipLabels[user.membershipLevel] || user.membershipLevel || '茶客';
+            const badgesText = (user.emailVerified ? '✉️ ' : '') + (user.phoneVerified ? '📱' : '') || '無';
+            const createdAtText = new Date(user.createdAt).toLocaleString('zh-TW');
+            const lastLoginText = user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('zh-TW') : '從未登入';
+            const expiresAtText = user.membershipExpiresAt ? new Date(user.membershipExpiresAt).toLocaleString('zh-TW') : '無';
+            const isBanned = user.isBanned || false;
+            
+            // 填充用戶信息
+            document.getElementById('userDetailId').textContent = user.publicId || user.id;
+            document.getElementById('userDetailEmail').textContent = user.email || '-';
+            document.getElementById('userDetailPhone').textContent = user.phoneNumber || '-';
+            document.getElementById('userDetailRole').textContent = roleText;
+            document.getElementById('userDetailLevel').textContent = membershipText;
+            document.getElementById('userDetailBadges').textContent = badgesText;
+            document.getElementById('userDetailCreated').textContent = createdAtText;
+            document.getElementById('userDetailLastLogin').textContent = lastLoginText;
+            document.getElementById('userDetailExpires').textContent = expiresAtText;
+            document.getElementById('userDetailBookings').textContent = bookings.length + ' 筆';
+            
+            // 更新用戶標記顯示
+            const userTags = user.userTags || [];
+            const tagsText = userTags.length > 0 
+                ? userTags.map(tag => {
+                    const tagLabels: { [key: string]: string } = {
+                        'admin': '👑 管理員',
+                        'staff': '👔 內部人員',
+                        'troll': '🤖 水軍',
+                        'vip': '💎 VIP',
+                        'verified': '✅ 已驗證',
+                        'test': '🧪 測試帳號'
+                    };
+                    return tagLabels[tag] || tag;
+                }).join(', ')
+                : '無';
+            const tagsEl = document.getElementById('userDetailTags');
+            if (tagsEl) {
+                tagsEl.textContent = tagsText;
+            }
+            
+            // 更新標記按鈕狀態
+            ['admin', 'staff', 'troll', 'vip', 'verified', 'test'].forEach(tag => {
+                const btn = document.getElementById('tag' + tag.charAt(0).toUpperCase() + tag.slice(1) + 'Btn');
+                if (btn) {
+                    if (userTags.includes(tag)) {
+                        btn.classList.add('active');
+                        btn.style.opacity = '1';
+                        btn.style.fontWeight = '600';
+                    } else {
+                        btn.classList.remove('active');
+                        btn.style.opacity = '0.5';
+                        btn.style.fontWeight = 'normal';
+                    }
+                }
+            });
+            
+            // 更新封禁狀態
+            const banStatusEl = document.getElementById('userDetailBanStatus');
+            if (banStatusEl) {
+                banStatusEl.textContent = isBanned ? '❌ 已封禁' : '✅ 正常';
+                banStatusEl.style.color = isBanned ? '#ef4444' : '#10b981';
+            }
+            
+            // 更新操作按鈕
+            const banBtn = document.getElementById('userDetailBanBtn');
+            const unbanBtn = document.getElementById('userDetailUnbanBtn');
+            if (banBtn && unbanBtn) {
+                banBtn.style.display = isBanned ? 'none' : 'inline-block';
+                unbanBtn.style.display = isBanned ? 'inline-block' : 'none';
+            }
+            
+            // 填充預約記錄
+            const bookingsList = document.getElementById('userDetailBookingsList');
+            if (bookings.length === 0) {
+                bookingsList.innerHTML = '<p style="text-align: center; color: #666; padding: 1rem;">暫無預約記錄</p>';
+            } else {
+                bookingsList.innerHTML = '<table style="width: 100%; margin-top: 1rem;"><thead><tr><th>預約ID</th><th>日期</th><th>時間</th><th>狀態</th></tr></thead><tbody>' +
+                    bookings.slice(0, 10).map(b => {
+                        const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
+                        return '<tr>' +
+                            '<td><code style="font-size: 0.75rem;">' + b.id.substring(0, 12) + '...</code></td>' +
+                            '<td>' + (b.bookingDate || '-') + '</td>' +
+                            '<td>' + (b.bookingTime || '-') + '</td>' +
+                            '<td>' + statusText + '</td>' +
+                            '</tr>';
+                    }).join('') + '</tbody></table>' +
+                    (bookings.length > 10 ? '<p style="text-align: center; color: #666; margin-top: 0.5rem; font-size: 0.875rem;">顯示前 10 筆，共 ' + bookings.length + ' 筆</p>' : '');
+            }
+            
+            // 顯示 Modal
+            modal.classList.add('active');
+        }
+
+
+        // 關閉用戶詳情 Modal
+        function closeUserDetailModal() {
+            const modal = document.getElementById('userDetailModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+            currentViewingUserId = null;
+        }
+
+        // 修改用戶等級
+        async function editUserLevel() {
+            if (!currentViewingUserId) return;
+            const level = prompt('請輸入新的會員等級（例如：tea_scholar, royal_tea_officer 等）:');
+            if (!level) return;
+            
+            try {
+                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/level', {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ level })
+                });
+                if (!res.ok) throw new Error('更新失敗');
+                alert('會員等級已更新！');
+                viewUserDetail(currentViewingUserId); // 重新載入詳情
+                loadUsers(); // 刷新列表
+            } catch (error) {
+                alert('更新失敗: ' + error.message);
+            }
+        }
+
+        // 封禁用戶
+        async function banUser() {
+            if (!currentViewingUserId) return;
+            const reason = prompt('請輸入封禁原因（可選）:') || '管理員封禁';
+            if (!confirm('確定要封禁此用戶嗎？')) return;
+            
+            try {
+                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/ban', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ reason })
+                });
+                if (!res.ok) throw new Error('封禁失敗');
+                alert('用戶已封禁！');
+                viewUserDetail(currentViewingUserId); // 重新載入詳情
+                loadUsers(); // 刷新列表
+            } catch (error) {
+                alert('封禁失敗: ' + error.message);
+            }
+        }
+
+        // 解封用戶
+        async function unbanUser() {
+            if (!currentViewingUserId) return;
+            if (!confirm('確定要解封此用戶嗎？')) return;
+            
+            try {
+                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/unban', {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('解封失敗');
+                alert('用戶已解封！');
+                viewUserDetail(currentViewingUserId); // 重新載入詳情
+                loadUsers(); // 刷新列表
+            } catch (error) {
+                alert('解封失敗: ' + error.message);
+            }
+        }
+
+        // 重置密碼
+        async function resetUserPassword() {
+            if (!currentViewingUserId) return;
+            const newPassword = prompt('請輸入新密碼（至少6位）:');
+            if (!newPassword || newPassword.length < 6) {
+                alert('密碼長度至少6位');
+                return;
+            }
+            if (!confirm('確定要重置此用戶的密碼嗎？')) return;
+            
+            try {
+                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/reset-password', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ newPassword })
+                });
+                if (!res.ok) throw new Error('重置失敗');
+                showMessage('✅ 密碼已重置！');
+            } catch (error: any) {
+                showMessage('❌ 重置失敗: ' + error.message, 'error');
+            }
+        }
+
+        // 切換用戶標記
+        async function toggleUserTag(tag: string) {
+            if (!currentViewingUserId) return;
+            
+            try {
+                // 先獲取當前用戶信息
+                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId, {
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('獲取用戶信息失敗');
+                const data = await res.json();
+                const currentTags = data.user.userTags || [];
+                
+                // 切換標記
+                let newTags: string[];
+                if (currentTags.includes(tag)) {
+                    newTags = currentTags.filter((t: string) => t !== tag);
+                } else {
+                    newTags = [...currentTags, tag];
+                }
+                
+                // 更新標記
+                const updateRes = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/tags', {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ tags: newTags })
+                });
+                if (!updateRes.ok) throw new Error('更新標記失敗');
+                
+                // 重新載入用戶詳情
+                viewUserDetail(currentViewingUserId);
+                showMessage('✅ 用戶標記已更新');
+            } catch (error: any) {
+                showMessage('❌ 更新標記失敗: ' + error.message, 'error');
             }
         }
 
@@ -2714,24 +3504,46 @@ router.get('/', (req, res) => {
                     return;
                 }
                 
-                list.innerHTML = '<table><thead><tr><th>預約ID</th><th>品茶客ID</th><th>供茶人ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
-                    filteredBookings.map(b => {
-                        const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
-                        const providerId = b.providerId ? b.providerId.substring(0, 8) + '...' : '-';
-                        return '<tr>' +
-                            '<td>' + b.id.substring(0, 8) + '...</td>' +
-                            '<td>' + b.clientId.substring(0, 8) + '...' + '</td>' +
-                            '<td>' + providerId + '</td>' +
-                            '<td>' + b.profileId.substring(0, 8) + '...' + '</td>' +
-                            '<td>' + b.bookingDate + '</td>' +
-                            '<td>' + b.bookingTime + '</td>' +
-                            '<td>' + statusText + '</td>' +
-                            '<td>' +
-                            '<button class="btn" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('accepted').replace(/"/g, '&quot;') + ')">接受</button>' +
-                            '<button class="btn btn-danger" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('rejected').replace(/"/g, '&quot;') + ')">拒絕</button>' +
-                            '</td>' +
-                            '</tr>';
-                    }).join('') + '</tbody></table>';
+                const isMobile = window.innerWidth <= 768;
+                if (isMobile) {
+                    // 手機：卡片式布局
+                    list.innerHTML = '<div class="table-mobile">' +
+                        filteredBookings.map(b => {
+                            const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
+                            const providerId = b.providerId ? b.providerId.substring(0, 8) + '...' : '-';
+                            return '<div class="table-card">' +
+                                '<div class="table-card-header">預約 #' + b.id.substring(0, 8) + '... ' + statusText + '</div>' +
+                                '<div class="table-card-row"><span class="table-card-label">日期:</span><span class="table-card-value">' + b.bookingDate + '</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">時間:</span><span class="table-card-value">' + b.bookingTime + '</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">品茶客ID:</span><span class="table-card-value">' + b.clientId.substring(0, 12) + '...</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">佳麗ID:</span><span class="table-card-value">' + providerId + '</span></div>' +
+                                '<div class="table-card-row"><span class="table-card-label">Profile ID:</span><span class="table-card-value">' + b.profileId.substring(0, 12) + '...</span></div>' +
+                                '<div class="table-card-actions">' +
+                                '<button class="btn" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('accepted').replace(/"/g, '&quot;') + ')">接受</button>' +
+                                '<button class="btn btn-danger" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('rejected').replace(/"/g, '&quot;') + ')">拒絕</button>' +
+                                '</div></div>';
+                        }).join('') + '</div>';
+                } else {
+                    // 桌面：表格布局
+                    list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>預約ID</th><th>品茶客ID</th><th>佳麗ID</th><th>Profile ID</th><th>日期</th><th>時間</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                        filteredBookings.map(b => {
+                            const statusText = b.status === 'pending' ? '⏳ 待處理' : b.status === 'accepted' ? '✅ 已接受' : b.status === 'completed' ? '✅ 已完成' : b.status === 'cancelled' ? '❌ 已取消' : '❌ 已拒絕';
+                            const providerId = b.providerId ? b.providerId.substring(0, 8) + '...' : '-';
+                            return '<tr>' +
+                                '<td>' + b.id.substring(0, 8) + '...</td>' +
+                                '<td>' + b.clientId.substring(0, 8) + '...' + '</td>' +
+                                '<td>' + providerId + '</td>' +
+                                '<td>' + b.profileId.substring(0, 8) + '...' + '</td>' +
+                                '<td>' + b.bookingDate + '</td>' +
+                                '<td>' + b.bookingTime + '</td>' +
+                                '<td>' + statusText + '</td>' +
+                                '<td>' +
+                                '<button class="btn" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('accepted').replace(/"/g, '&quot;') + ')">接受</button>' +
+                                '<button class="btn btn-danger" onclick="updateBookingStatus(' + JSON.stringify(b.id).replace(/"/g, '&quot;') + ', ' + JSON.stringify('rejected').replace(/"/g, '&quot;') + ')">拒絕</button>' +
+                                '</td>' +
+                                '</tr>';
+                        }).join('') + '</tbody></table></div>';
+                }
             } catch (error) {
                 console.error('載入預約失敗:', error);
                 document.getElementById('bookings-list').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">載入失敗: ' + error.message + '</div>';

@@ -32,6 +32,8 @@ router.get('/online', async (req, res) => {
 
     res.json({
       onlineCount: onlineCount,
+      loggedInCount: loggedInCount,
+      guestCount: guestCount,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -39,6 +41,8 @@ router.get('/online', async (req, res) => {
     // 如果出錯，返回0
     res.json({
       onlineCount: 0,
+      loggedInCount: 0,
+      guestCount: 0,
       timestamp: new Date().toISOString(),
     });
   }

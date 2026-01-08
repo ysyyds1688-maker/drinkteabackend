@@ -40,7 +40,12 @@ export interface User {
   noShowCount?: number; // 放鳥次數
   violationLevel?: number; // 違規級別：0=無, 1=初次, 2=累犯1, 3=累犯2, 4=嚴重
   warningBadge?: boolean; // 警示戶頭標記
-  noShowBadge?: boolean; // 放鳥標記徽章
+  noShowBadge?: boolean;
+  isBanned?: boolean; // 是否被封禁
+  banReason?: string; // 封禁原因
+  bannedAt?: string; // 封禁時間
+  bannedBy?: string; // 封禁操作的管理員ID
+  userTags?: string[]; // 用戶標記（管理員、內部人員、水軍等）
   // 佳麗檢舉相關欄位
   providerReportCount?: number; // 被檢舉次數
   providerScamReportCount?: number; // 詐騙檢舉次數
@@ -110,6 +115,21 @@ const mapRowToUser = (row: any): User => {
     providerAutoUnfreezeAt: row.provider_auto_unfreeze_at || undefined,
     telegramUserId: row.telegram_user_id || undefined,
     telegramUsername: row.telegram_username || undefined,
+    isBanned: Boolean(row.is_banned),
+    banReason: row.ban_reason || undefined,
+    bannedAt: row.banned_at || undefined,
+    bannedBy: row.banned_by || undefined,
+    userTags: (() => {
+      try {
+        if (row.user_tags) {
+          const tags = JSON.parse(row.user_tags);
+          return Array.isArray(tags) ? tags : [];
+        }
+        return [];
+      } catch (e) {
+        return [];
+      }
+    })(),
   };
 };
 
@@ -444,6 +464,26 @@ export const userModel = {
       values.push(userData.phoneNumber || null);
       // 當手機號碼改變時，重置手機驗證狀態
       fields.push(`phone_verified = FALSE`);
+    }
+    if (userData.isBanned !== undefined) {
+      fields.push(`is_banned = $${paramIndex++}`);
+      values.push(userData.isBanned);
+    }
+    if (userData.banReason !== undefined) {
+      fields.push(`ban_reason = $${paramIndex++}`);
+      values.push(userData.banReason || null);
+    }
+    if (userData.bannedAt !== undefined) {
+      fields.push(`banned_at = $${paramIndex++}`);
+      values.push(userData.bannedAt || null);
+    }
+    if (userData.bannedBy !== undefined) {
+      fields.push(`banned_by = $${paramIndex++}`);
+      values.push(userData.bannedBy || null);
+    }
+    if (userData.userTags !== undefined) {
+      fields.push(`user_tags = $${paramIndex++}`);
+      values.push(JSON.stringify(userData.userTags));
     }
 
     if (fields.length === 0) {
