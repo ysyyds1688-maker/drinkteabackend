@@ -5,7 +5,7 @@ nixPkgs = ["nodejs-20_x", "npm"]
 cmds = ["npm install"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["export PATH=$PATH:./node_modules/.bin && npm run build"]
 
 [start]
 cmd = "npm start"
