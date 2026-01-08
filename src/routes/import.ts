@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { importService } from '../services/importService.js';
+import { storageService } from '../services/storageService.js';
 import { query } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile } from '../types.js';
@@ -78,19 +79,30 @@ router.post('/line', async (req, res) => {
 // POST /api/import/csv - CSV 文件导入
 router.post('/csv', upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'CSV file is required' });
-    }
-
-    const csvText = req.file.buffer.toString('utf-8');
     const autoApprove = req.body.autoApprove === 'true';
     const force = req.body.force === 'true';
+    let imageUrlFromUpload: string | undefined;
 
-    // 解析 CSV
+    if (req.file) {
+      // 如果有文件上傳，先上傳到存儲服務
+      imageUrlFromUpload = await storageService.uploadImage(req.file.buffer, req.file.originalname);
+    }
+
+    // 解析 CSV 文本
+    const csvText = req.file?.buffer.toString('utf-8') || ''; // 如果沒有文件，csvText 可能為空
     const profiles = importService.parseCSV(csvText);
+
+    // 如果有圖片上傳，且 CSV 中沒有提供 imageUrl，則將上傳的圖片設置為 imageUrl
+    if (imageUrlFromUpload) {
+      profiles.forEach(profile => {
+        if (!profile.imageUrl) {
+          profile.imageUrl = imageUrlFromUpload;
+        }
+      });
+    }
     
     if (profiles.length === 0) {
-      return res.status(400).json({ error: 'No profiles found in CSV' });
+      return res.status(400).json({ error: 'No profiles found in CSV or no file uploaded' });
     }
 
     // 导入
@@ -101,6 +113,7 @@ router.post('/csv', upload.single('file'), async (req, res) => {
     });
 
     // 记录导入历史
+    const sourceData = req.file ? JSON.stringify({ filename: req.file.originalname }) : JSON.stringify({ filename: 'no_file_uploaded' });
     await query(`
       INSERT INTO import_history (id, source_type, source_data, profiles_count, 
                                   success_count, duplicate_count, error_count, status)
@@ -108,7 +121,7 @@ router.post('/csv', upload.single('file'), async (req, res) => {
     `, [
       uuidv4(),
       'csv',
-      JSON.stringify({ filename: req.file.originalname }),
+      sourceData,
       profiles.length,
       result.success.length,
       result.duplicates.length,

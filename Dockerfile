@@ -10,7 +10,9 @@ RUN npm ci --include=dev
 
 COPY . .
 
-RUN /bin/sh -c "export PATH=$(npm bin):$PATH && npm run build"
+RUN npm install -g typescript
+
+RUN npm run build
 
 RUN mkdir -p /app/data && chmod 777 /app/data
 

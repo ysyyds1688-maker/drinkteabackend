@@ -7,8 +7,91 @@ import { tasksModel } from '../models/Tasks.js';
 import { userStatsModel } from '../models/UserStats.js';
 import { profilesCache, profileDetailCache } from '../middleware/cacheMiddleware.js';
 import { queryLimiter } from '../middleware/queryLimiter.js';
+import { userModel } from '../models/User.js';
+import { notificationModel } from '../models/Notification.js';
+import { query } from '../db/database.js';
+import { telegramService } from '../services/telegramService.js';
 
 const router = Router();
+
+// 處理 lady_boost_exposure 任務的輔助函數
+const handleLadyBoostExposureTask = async (profile: Profile, shouldIncrementViews: boolean) => {
+  try {
+    const provider = await userModel.findById(profile.userId!);
+    if (provider && provider.role === 'provider') {
+      const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_boost_exposure');
+      if (definition) {
+        const date = tasksModel.getLocalDateString();
+        const task = await tasksModel.getOrCreateDailyTask(profile.userId!, 'lady_boost_exposure', date);
+        
+        if (!task.isCompleted && profile.views !== undefined && profile.views >= definition.target) {
+          await query(
+            `UPDATE daily_tasks SET progress = $1, is_completed = TRUE, points_earned = $2 WHERE id = $3`,
+            [definition.target, definition.pointsReward, task.id]
+          );
+          
+          await userStatsModel.addPoints(
+            profile.userId!,
+            definition.pointsReward,
+            definition.experienceReward
+          );
+          
+          await notificationModel.create({
+            userId: profile.userId!,
+            type: 'task',
+            title: '任務完成',
+            content: `恭喜您完成了「${definition.name}」任務！獲得 ${definition.pointsReward} 積分和 ${definition.experienceReward} 經驗值。`,
+            link: `/user-profile?tab=points`,
+            metadata: {
+              taskType: 'lady_boost_exposure',
+              taskName: definition.name,
+              pointsEarned: definition.pointsReward,
+              experienceEarned: definition.experienceReward,
+            },
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('更新 lady_boost_exposure 任務失敗:', error);
+  }
+};
+
+// 處理 browse_provider_profiles 任務的輔助函數
+const handleBrowseProviderProfilesTask = async (userId: string) => {
+  try {
+    const currentUser = await userModel.findById(userId);
+    if (currentUser && currentUser.role === 'client') {
+      const taskResult = await tasksModel.updateTaskProgress(userId, 'browse_provider_profiles');
+      if (taskResult.completed) {
+        await userStatsModel.addPoints(
+          userId,
+          taskResult.pointsEarned,
+          taskResult.experienceEarned
+        );
+        
+        const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'browse_provider_profiles');
+        if (definition) {
+          await notificationModel.create({
+            userId: userId,
+            type: 'task',
+            title: '任務完成',
+            content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+            link: `/user-profile?tab=points`,
+            metadata: {
+              taskType: 'browse_provider_profiles',
+              taskName: definition.name,
+              pointsEarned: taskResult.pointsEarned,
+              experienceEarned: taskResult.experienceEarned,
+            },
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('更新瀏覽佳麗資料任務失敗:', error);
+  }
+};
 
 // GET /api/profiles - Get all profiles (支持分頁，帶緩存和查詢限制)
 router.get('/', queryLimiter, profilesCache, async (req, res) => {
@@ -46,7 +129,6 @@ router.get('/:id', profileDetailCache, async (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
-        const { verifyToken } = await import('../services/authService.js');
         const payload = verifyToken(token);
         if (payload && payload.userId) {
           const profile = await profileModel.getById(req.params.id, false);
@@ -67,60 +149,7 @@ router.get('/:id', profileDetailCache, async (req, res) => {
     
     // 如果是佳麗的資料且瀏覽次數達到 50，檢查並觸發 lady_boost_exposure 任務
     if (profile.userId && shouldIncrementViews && profile.views !== undefined && profile.views >= 50) {
-      try {
-        const { userModel } = await import('../models/User.js');
-        const provider = await userModel.findById(profile.userId);
-        if (provider && provider.role === 'provider') {
-          const { tasksModel } = await import('../models/Tasks.js');
-          const { userStatsModel } = await import('../models/UserStats.js');
-          const { notificationModel } = await import('../models/Notification.js');
-          
-          // 獲取任務定義
-          const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_boost_exposure');
-          if (definition) {
-            // 獲取或創建任務
-            const date = tasksModel.getLocalDateString();
-            const task = await tasksModel.getOrCreateDailyTask(profile.userId, 'lady_boost_exposure', date);
-            
-            // 如果任務未完成，檢查是否達到目標
-            if (!task.isCompleted && profile.views !== undefined && profile.views >= definition.target) {
-              // 直接設置為完成
-              const { query } = await import('../db/database.js');
-              await query(`
-                UPDATE daily_tasks 
-                SET progress = $1, 
-                    is_completed = TRUE,
-                    points_earned = $2
-                WHERE id = $3
-              `, [definition.target, definition.pointsReward, task.id]);
-              
-              // 添加積分和經驗值
-              await userStatsModel.addPoints(
-                profile.userId,
-                definition.pointsReward,
-                definition.experienceReward
-              );
-              
-              // 創建任務完成通知
-              await notificationModel.create({
-                userId: profile.userId,
-                type: 'task',
-                title: '任務完成',
-                content: `恭喜您完成了「${definition.name}」任務！獲得 ${definition.pointsReward} 積分和 ${definition.experienceReward} 經驗值。`,
-                link: `/user-profile?tab=points`,
-                metadata: {
-                  taskType: 'lady_boost_exposure',
-                  taskName: definition.name,
-                  pointsEarned: definition.pointsReward,
-                  experienceEarned: definition.experienceReward,
-                },
-              });
-            }
-          }
-        }
-      } catch (error) {
-        console.error('更新 lady_boost_exposure 任務失敗:', error);
-      }
+      await handleLadyBoostExposureTask(profile, shouldIncrementViews);
     }
     
     // 如果用户已登录且是茶客，更新瀏覽佳麗資料任務進度（僅限茶客）
@@ -129,44 +158,7 @@ router.get('/:id', profileDetailCache, async (req, res) => {
         const token = authHeader.substring(7);
         const payload = verifyToken(token);
         if (payload && payload.userId) {
-          // 檢查用戶角色，只有茶客才更新此任務
-          const { userModel } = await import('../models/User.js');
-          const currentUser = await userModel.findById(payload.userId);
-          if (currentUser && currentUser.role === 'client') {
-            // 更新瀏覽佳麗資料任務進度（茶客專屬）
-            const taskResult = await tasksModel.updateTaskProgress(payload.userId, 'browse_provider_profiles');
-            // 如果任务完成，添加积分和经验值
-            if (taskResult.completed) {
-              await userStatsModel.addPoints(
-                payload.userId,
-                taskResult.pointsEarned,
-                taskResult.experienceEarned
-              );
-              
-              // 創建任務完成通知
-              try {
-                const { notificationModel } = await import('../models/Notification.js');
-                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'browse_provider_profiles');
-                if (definition) {
-                  await notificationModel.create({
-                    userId: payload.userId,
-                    type: 'task',
-                    title: '任務完成',
-                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
-                    link: `/user-profile?tab=points`,
-                    metadata: {
-                      taskType: 'browse_provider_profiles',
-                      taskName: definition.name,
-                      pointsEarned: taskResult.pointsEarned,
-                      experienceEarned: taskResult.experienceEarned,
-                    },
-                  });
-                }
-              } catch (error) {
-                console.error('創建任務完成通知失敗:', error);
-              }
-            }
-          }
+          await handleBrowseProviderProfilesTask(payload.userId);
         }
       } catch (error) {
         // 忽略验证错误，不影响返回profile
@@ -309,7 +301,6 @@ router.post('/:id/contact', async (req, res) => {
         const token = authHeader.substring(7);
         const payload = verifyToken(token);
         if (payload) {
-          const { userModel } = await import('../models/User.js');
           const user = await userModel.findById(payload.userId);
           if (user) {
             userInfo = {
@@ -328,7 +319,6 @@ router.post('/:id/contact', async (req, res) => {
     // 生成 Telegram 邀請連結（如果配置了 Telegram）
     let telegramInviteLink: string | null = null;
     try {
-      const { telegramService } = await import('../services/telegramService.js');
       if (telegramService.isConfigured()) {
         telegramInviteLink = await telegramService.generateOneTimeInviteLink();
         

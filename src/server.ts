@@ -32,6 +32,7 @@ import messagesRouter from './routes/messages.js';
 import statsRouter from './routes/stats.js';
 import performanceRouter from './routes/performance.js';
 import telegramRouter from './routes/telegram.js';
+import miscRouter from './routes/misc.js';
 import { schedulerService } from './services/schedulerService.js';
 import { initRedis, closeRedis } from './services/redisService.js';
 import { authLimiter, readLimiter, writeLimiter, writeLimiterIP } from './middleware/rateLimiter.js';
@@ -50,6 +51,10 @@ dotenv.config({ path: envPath });
 console.log(`[DEBUG] 加載後 DATABASE_URL 是否存在: ${process.env.DATABASE_URL ? '是' : '否'}`);
 
 const app = express();
+
+// 靜態文件服務（用於模擬 CDN 上傳的本地文件）
+// 將 'uploads' 目錄暴露為 '/uploads' 端點
+app.use('/uploads', express.static(join(dirname(fileURLToPath(import.meta.url)), '..', 'uploads')));
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
 // Trust proxy - 在 Zeabur 等雲平台上，請求會通過反向代理
@@ -279,6 +284,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/performance', performanceRouter);
 app.use('/api/telegram', telegramRouter);
+app.use('/api', miscRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);

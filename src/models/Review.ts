@@ -1,5 +1,6 @@
 import { query } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
+import { clearProfileCachesAndRefreshView } from './Profile.js'; // 導入緩存清理和視圖刷新工具
 
 export interface Review {
   id: string;
@@ -264,6 +265,7 @@ export const reviewModel = {
     
     const review = await reviewModel.getById(id, data.clientId);
     if (!review) throw new Error('Failed to create review');
+    await clearProfileCachesAndRefreshView(data.profileId); // 清除 profiles 列表緩存並刷新物化視圖
     return review;
   },
 
@@ -362,6 +364,7 @@ export const reviewModel = {
       WHERE id = $${paramIndex}
     `, params);
     
+    await clearProfileCachesAndRefreshView(existing.profileId); // 清除 profiles 列表緩存並刷新物化視圖
     return await reviewModel.getById(id, clientId);
   },
 
@@ -374,33 +377,47 @@ export const reviewModel = {
     }
     
     const result = await query('DELETE FROM reviews WHERE id = $1', [id]);
-    return (result.rowCount || 0) > 0;
+    if ((result.rowCount || 0) > 0) {
+      await clearProfileCachesAndRefreshView(existing.profileId); // 清除 profiles 列表緩存並刷新物化視圖
+      return true;
+    }
+    return false;
   },
 
   // 点赞/取消点赞
   toggleLike: async (reviewId: string, userId: string): Promise<boolean> => {
-    // 检查是否已点赞
+    // 獲取 review 的 profileId
+    const reviewResult = await query('SELECT profile_id FROM reviews WHERE id = $1', [reviewId]);
+    const profileId = reviewResult.rows[0]?.profile_id;
+    
+    // 檢查是否已點讚
     const existing = await query(
       'SELECT id FROM review_likes WHERE review_id = $1 AND user_id = $2',
       [reviewId, userId]
     );
     
+    let liked = false;
     if (existing.rows.length > 0) {
-      // 取消点赞
+      // 取消點贊
       await query(
         'DELETE FROM review_likes WHERE review_id = $1 AND user_id = $2',
         [reviewId, userId]
       );
-      return false;
+      liked = false;
     } else {
-      // 点赞
+      // 點贊
       const likeId = `like_${Date.now()}_${uuidv4().substring(0, 9)}`;
       await query(
         'INSERT INTO review_likes (id, review_id, user_id) VALUES ($1, $2, $3)',
         [likeId, reviewId, userId]
       );
-      return true;
+      liked = true;
     }
+
+    if (profileId) {
+      await clearProfileCachesAndRefreshView(profileId); // 清除 profiles 列表緩存並刷新物化視圖
+    }
+    return liked;
   },
 
   // 添加回复
@@ -415,6 +432,15 @@ export const reviewModel = {
     const result = await query('SELECT * FROM review_replies WHERE id = $1', [id]);
     const row = result.rows[0];
     
+    return {
+      id: row.id,
+      reviewId: row.review_id,
+      replyType: row.reply_type,
+      authorId: row.author_id || undefined,
+      content: row.content,
+      createdAt: row.created_at,
+    };
+    await clearProfileCachesAndRefreshView(reviewId); // 清除 profiles 列表緩存並刷新物化視圖
     return {
       id: row.id,
       reviewId: row.review_id,

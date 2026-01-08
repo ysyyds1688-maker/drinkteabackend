@@ -134,6 +134,14 @@ export const initDatabase = async () => {
       )
     `);
 
+    // 啟用 pg_trgm 擴展（如果尚未啟用）
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+
+    // 為 profiles.name 欄位添加 GIN 索引，以優化模糊匹配
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS trgm_idx_profiles_name ON profiles USING GIN (name gin_trgm_ops);
+    `);
+
     // 如果表已存在，添加新欄位（如果不存在）
     try {
       await pool.query(`
@@ -253,8 +261,6 @@ export const initDatabase = async () => {
     `);
 
     // 確保既有資料庫的欄位型別也放寬為 TEXT（如果之前是 VARCHAR(500)）
-    await pool.query(`ALTER TABLE profiles ALTER COLUMN "imageUrl" TYPE TEXT`);
-    await pool.query(`ALTER TABLE articles ALTER COLUMN "imageUrl" TYPE TEXT`);
 
     // Users table
     await pool.query(`
@@ -326,16 +332,46 @@ export const initDatabase = async () => {
 
     // 擴展 membership_level 支持多級會員（如果表已存在）
     try {
-      // 先移除舊的 CHECK 約束（如果存在）
+      // 先修復所有無效的 membership_level 值（重置為默認值）
+      const validLevels = [
+        'tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 
+        'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 
+        'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 
+        'national_master_tea_officer', 'lady_trainee', 'lady_apprentice', 
+        'lady_junior', 'lady_senior', 'lady_expert', 'lady_master', 
+        'lady_elite', 'lady_premium', 'lady_royal', 'lady_empress'
+      ];
+      
+      // 查找並修復無效的 membership_level 值
+      const invalidUsers = await pool.query(`
+        SELECT id, membership_level 
+        FROM users 
+        WHERE membership_level IS NOT NULL 
+        AND membership_level NOT IN (${validLevels.map((_, i) => `$${i + 1}`).join(', ')})
+      `, validLevels);
+      
+      if (invalidUsers.rows.length > 0) {
+        console.log(`[數據庫修復] 發現 ${invalidUsers.rows.length} 個用戶的 membership_level 值無效，將重置為 'tea_guest'`);
+        for (const row of invalidUsers.rows) {
+          await pool.query(`
+            UPDATE users 
+            SET membership_level = 'tea_guest' 
+            WHERE id = $1
+          `, [row.id]);
+        }
+      }
+      
+      // 移除舊的 CHECK 約束（如果存在）
       await pool.query(`
         ALTER TABLE users 
         DROP CONSTRAINT IF EXISTS users_membership_level_check
       `);
-      // 添加新的 CHECK 約束支持 10 個等級
+      
+      // 添加新的 CHECK 約束支持所有等級（包括佳麗等級）
       await pool.query(`
         ALTER TABLE users 
         ADD CONSTRAINT users_membership_level_check 
-        CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer'))
+        CHECK(membership_level IN ('tea_guest', 'tea_scholar', 'royal_tea_scholar', 'royal_tea_officer', 'tea_king_attendant', 'imperial_chief_tea_officer', 'tea_king_confidant', 'tea_king_personal_selection', 'imperial_golden_seal_tea_officer', 'national_master_tea_officer', 'lady_trainee', 'lady_apprentice', 'lady_junior', 'lady_senior', 'lady_expert', 'lady_master', 'lady_elite', 'lady_premium', 'lady_royal', 'lady_empress'))
       `);
     } catch (error: any) {
       if (!error.message.includes('already exists') && !error.message.includes('does not exist')) {
@@ -559,6 +595,9 @@ export const initDatabase = async () => {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_profiles_type ON profiles(type)
     `);
+
+    // --- Drop and Create Materialized View for Profiles ---
+    await pool.query(`DROP MATERIALIZED VIEW IF EXISTS profiles_materialized_view CASCADE;`);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(location)
     `);
@@ -580,7 +619,11 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
     `);
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number)
+      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number);
+      CREATE INDEX IF NOT EXISTS idx_users_membership_level ON users(membership_level);
+      CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+      CREATE INDEX IF NOT EXISTS idx_users_email_verified ON users(email_verified);
+      CREATE INDEX IF NOT EXISTS idx_users_user_name ON users(user_name);
     `);
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_reviews_profile ON reviews(profile_id)
@@ -592,7 +635,8 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating)
     `);
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_reviews_created ON reviews(created_at DESC)
+      CREATE INDEX IF NOT EXISTS idx_reviews_created ON reviews(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_reviews_is_visible ON reviews(is_visible);
     `);
     
     // 添加新字段以支持 provider 評論 client
@@ -1327,6 +1371,122 @@ export const initDatabase = async () => {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id)
     `);
+
+
+    await pool.query(`
+      CREATE MATERIALIZED VIEW IF NOT EXISTS profiles_materialized_view AS
+      SELECT
+        p.id,
+        p."userId",
+        p.name,
+        p.nationality,
+        p.age,
+        p.height,
+        p.weight,
+        p.cup,
+        p.location,
+        p.district,
+        p.type,
+        p."imageUrl",
+        p.gallery,
+        p.albums,
+        p.price,
+        p.prices,
+        p.tags,
+        p."basicServices",
+        p."addonServices",
+        p."contactInfo",
+        p.remarks,
+        p.videos,
+        p."bookingProcess",
+        p."isNew",
+        p."isAvailable",
+        p."availableTimes",
+        p.views,
+        p.contact_count,
+        p."createdAt",
+        p."updatedAt",
+        CASE u.membership_level
+          WHEN 'tea_guest' THEN 1
+          WHEN 'tea_scholar' THEN 2
+          WHEN 'royal_tea_scholar' THEN 3
+          WHEN 'royal_tea_officer' THEN 4
+          WHEN 'tea_king_attendant' THEN 5
+          WHEN 'imperial_chief_tea_officer' THEN 6
+          WHEN 'tea_king_confidant' THEN 7
+          WHEN 'tea_king_personal_selection' THEN 8
+          WHEN 'imperial_golden_seal_tea_officer' THEN 9
+          WHEN 'national_master_tea_officer' THEN 10
+          WHEN 'lady_trainee' THEN 1
+          WHEN 'lady_apprentice' THEN 2
+          WHEN 'lady_junior' THEN 3
+          WHEN 'lady_senior' THEN 4
+          WHEN 'lady_expert' THEN 5
+          WHEN 'lady_master' THEN 6
+          WHEN 'lady_elite' THEN 7
+          WHEN 'lady_premium' THEN 8
+          WHEN 'lady_royal' THEN 9
+          WHEN 'lady_empress' THEN 10
+          ELSE 0
+        END AS level_value,
+        COALESCE(AVG(r.rating), 0) AS avg_rating,
+        CASE
+          WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+          ELSE 0
+        END AS is_vip_value,
+        CASE
+          WHEN u.role = 'provider' THEN u.email_verified
+          ELSE NULL
+        END AS provider_email_verified,
+        (2.0 *
+          CASE u.membership_level
+            WHEN 'tea_guest' THEN 1
+            WHEN 'tea_scholar' THEN 2
+            WHEN 'royal_tea_scholar' THEN 3
+            WHEN 'royal_tea_officer' THEN 4
+            WHEN 'tea_king_attendant' THEN 5
+            WHEN 'imperial_chief_tea_officer' THEN 6
+            WHEN 'tea_king_confidant' THEN 7
+            WHEN 'tea_king_personal_selection' THEN 8
+            WHEN 'imperial_golden_seal_tea_officer' THEN 9
+            WHEN 'national_master_tea_officer' THEN 10
+            WHEN 'lady_trainee' THEN 1
+            WHEN 'lady_apprentice' THEN 2
+            WHEN 'lady_junior' THEN 3
+            WHEN 'lady_senior' THEN 4
+            WHEN 'lady_expert' THEN 5
+            WHEN 'lady_master' THEN 6
+            WHEN 'lady_elite' THEN 7
+            WHEN 'lady_premium' THEN 8
+            WHEN 'lady_royal' THEN 9
+            WHEN 'lady_empress' THEN 10
+            ELSE 0
+          END +
+         1.0 * COALESCE(AVG(r.rating), 0) +
+         3.0 *
+          CASE
+            WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+            ELSE 0
+          END
+        ) AS exposure_score
+      FROM profiles p
+      LEFT JOIN users u ON p."userId" = u.id
+      LEFT JOIN reviews r ON r.profile_id = p.id AND r.is_visible = TRUE
+      LEFT JOIN subscriptions s ON s.user_id = u.id
+      GROUP BY p.id, u.id, s.is_active, s.expires_at
+      ORDER BY exposure_score DESC, p."createdAt" DESC
+    `);
+
+    // Create indexes for the materialized view
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_profiles_id ON profiles_materialized_view(id);
+      CREATE INDEX IF NOT EXISTS idx_mv_profiles_user_id ON profiles_materialized_view("userId");
+      CREATE INDEX IF NOT EXISTS idx_mv_profiles_exposure_score ON profiles_materialized_view(exposure_score DESC);
+      CREATE INDEX IF NOT EXISTS idx_mv_profiles_location_type ON profiles_materialized_view(location, type);
+    `);
+
+    // Initial refresh of the materialized view
+    await pool.query(`REFRESH MATERIALIZED VIEW profiles_materialized_view;`);
 
     console.log('✅ Database initialized successfully');
   } catch (error) {

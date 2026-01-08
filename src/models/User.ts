@@ -1,5 +1,9 @@
 import { query } from '../db/database.js';
 import bcrypt from 'bcrypt';
+import { subscriptionModel } from './Subscription.js'; // 靜態導入
+import { encryptPassword } from '../services/passwordEncryption.js'; // 靜態導入
+import { clearProfileCachesAndRefreshView } from './Profile.js'; // 導入緩存清理和視圖刷新工具
+import { cacheService } from '../services/redisService.js'; // 導入 Redis 緩存服務
 
 // 品茶客等級
 export type MembershipLevel = 'tea_guest' | 'tea_scholar' | 'royal_tea_scholar' | 'royal_tea_officer' | 'tea_king_attendant' | 'imperial_chief_tea_officer' | 'tea_king_confidant' | 'tea_king_personal_selection' | 'imperial_golden_seal_tea_officer' | 'national_master_tea_officer';
@@ -59,10 +63,67 @@ export interface CreateUserData {
   role?: 'provider' | 'client' | 'admin';
 }
 
+// 輔助函數：將數據庫行映射為 User 對象
+const mapRowToUser = (row: any): User => {
+  let verificationBadges: string[] = [];
+  if (row.verification_badges) {
+    try {
+      verificationBadges = JSON.parse(row.verification_badges);
+    } catch (e) {
+      verificationBadges = [];
+    }
+  }
+  return {
+    id: row.id,
+    publicId: row.public_id || undefined,
+    email: row.email || undefined,
+    phoneNumber: row.phone_number || undefined,
+    password: row.password,
+    userName: row.user_name || undefined,
+    avatarUrl: row.avatar_url || undefined,
+    role: row.role,
+    membershipLevel: row.membership_level as MembershipLevel,
+    membershipExpiresAt: row.membership_expires_at || undefined,
+    verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
+    emailVerified: Boolean(row.email_verified),
+    phoneVerified: Boolean(row.phone_verified),
+    registeredAt: row.registered_at || row.created_at || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastLoginAt: row.last_login_at || undefined,
+    nicknameChangedAt: row.nickname_changed_at || undefined,
+    nicknameChangeCount: row.nickname_change_count || 0,
+    bookingCancellationCount: row.booking_cancellation_count || 0,
+    noShowCount: row.no_show_count || 0,
+    violationLevel: row.violation_level || 0,
+    warningBadge: Boolean(row.warning_badge),
+    noShowBadge: Boolean(row.no_show_badge),
+    bookingWarning: Boolean(row.booking_warning),
+    providerReportCount: row.provider_report_count || 0,
+    providerScamReportCount: row.provider_scam_report_count || 0,
+    providerNotRealPersonCount: row.provider_not_real_person_count || 0,
+    providerFakeProfileCount: row.provider_fake_profile_count || 0,
+    providerViolationLevel: row.provider_violation_level || 0,
+    providerWarningBadge: Boolean(row.provider_warning_badge),
+    providerFrozen: Boolean(row.provider_frozen),
+    providerFrozenAt: row.provider_frozen_at || undefined,
+    providerAutoUnfreezeAt: row.provider_auto_unfreeze_at || undefined,
+    telegramUserId: row.telegram_user_id || undefined,
+    telegramUsername: row.telegram_username || undefined,
+  };
+};
+
 export const userModel = {
   // 根据 Email 或手机号查找用户
   findByEmailOrPhone: async (email?: string, phoneNumber?: string): Promise<User | null> => {
     if (!email && !phoneNumber) return null;
+
+    const cacheKey = email ? `cache:user:email:${email}` : `cache:user:phone:${phoneNumber}`;
+    const cachedUser = await cacheService.get<User>(cacheKey);
+    if (cachedUser) {
+      console.log(`[Cache Hit] User.findByEmailOrPhone: ${cacheKey}`);
+      return cachedUser;
+    }
     
     let sql = 'SELECT * FROM users WHERE ';
     const params: any[] = [];
@@ -81,103 +142,26 @@ export const userModel = {
     const result = await query(sql, params);
     if (result.rows.length === 0) return null;
     
-    const row = result.rows[0];
-    let verificationBadges: string[] = [];
-    if (row.verification_badges) {
-      try {
-        verificationBadges = JSON.parse(row.verification_badges);
-      } catch (e) {
-        verificationBadges = [];
-      }
-    }
-    return {
-      id: row.id,
-      publicId: row.public_id || undefined,
-      email: row.email || undefined,
-      phoneNumber: row.phone_number || undefined,
-      password: row.password,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-      role: row.role,
-      membershipLevel: row.membership_level as MembershipLevel,
-      membershipExpiresAt: row.membership_expires_at || undefined,
-      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
-      emailVerified: Boolean(row.email_verified),
-      phoneVerified: Boolean(row.phone_verified),
-      registeredAt: row.registered_at || row.created_at || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      lastLoginAt: row.last_login_at || undefined,
-      nicknameChangedAt: row.nickname_changed_at || undefined,
-      nicknameChangeCount: row.nickname_change_count || 0,
-      bookingCancellationCount: row.booking_cancellation_count || 0,
-      noShowCount: row.no_show_count || 0,
-      violationLevel: row.violation_level || 0,
-      warningBadge: Boolean(row.warning_badge),
-      noShowBadge: Boolean(row.no_show_badge),
-      bookingWarning: Boolean(row.booking_warning),
-      providerReportCount: row.provider_report_count || 0,
-      providerScamReportCount: row.provider_scam_report_count || 0,
-      providerNotRealPersonCount: row.provider_not_real_person_count || 0,
-      providerFakeProfileCount: row.provider_fake_profile_count || 0,
-      providerViolationLevel: row.provider_violation_level || 0,
-      providerWarningBadge: Boolean(row.provider_warning_badge),
-      providerFrozen: Boolean(row.provider_frozen),
-      providerFrozenAt: row.provider_frozen_at || undefined,
-      providerAutoUnfreezeAt: row.provider_auto_unfreeze_at || undefined,
-    };
+    const user = mapRowToUser(result.rows[0]);
+    await cacheService.set(cacheKey, user, 3600); // 緩存 1 小時
+    return user;
   },
 
   // 根据 ID 查找用户
   findById: async (id: string): Promise<User | null> => {
+    const cacheKey = `cache:user:${id}`;
+    const cachedUser = await cacheService.get<User>(cacheKey);
+    if (cachedUser) {
+      console.log(`[Cache Hit] User.findById: ${id}`);
+      return cachedUser;
+    }
+
     const result = await query('SELECT * FROM users WHERE id = $1', [id]);
     if (result.rows.length === 0) return null;
     
-    const row = result.rows[0];
-    let verificationBadges: string[] = [];
-    if (row.verification_badges) {
-      try {
-        verificationBadges = JSON.parse(row.verification_badges);
-      } catch (e) {
-        verificationBadges = [];
-      }
-    }
-    return {
-      id: row.id,
-      publicId: row.public_id || undefined,
-      email: row.email || undefined,
-      phoneNumber: row.phone_number || undefined,
-      password: row.password,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-      role: row.role,
-      membershipLevel: row.membership_level as MembershipLevel,
-      membershipExpiresAt: row.membership_expires_at || undefined,
-      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
-      emailVerified: Boolean(row.email_verified),
-      phoneVerified: Boolean(row.phone_verified),
-      registeredAt: row.registered_at || row.created_at || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      lastLoginAt: row.last_login_at || undefined,
-      nicknameChangedAt: row.nickname_changed_at || undefined,
-      nicknameChangeCount: row.nickname_change_count || 0,
-      bookingCancellationCount: row.booking_cancellation_count || 0,
-      noShowCount: row.no_show_count || 0,
-      violationLevel: row.violation_level || 0,
-      warningBadge: Boolean(row.warning_badge),
-      noShowBadge: Boolean(row.no_show_badge),
-      bookingWarning: Boolean(row.booking_warning),
-      providerReportCount: row.provider_report_count || 0,
-      providerScamReportCount: row.provider_scam_report_count || 0,
-      providerNotRealPersonCount: row.provider_not_real_person_count || 0,
-      providerFakeProfileCount: row.provider_fake_profile_count || 0,
-      providerViolationLevel: row.provider_violation_level || 0,
-      providerWarningBadge: Boolean(row.provider_warning_badge),
-      providerFrozen: Boolean(row.provider_frozen),
-      providerFrozenAt: row.provider_frozen_at || undefined,
-      providerAutoUnfreezeAt: row.provider_auto_unfreeze_at || undefined,
-    };
+    const user = mapRowToUser(result.rows[0]);
+    await cacheService.set(cacheKey, user, 3600); // 緩存 1 小時
+    return user;
   },
 
   // 生成新格式的用戶ID
@@ -217,7 +201,6 @@ export const userModel = {
     // 加密存儲原始密碼（用於密碼提示功能）
     let encryptedPassword: string | null = null;
     try {
-      const { encryptPassword } = await import('../services/passwordEncryption.js');
       encryptedPassword = encryptPassword(userData.password);
     } catch (error) {
       console.warn('加密密碼失敗（用於密碼提示功能）:', error);
@@ -290,10 +273,14 @@ export const userModel = {
     
     const user = await userModel.findById(id);
     if (!user) throw new Error('Failed to create user');
+    await cacheService.delete(`cache:user:${id}`);
+    if (user.email) await cacheService.delete(`cache:user:email:${user.email}`);
+    if (user.phoneNumber) await cacheService.delete(`cache:user:phone:${user.phoneNumber}`);
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
     return user;
   },
 
-  // 验证密码
+  // 驗證密碼
   verifyPassword: async (user: User, password: string): Promise<boolean> => {
     const result = await query('SELECT password FROM users WHERE id = $1', [user.id]);
     if (result.rows.length === 0) return false;
@@ -303,6 +290,7 @@ export const userModel = {
   // 更新最後登入時間
   updateLastLogin: async (userId: string): Promise<void> => {
     await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [userId]);
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
   },
 
   // 更新訂閱狀態（支援品茶客和後宮佳麗等級）
@@ -312,6 +300,8 @@ export const userModel = {
       SET membership_level = $1, membership_expires_at = $2, updated_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [level, expiresAt || null, userId]);
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
   },
 
   // 獲取會員等級權益
@@ -367,40 +357,13 @@ export const userModel = {
       SET verification_badges = $1, updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [JSON.stringify(badges), userId]);
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
   },
 
   // 获取所有用户（管理员）
   getAll: async (): Promise<User[]> => {
     const result = await query('SELECT * FROM users ORDER BY created_at DESC');
-      return result.rows.map(row => {
-      let verificationBadges: string[] = [];
-      if (row.verification_badges) {
-        try {
-          verificationBadges = JSON.parse(row.verification_badges);
-        } catch (e) {
-          verificationBadges = [];
-        }
-      }
-      return {
-        id: row.id,
-        publicId: row.public_id || undefined,
-        email: row.email || undefined,
-        phoneNumber: row.phone_number || undefined,
-        password: row.password,
-        userName: row.user_name || undefined,
-        avatarUrl: row.avatar_url || undefined,
-        role: row.role,
-        membershipLevel: row.membership_level as MembershipLevel,
-        membershipExpiresAt: row.membership_expires_at || undefined,
-        verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
-        emailVerified: Boolean(row.email_verified),
-        phoneVerified: Boolean(row.phone_verified),
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        lastLoginAt: row.last_login_at || undefined,
-        nicknameChangedAt: row.nickname_changed_at || undefined,
-      };
-    });
+      return result.rows.map(row => mapRowToUser(row));
   },
 
   // 更新用户信息
@@ -409,16 +372,15 @@ export const userModel = {
     const values: any[] = [];
     let paramIndex = 1;
 
-    // 检查是否需要更新昵称，如果需要则检查修改限制
+    // 檢查是否需要更新昵稱，如果需要則檢查修改限制
     if (userData.userName !== undefined) {
-      // 先获取当前用户信息
+      // 先獲取當前用戶信息
       const currentUser = await userModel.findById(id);
       if (currentUser && currentUser.userName && currentUser.userName !== userData.userName) {
-        // 昵称有变化，检查修改限制
+        // 昵稱有變化，檢查修改限制
         const changeCount = currentUser.nicknameChangeCount || 0;
         
         // 檢查是否有活躍的VIP訂閱
-        const { subscriptionModel } = await import('./Subscription.js');
         const activeSubscription = await subscriptionModel.getActiveByUserId(id);
         const isVip = activeSubscription !== null && 
           activeSubscription.isActive && 
@@ -498,43 +460,19 @@ export const userModel = {
 
     const result = await query(sql, values);
     if (result.rows.length === 0) return null;
-
-    const row = result.rows[0];
-    let verificationBadges: string[] = [];
-    if (row.verification_badges) {
-      try {
-        verificationBadges = JSON.parse(row.verification_badges);
-      } catch (e) {
-        verificationBadges = [];
-      }
-    }
-    return {
-      id: row.id,
-      publicId: row.public_id || undefined,
-      email: row.email || undefined,
-      phoneNumber: row.phone_number || undefined,
-      password: row.password,
-      userName: row.user_name || undefined,
-      avatarUrl: row.avatar_url || undefined,
-      role: row.role,
-      membershipLevel: row.membership_level as MembershipLevel,
-      membershipExpiresAt: row.membership_expires_at || undefined,
-      verificationBadges: verificationBadges.length > 0 ? verificationBadges : undefined,
-      emailVerified: Boolean(row.email_verified),
-      phoneVerified: Boolean(row.phone_verified),
-      registeredAt: row.registered_at || row.created_at || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      lastLoginAt: row.last_login_at || undefined,
-      nicknameChangedAt: row.nickname_changed_at || undefined,
-    };
+    
+    await cacheService.delete(`cache:user:${id}`);
+    if (userData.email !== undefined) await cacheService.delete(`cache:user:email:${userData.email}`);
+    if (userData.phoneNumber !== undefined) await cacheService.delete(`cache:user:phone:${userData.phoneNumber}`);
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
+    return mapRowToUser(result.rows[0]);
   },
 
-  // 更新邮箱验证状态
+  // 更新邮箱驗證狀態
   updateEmailVerified: async (id: string, verified: boolean): Promise<User | null> => {
     // 先獲取當前用戶信息
     const user = await userModel.findById(id);
-    if (!user) return null;
+    if (!user) throw new Error('用戶不存在');
     
     // 更新驗證狀態
     await query(`
@@ -562,14 +500,21 @@ export const userModel = {
       WHERE id = $2
     `, [JSON.stringify(badges), id]);
     
-    return userModel.findById(id);
+    const updatedUserResult = await query('SELECT * FROM users WHERE id = $1', [id]);
+    if (updatedUserResult.rows.length === 0) return null;
+    const updatedUser = mapRowToUser(updatedUserResult.rows[0]);
+
+    await cacheService.delete(`cache:user:${id}`);
+    if (user.email) await cacheService.delete(`cache:user:email:${user.email}`);
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
+    return updatedUser;
   },
 
   // 更新手機驗證狀態
   updatePhoneVerified: async (id: string, verified: boolean): Promise<User | null> => {
     // 先獲取當前用戶信息
     const user = await userModel.findById(id);
-    if (!user) return null;
+    if (!user) throw new Error('用戶不存在');
     
     // 更新驗證狀態
     await query(`
@@ -597,7 +542,14 @@ export const userModel = {
       WHERE id = $2
     `, [JSON.stringify(badges), id]);
     
-    return userModel.findById(id);
+    const updatedUserResult = await query('SELECT * FROM users WHERE id = $1', [id]);
+    if (updatedUserResult.rows.length === 0) return null;
+    const updatedUser = mapRowToUser(updatedUserResult.rows[0]);
+
+    await cacheService.delete(`cache:user:${id}`);
+    if (user.phoneNumber) await cacheService.delete(`cache:user:phone:${user.phoneNumber}`);
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
+    return updatedUser;
   },
 
   // 增加預約取消次數並檢查是否需要警告
@@ -619,6 +571,8 @@ export const userModel = {
       WHERE id = $3
     `, [newCount, shouldWarn, userId]);
     
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
     return { count: newCount, warning: shouldWarn };
   },
 
@@ -638,6 +592,8 @@ export const userModel = {
       WHERE id = $2
     `, [newCount, userId]);
     
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
     return { count: newCount };
   },
 
@@ -667,6 +623,8 @@ export const userModel = {
       WHERE id = $5
     `, [newTotal, newScam, newNotRealPerson, newFakeProfile, userId]);
     
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
     return {
       totalCount: newTotal,
       scamCount: newScam,
@@ -692,6 +650,8 @@ export const userModel = {
       SET ${updates.join(', ')}
       WHERE id = $${params.length}
     `, params);
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
   },
 
   // 更新違規級別和標記
@@ -716,6 +676,8 @@ export const userModel = {
       SET ${updates.join(', ')}
       WHERE id = $${params.length}
     `, params);
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
   },
 
   // 綁定 Telegram 帳號
@@ -725,6 +687,8 @@ export const userModel = {
       SET telegram_user_id = $1, telegram_username = $2, updated_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [telegramUserId, telegramUsername || null, userId]);
+    await cacheService.delete(`cache:user:${userId}`); // 清除用戶緩存
+    await clearProfileCachesAndRefreshView(); // 清除 profiles 列表緩存並刷新物化視圖
   },
 
   // 根據 Telegram ID 查找用戶
@@ -732,8 +696,6 @@ export const userModel = {
     const result = await query('SELECT * FROM users WHERE telegram_user_id = $1', [telegramUserId]);
     if (result.rows.length === 0) return null;
     
-    const row = result.rows[0];
-    return userModel.findById(row.id);
+    return mapRowToUser(result.rows[0]);
   },
 };
-

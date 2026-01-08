@@ -1,14 +1,33 @@
 import { query } from '../db/database.js';
 import { Profile } from '../types.js';
+import { cacheService } from '../services/redisService.js';
 
+// 輔助函數：清除相關緩存並刷新物化視圖
+export async function clearProfileCachesAndRefreshView(profileId?: string) {
+  console.log('[Cache Invalidation] 清除 profiles 列表緩存...');
+  await cacheService.deletePattern('cache:profiles:*');
+  if (profileId) {
+    console.log(`[Cache Invalidation] 清除 profile 詳情緩存: cache:profile:${profileId}`);
+    await cacheService.delete(`cache:profile:${profileId}`);
+  }
+  console.log('[Materialized View Refresh] 刷新 profiles_materialized_view...');
+  await query('REFRESH MATERIALIZED VIEW profiles_materialized_view;');
+}
 export const profileModel = {
   getAll: async (userId?: string, options?: { limit?: number; offset?: number }): Promise<{ profiles: Profile[]; total: number }> => {
+    const cacheKey = `cache:profiles:${userId || 'all'}:${options?.limit || 'no_limit'}:${options?.offset || 'no_offset'}`;
+    const cachedData = await cacheService.get<{ profiles: Profile[]; total: number }>(cacheKey);
+    if (cachedData) {
+      console.log(`[Cache Hit] Profile.getAll: ${cacheKey}`);
+      return cachedData;
+    }
+
     try {
       console.log('[Profile.getAll] 開始查詢數據庫...', options);
       const queryStartTime = Date.now();
       
       // 先獲取總數
-      let countSql = `SELECT COUNT(*) as total FROM profiles`;
+      let countSql = `SELECT COUNT(*) as total FROM profiles_materialized_view`;
       const countParams: any[] = [];
       
       if (userId) {
@@ -19,159 +38,20 @@ export const profileModel = {
       const countResult = await query(countSql, countParams);
       const total = parseInt(countResult.rows[0].total, 10);
       
-      // 明確指定所有列名，並加入會員等級 / VIP / 平均評分等欄位，供排序使用
-      // 說明：
-      // - level_value：將 membership_level 映射為數值（等級越高數值越大）
-      // - avg_rating：該 profile 的平均評分（僅計算可見評論）
-      //
-      // 曝光排序權重（只用於 ORDER BY，不會影響返回資料結構）：
-      // ExposureScore = 2.0 * level_value + 1.0 * avg_rating + 3.0 * isVip
       let sql = `
-        SELECT 
-          p.id,
-          p."userId",
-          p.name,
-          p.nationality,
-          p.age,
-          p.height,
-          p.weight,
-          p.cup,
-          p.location,
-          p.district,
-          p.type,
-          p."imageUrl",
-          p.gallery,
-          p.albums,
-          p.price,
-          p.prices,
-          p.tags,
-          p."basicServices",
-          p."addonServices",
-          p."contactInfo",
-          p.remarks,
-          p.videos,
-          p."bookingProcess",
-          p."isNew",
-          p."isAvailable",
-          p."availableTimes",
-          p.views,
-          p.contact_count,
-          p."createdAt",
-          p."updatedAt",
-          -- 會員等級數值映射（茶客 + 佳麗）
-          CASE u.membership_level
-            -- 茶客等級（1~10）
-            WHEN 'tea_guest' THEN 1
-            WHEN 'tea_scholar' THEN 2
-            WHEN 'royal_tea_scholar' THEN 3
-            WHEN 'royal_tea_officer' THEN 4
-            WHEN 'tea_king_attendant' THEN 5
-            WHEN 'imperial_chief_tea_officer' THEN 6
-            WHEN 'tea_king_confidant' THEN 7
-            WHEN 'tea_king_personal_selection' THEN 8
-            WHEN 'imperial_golden_seal_tea_officer' THEN 9
-            WHEN 'national_master_tea_officer' THEN 10
-            -- 佳麗等級（1~10）
-            WHEN 'lady_trainee' THEN 1
-            WHEN 'lady_apprentice' THEN 2
-            WHEN 'lady_junior' THEN 3
-            WHEN 'lady_senior' THEN 4
-            WHEN 'lady_expert' THEN 5
-            WHEN 'lady_master' THEN 6
-            WHEN 'lady_elite' THEN 7
-            WHEN 'lady_premium' THEN 8
-            WHEN 'lady_royal' THEN 9
-            WHEN 'lady_empress' THEN 10
-            ELSE 0
-          END AS level_value,
-          -- 平均評分（只計算可見評論）
-          (
-            SELECT COALESCE(AVG(r.rating), 0)
-            FROM reviews r
-            WHERE r.profile_id = p.id
-              AND r.is_visible = TRUE
-          ) AS avg_rating,
-          -- 是否 VIP（布林轉 0/1）
-          CASE 
-            WHEN u.role = 'provider' THEN 
-              CASE 
-                WHEN EXISTS (
-                  SELECT 1 FROM subscriptions s 
-                  WHERE s.user_id = u.id 
-                    AND s.is_active = TRUE 
-                    AND (s.expires_at IS NULL OR s.expires_at > NOW())
-                ) THEN 1
-                ELSE 0
-              END
-            ELSE 0
-          END AS is_vip_value,
-          -- Provider 的 Email 驗證狀態（僅特選魚市需要）
-          CASE 
-            WHEN u.role = 'provider' THEN u.email_verified
-            ELSE NULL
-          END AS provider_email_verified
-        FROM profiles p
-        LEFT JOIN users u ON p."userId" = u.id
+        SELECT *
+        FROM profiles_materialized_view
       `;
       const params: any[] = [];
       let paramIndex = 1;
       
       if (userId) {
-        sql += ` WHERE p."userId" = $${paramIndex++}`;
+        sql += ` WHERE "userId" = $${paramIndex++}`;
         params.push(userId);
       }
       
-      // 排序說明：
-      // - 先依照曝光分數（等級 + 評分 + VIP）由高到低
-      // - 再依照建立時間由新到舊
-      // 注意：在 ORDER BY 中重複計算，避免別名引用問題
       sql += `
-        ORDER BY 
-          (
-            2.0 * COALESCE(
-              CASE u.membership_level
-                WHEN 'tea_guest' THEN 1
-                WHEN 'tea_scholar' THEN 2
-                WHEN 'royal_tea_scholar' THEN 3
-                WHEN 'royal_tea_officer' THEN 4
-                WHEN 'tea_king_attendant' THEN 5
-                WHEN 'imperial_chief_tea_officer' THEN 6
-                WHEN 'tea_king_confidant' THEN 7
-                WHEN 'tea_king_personal_selection' THEN 8
-                WHEN 'imperial_golden_seal_tea_officer' THEN 9
-                WHEN 'national_master_tea_officer' THEN 10
-                WHEN 'lady_trainee' THEN 1
-                WHEN 'lady_apprentice' THEN 2
-                WHEN 'lady_junior' THEN 3
-                WHEN 'lady_senior' THEN 4
-                WHEN 'lady_expert' THEN 5
-                WHEN 'lady_master' THEN 6
-                WHEN 'lady_elite' THEN 7
-                WHEN 'lady_premium' THEN 8
-                WHEN 'lady_royal' THEN 9
-                WHEN 'lady_empress' THEN 10
-                ELSE 0
-              END, 0
-            ) +
-            1.0 * COALESCE((
-              SELECT AVG(r.rating)
-              FROM reviews r
-              WHERE r.profile_id = p.id
-                AND r.is_visible = TRUE
-            ), 0) +
-            3.0 * COALESCE(
-              CASE 
-                WHEN u.role = 'provider' AND EXISTS (
-                  SELECT 1 FROM subscriptions s 
-                  WHERE s.user_id = u.id 
-                    AND s.is_active = TRUE 
-                    AND (s.expires_at IS NULL OR s.expires_at > NOW())
-                ) THEN 1
-                ELSE 0
-              END, 0
-            )
-          ) DESC,
-          p."createdAt" DESC
+        ORDER BY exposure_score DESC, "createdAt" DESC
       `;
       
       // 添加分頁
@@ -241,7 +121,9 @@ export const profileModel = {
         }
       });
       
-      return { profiles: parsedProfiles, total };
+      const resultData = { profiles: parsedProfiles, total };
+      await cacheService.set(cacheKey, resultData, 600); // 緩存 10 分鐘
+      return resultData;
     } catch (error: any) {
       console.error('Profile.getAll error:', error);
       throw new Error(`取得 Profiles 失敗: ${error.message || '資料庫錯誤'}`);
@@ -249,37 +131,35 @@ export const profileModel = {
   },
 
   getById: async (id: string, incrementViews: boolean = false): Promise<Profile | null> => {
+    const cacheKey = `cache:profile:${id}`;
+    if (!incrementViews) { // 只在不增加瀏覽次數時檢查緩存
+      const cachedProfile = await cacheService.get<Profile>(cacheKey);
+      if (cachedProfile) {
+        console.log(`[Cache Hit] Profile.getById: ${id}`);
+        return cachedProfile;
+      }
+    }
     try {
       // 如果 incrementViews 為 true，先增加瀏覽次數
       if (incrementViews) {
         await query(`UPDATE profiles SET views = COALESCE(views, 0) + 1 WHERE id = $1`, [id]);
+        await clearProfileCachesAndRefreshView(id); // 清除緩存並刷新物化視圖，因為 views 改變了
       }
       
       // 明确指定所有列名，确保正确获取userId字段
       const result = await query(`
         SELECT 
-          p.id, p."userId", p.name, p.nationality, p.age, p.height, p.weight, p.cup, p.location, p.district, 
-          p.type, p."imageUrl", p.gallery, p.albums, p.price, p.prices, p.tags, 
-          p."basicServices", p."addonServices", p."contactInfo", p.remarks, p.videos, p."bookingProcess", p."isNew", p."isAvailable", p."availableTimes", 
-          p.views, p.contact_count, p."createdAt", p."updatedAt",
-          -- 是否 VIP
-          CASE 
-            WHEN u.role = 'provider' AND EXISTS (
-              SELECT 1 FROM subscriptions s 
-              WHERE s.user_id = u.id 
-                AND s.is_active = TRUE 
-                AND (s.expires_at IS NULL OR s.expires_at > NOW())
-            ) THEN TRUE
-            ELSE FALSE
-          END AS is_vip,
-          -- Provider 的 Email 驗證狀態
-          CASE 
-            WHEN u.role = 'provider' THEN u.email_verified
-            ELSE FALSE
-          END AS provider_email_verified
-        FROM profiles p
-        LEFT JOIN users u ON p."userId" = u.id
-        WHERE p.id = $1
+          id, "userId", name, nationality, age, height, weight, cup, location, district, 
+          type, "imageUrl", gallery, albums, price, prices, tags, 
+          "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
+          views, contact_count, "createdAt", "updatedAt",
+          is_vip_value AS is_vip,
+          provider_email_verified,
+          exposure_score,
+          level_value,
+          avg_rating
+        FROM profiles_materialized_view
+        WHERE id = $1
       `, [id]);
       if (result.rows.length === 0) return null;
       
@@ -288,7 +168,7 @@ export const profileModel = {
       const rawUserId = row["userId"];
       const finalUserId = (rawUserId === null || rawUserId === '' || rawUserId === undefined) ? undefined : rawUserId;
       try {
-        return {
+        const profileData = {
           ...row,
           userId: finalUserId,
           isVip: Boolean(row.is_vip),
@@ -309,12 +189,14 @@ export const profileModel = {
           views: row.views || 0,
           contactCount: row.contact_count || 0,
         };
+        await cacheService.set(cacheKey, profileData, 3600); // 緩存 1 小時
+        return profileData;
       } catch (parseError: any) {
         console.error('Error parsing profile:', id, parseError);
         // 返回基本資料
         const rawUserId = row["userId"] || row.userId;
         const finalUserId = (rawUserId === null || rawUserId === '' || rawUserId === undefined) ? undefined : rawUserId;
-        return {
+        const profileData = {
           ...row,
           userId: finalUserId,
           isVip: Boolean(row.is_vip),
@@ -335,6 +217,8 @@ export const profileModel = {
           views: row.views || 0,
           contactCount: row.contact_count || 0,
         };
+        await cacheService.set(cacheKey, profileData, 3600); // 緩存 1 小時
+        return profileData;
       }
     } catch (error: any) {
       console.error('Profile.getById error:', id, error);
@@ -380,6 +264,7 @@ export const profileModel = {
 
     const created = await profileModel.getById(profile.id);
     if (!created) throw new Error('Failed to create profile');
+    await clearProfileCachesAndRefreshView(profile.id); // 清除緩存並刷新物化視圖
     return created;
   },
 
@@ -452,6 +337,7 @@ export const profileModel = {
         id
       ]);
 
+      await clearProfileCachesAndRefreshView(id); // 清除緩存並刷新物化視圖
       return await profileModel.getById(id);
     } catch (error: any) {
       console.error('Profile update error:', error);
@@ -462,7 +348,11 @@ export const profileModel = {
 
   delete: async (id: string): Promise<boolean> => {
     const result = await query('DELETE FROM profiles WHERE id = $1', [id]);
-    return (result.rowCount || 0) > 0;
+    if ((result.rowCount || 0) > 0) {
+      await clearProfileCachesAndRefreshView(id); // 清除緩存並刷新物化視圖
+      return true;
+    }
+    return false;
   },
 
   // 查找相似的 Profile
@@ -474,29 +364,29 @@ export const profileModel = {
 
       const sql = `
         SELECT id, "userId", name, nationality, age, height, weight, cup, location, district,
-               type, "imageUrl", price, "createdAt"
+               type, "imageUrl", price, "createdAt",
+               similarity(name, $3) AS name_similarity
         FROM profiles
         WHERE 
           -- 精确匹配：姓名 + 国籍
           (LOWER(name) = LOWER($1) AND nationality = $2)
           OR
-          -- 相似匹配：姓名相似 + 关键信息匹配
+          -- 相似匹配：姓名相似 + 關鍵信息匹配 (利用 pg_trgm 索引)
           (
-            LOWER(name) LIKE LOWER($3) AND
+            name % $3 AND -- 使用 % 運算符，利用 pg_trgm GIN 索引進行模糊匹配
             nationality = $2 AND
             ABS(age - $4) <= 2 AND
             ABS(height - $5) <= 5 AND
             ABS(weight - $6) <= 5
           )
-        ORDER BY "createdAt" DESC
+        ORDER BY name_similarity DESC, "createdAt" DESC
         LIMIT 10
       `;
       
-      const namePattern = `%${profile.name}%`;
       const result = await query(sql, [
         profile.name,
         profile.nationality,
-        namePattern,
+        profile.name, // 使用原始姓名進行 pg_trgm 模糊匹配
         profile.age || 0,
         profile.height || 0,
         profile.weight || 0
@@ -586,6 +476,7 @@ export const profileModel = {
         `UPDATE profiles SET contact_count = COALESCE(contact_count, 0) + 1 WHERE id = $1`,
         [profileId]
       );
+      await clearProfileCachesAndRefreshView(profileId); // 清除緩存並刷新物化視圖
     } catch (error: any) {
       console.error('Error incrementing contact count:', error);
       throw new Error(`增加聯繫次數失敗: ${error.message || '資料庫錯誤'}`);
