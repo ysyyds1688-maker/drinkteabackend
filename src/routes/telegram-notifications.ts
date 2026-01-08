@@ -10,8 +10,6 @@ import { query } from '../db/database.js';
 import { getUserFromRequest } from '../middleware/auth.js';
 import { userModel } from '../models/User.js';
 
-const router: Router = Router();
-
 // 存儲上次檢查的時間戳
 let lastCheckTime: Date = new Date();
 let lastStats: {
@@ -30,7 +28,7 @@ let lastStats: {
 /**
  * 執行檢查並發送統計報告（內部函數，可被定時任務和 API 調用）
  */
-export async function checkAndReportTelegram(requireAdmin: boolean = false): Promise<{ success: boolean; stats?: any; error?: string }> {
+async function checkAndReportTelegram(requireAdmin: boolean = false): Promise<{ success: boolean; stats?: any; error?: string }> {
   try {
     if (!telegramService.isConfigured()) {
       return { 
@@ -223,9 +221,13 @@ export async function checkAndReportTelegram(requireAdmin: boolean = false): Pro
   }
 }
 
-/**
- * 檢查並發送統計報告（API 端點，每 5 分鐘）
- */
+// 導出函數供其他模塊使用
+export { checkAndReportTelegram };
+
+// 創建 router
+const router: Router = Router();
+
+// 定義路由
 router.post('/check-and-report', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
@@ -257,9 +259,6 @@ router.post('/check-and-report', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * 測試 Telegram 連接
- */
 router.post('/test', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
@@ -313,9 +312,6 @@ router.post('/test', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * 檢查 Telegram 配置狀態
- */
 router.get('/config', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
