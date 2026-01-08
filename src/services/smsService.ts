@@ -123,6 +123,7 @@ const sendViaAWSSNS = async (phoneNumber: string, message: string): Promise<void
 
   try {
     // 動態導入 AWS SDK（如果已安裝）
+    // @ts-ignore - @aws-sdk/client-sns 是可選依賴，可能未安裝
     const { SNSClient, PublishCommand } = await import('@aws-sdk/client-sns');
     const client = new SNSClient({
       region,
