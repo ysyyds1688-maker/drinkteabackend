@@ -5,8 +5,46 @@ import { userModel } from '../models/User.js';
 import { bookingModel } from '../models/Booking.js';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile, Article } from '../types.js';
+import { getPerformanceStats, clearPerformanceMetrics } from '../middleware/performanceMonitor.js';
+import { telegramService } from '../services/telegramService.js';
 
 const router = Router();
+
+// ==================== 監控與診斷 ====================
+// GET /api/admin/monitor - 系統狀態監控（僅管理員）
+router.get('/monitor', async (req, res) => {
+  try {
+    const stats = getPerformanceStats();
+    const tgConfigured = telegramService.isConfigured();
+    
+    res.json({
+      performance: stats,
+      telegram: {
+        configured: tgConfigured,
+        botToken: !!process.env.TELEGRAM_BOT_TOKEN,
+        groupId: !!process.env.TELEGRAM_GROUP_ID,
+      },
+      env: {
+        nodeEnv: process.env.NODE_ENV,
+        hasRedis: !!process.env.REDIS_URL || !!process.env.REDIS_HOST,
+        hasSentry: !!process.env.SENTRY_DSN,
+      },
+      serverTime: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/admin/monitor/clear - 清除性能指標
+router.post('/monitor/clear', async (req, res) => {
+  try {
+    clearPerformanceMetrics();
+    res.json({ message: '性能指標已清空' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // ==================== 統計資訊 ====================
 // 統計緩存（5分鐘）

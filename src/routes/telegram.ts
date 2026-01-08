@@ -23,6 +23,25 @@ router.get('/config', async (req, res) => {
   }
 });
 
+// GET /api/telegram/link-url - 獲取帳號綁定連結
+router.get('/link-url', async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+
+    const url = await telegramService.getBotLinkingUrl(user.id);
+    if (!url) {
+      return res.status(500).json({ error: 'Telegram 服務暫未配置' });
+    }
+
+    res.json({ url });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || '獲取連結失敗' });
+  }
+});
+
 // POST /api/telegram/invite-link - 生成邀請連結（僅管理員）
 router.post('/invite-link', async (req, res) => {
   try {
@@ -86,6 +105,9 @@ router.post('/send-message', async (req, res) => {
 router.post('/webhook', async (req, res) => {
   try {
     const update = req.body;
+    
+    // 交給服務層處理
+    await telegramService.handleUpdate(update);
 
     // 處理新成員加入群組
     if (update.message?.new_chat_members) {

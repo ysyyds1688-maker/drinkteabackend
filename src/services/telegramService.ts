@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { logger } from '../middleware/logger.js';
+import { cacheService } from './redisService.js';
+import { userModel } from '../models/User.js';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_GROUP_ID = process.env.TELEGRAM_GROUP_ID;
@@ -11,6 +13,60 @@ export const telegramService = {
   // 檢查 Telegram 是否已配置
   isConfigured: (): boolean => {
     return !!(TELEGRAM_BOT_TOKEN && TELEGRAM_GROUP_ID);
+  },
+
+  // 生成 Telegram 綁定權杖 (Token)
+  generateLinkingToken: async (userId: string): Promise<string> => {
+    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    // 權杖有效期 10 分鐘
+    await cacheService.set(`tg_link:${token}`, userId, 600);
+    return token;
+  },
+
+  // 獲取綁定 URL
+  getBotLinkingUrl: async (userId: string): Promise<string | null> => {
+    if (!TELEGRAM_BOT_TOKEN) return null;
+    
+    try {
+      // 獲取 Bot 用戶名
+      const response = await axios.get(`${TELEGRAM_API_BASE}${TELEGRAM_BOT_TOKEN}/getMe`);
+      if (response.data.ok) {
+        const botUsername = response.data.result.username;
+        const token = await telegramService.generateLinkingToken(userId);
+        return `https://t.me/${botUsername}?start=${token}`;
+      }
+      return null;
+    } catch (error) {
+      logger.error('獲取 Bot 資訊失敗', error);
+      return null;
+    }
+  },
+
+  // 處理 Telegram 傳來的消息 (Webhook 或 Polling)
+  handleUpdate: async (update: any): Promise<void> => {
+    if (update.message?.text?.startsWith('/start ')) {
+      const chatId = update.message.chat.id;
+      const telegramUserId = update.message.from.id.toString();
+      const telegramUsername = update.message.from.username;
+      const token = update.message.text.split(' ')[1];
+
+      const userId = await cacheService.get<string>(`tg_link:${token}`);
+      if (userId) {
+        // 綁定帳號
+        await userModel.linkTelegram(userId, telegramUserId, telegramUsername);
+        await cacheService.delete(`tg_link:${token}`);
+        
+        await telegramService.sendMessage(chatId, '✅ 帳號綁定成功！您現在可以接收相關通知並進入專屬群組。');
+        
+        // 發送群組邀請連結
+        const inviteLink = await telegramService.generateOneTimeInviteLink();
+        if (inviteLink) {
+          await telegramService.sendMessage(chatId, `這是您的專屬群組邀請連結：\n${inviteLink}\n請點擊加入（連結僅可使用一次，24小時內有效）。`);
+        }
+      } else {
+        await telegramService.sendMessage(chatId, '❌ 綁定失敗或權杖已過期，請回到網站重新獲取綁定連結。');
+      }
+    }
   },
 
   // 生成 Telegram 群組邀請連結

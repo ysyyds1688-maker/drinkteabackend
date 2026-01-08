@@ -47,6 +47,8 @@ export interface User {
   providerFrozen?: boolean; // 是否被凍結
   providerFrozenAt?: string; // 凍結時間
   providerAutoUnfreezeAt?: string; // 自動解凍時間
+  telegramUserId?: string; // Telegram 用戶 ID
+  telegramUsername?: string; // Telegram 用戶名
 }
 
 export interface CreateUserData {
@@ -714,6 +716,24 @@ export const userModel = {
       SET ${updates.join(', ')}
       WHERE id = $${params.length}
     `, params);
+  },
+
+  // 綁定 Telegram 帳號
+  linkTelegram: async (userId: string, telegramUserId: string, telegramUsername?: string): Promise<void> => {
+    await query(`
+      UPDATE users 
+      SET telegram_user_id = $1, telegram_username = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [telegramUserId, telegramUsername || null, userId]);
+  },
+
+  // 根據 Telegram ID 查找用戶
+  findByTelegramId: async (telegramUserId: string): Promise<User | null> => {
+    const result = await query('SELECT * FROM users WHERE telegram_user_id = $1', [telegramUserId]);
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return userModel.findById(row.id);
   },
 };
 

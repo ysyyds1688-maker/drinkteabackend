@@ -448,6 +448,19 @@ export const initDatabase = async () => {
       }
     }
 
+    // 添加 Telegram 相關欄位
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS telegram_user_id BIGINT UNIQUE,
+        ADD COLUMN IF NOT EXISTS telegram_username VARCHAR(255)
+      `);
+    } catch (error: any) {
+      if (!error.message.includes('already exists')) {
+        console.warn('添加 Telegram 欄位時出現警告:', error.message);
+      }
+    }
+
     // 數據遷移：將現有的 'subscribed' 用戶遷移為 'bronze'
     try {
       await pool.query(`

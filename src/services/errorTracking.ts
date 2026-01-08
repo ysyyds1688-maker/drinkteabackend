@@ -1,24 +1,11 @@
 import { logger } from '../middleware/logger.js';
+import * as Sentry from '@sentry/node';
 
 // 錯誤追蹤服務配置
 let isSentryInitialized = false;
-let Sentry: any = null;
-
-// 嘗試載入 Sentry（可選依賴）
-try {
-  Sentry = require('@sentry/node');
-} catch (error) {
-  // Sentry 未安裝，使用本地錯誤追蹤
-  logger.info('Sentry 未安裝，使用本地錯誤追蹤');
-}
 
 // 初始化 Sentry（如果配置了 DSN）
 export const initErrorTracking = (): void => {
-  if (!Sentry) {
-    logger.info('Sentry 未安裝，使用本地錯誤追蹤');
-    return;
-  }
-
   const sentryDsn = process.env.SENTRY_DSN;
 
   if (!sentryDsn) {
@@ -61,7 +48,7 @@ export const initErrorTracking = (): void => {
 export const captureException = (error: Error, context?: Record<string, any>): void => {
   logger.error('捕獲異常', { error: error.message, context });
 
-  if (isSentryInitialized && Sentry) {
+  if (isSentryInitialized) {
     if (context) {
       Sentry.withScope((scope: any) => {
         Object.entries(context).forEach(([key, value]) => {
@@ -77,8 +64,10 @@ export const captureException = (error: Error, context?: Record<string, any>): v
 
 // 報告訊息（非錯誤）
 export const captureMessage = (message: string, level: 'info' | 'warning' | 'error' = 'info'): void => {
-  if (isSentryInitialized && Sentry) {
-    Sentry.captureMessage(message, level);
+  if (isSentryInitialized) {
+    // Sentry 的 captureMessage 接受訊息字串和等級（作為 SeverityLevel）
+    // 注意：Sentry v7+ 的等級是字串類型
+    Sentry.captureMessage(message, level as Sentry.SeverityLevel);
   } else {
     logger[level === 'error' ? 'error' : level === 'warning' ? 'warn' : 'info'](message);
   }
@@ -86,7 +75,7 @@ export const captureMessage = (message: string, level: 'info' | 'warning' | 'err
 
 // 設置用戶上下文
 export const setUserContext = (user: { id: string; email?: string; role?: string }): void => {
-  if (isSentryInitialized && Sentry) {
+  if (isSentryInitialized) {
     Sentry.setUser({
       id: user.id,
       email: user.email,
@@ -97,7 +86,7 @@ export const setUserContext = (user: { id: string; email?: string; role?: string
 
 // 清除用戶上下文
 export const clearUserContext = (): void => {
-  if (isSentryInitialized && Sentry) {
+  if (isSentryInitialized) {
     Sentry.setUser(null);
   }
 };
