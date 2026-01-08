@@ -256,10 +256,31 @@ export const profileModel = {
       }
       
       // 明确指定所有列名，确保正确获取userId字段
-      const result = await query(`SELECT id, "userId", name, nationality, age, height, weight, cup, location, district, 
-                                  type, "imageUrl", gallery, albums, price, prices, tags, 
-                                  "basicServices", "addonServices", "contactInfo", remarks, videos, "bookingProcess", "isNew", "isAvailable", "availableTimes", 
-                                  views, contact_count, "createdAt", "updatedAt" FROM profiles WHERE id = $1`, [id]);
+      const result = await query(`
+        SELECT 
+          p.id, p."userId", p.name, p.nationality, p.age, p.height, p.weight, p.cup, p.location, p.district, 
+          p.type, p."imageUrl", p.gallery, p.albums, p.price, p.prices, p.tags, 
+          p."basicServices", p."addonServices", p."contactInfo", p.remarks, p.videos, p."bookingProcess", p."isNew", p."isAvailable", p."availableTimes", 
+          p.views, p.contact_count, p."createdAt", p."updatedAt",
+          -- 是否 VIP
+          CASE 
+            WHEN u.role = 'provider' AND EXISTS (
+              SELECT 1 FROM subscriptions s 
+              WHERE s.user_id = u.id 
+                AND s.is_active = TRUE 
+                AND (s.expires_at IS NULL OR s.expires_at > NOW())
+            ) THEN TRUE
+            ELSE FALSE
+          END AS is_vip,
+          -- Provider 的 Email 驗證狀態
+          CASE 
+            WHEN u.role = 'provider' THEN u.email_verified
+            ELSE FALSE
+          END AS provider_email_verified
+        FROM profiles p
+        LEFT JOIN users u ON p."userId" = u.id
+        WHERE p.id = $1
+      `, [id]);
       if (result.rows.length === 0) return null;
       
       const row = result.rows[0];
@@ -270,6 +291,8 @@ export const profileModel = {
         return {
           ...row,
           userId: finalUserId,
+          isVip: Boolean(row.is_vip),
+          providerEmailVerified: Boolean(row.provider_email_verified),
           gallery: typeof row.gallery === 'string' ? JSON.parse(row.gallery || '[]') : (row.gallery || []),
           albums: typeof row.albums === 'string' ? JSON.parse(row.albums || '[]') : (row.albums || []),
           prices: typeof row.prices === 'string' ? JSON.parse(row.prices || '{}') : (row.prices || {}),
@@ -294,6 +317,8 @@ export const profileModel = {
         return {
           ...row,
           userId: finalUserId,
+          isVip: Boolean(row.is_vip),
+          providerEmailVerified: Boolean(row.provider_email_verified),
           gallery: [],
           albums: [],
           prices: { oneShot: { price: row.price || 0, desc: '一節/50min/1S' }, twoShot: { price: (row.price || 0) * 2 - 500, desc: '兩節/100min/2S' } },
