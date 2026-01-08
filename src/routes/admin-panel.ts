@@ -1904,7 +1904,13 @@ router.get('/', (req, res) => {
                     configDetails += '<div style="margin-bottom: 0.5rem;"><strong>配置詳情：</strong></div>';
                     configDetails += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">';
                     configDetails += '<div>Bot Token: ' + (data.hasBotToken ? '<span style="color: #10b981;">✓ 已設置</span>' : '<span style="color: #ef4444;">✗ 未設置</span>') + '</div>';
-                    configDetails += '<div>Chat ID: ' + (data.hasGroupId ? '<span style="color: #10b981;">✓ 已設置</span>' : '<span style="color: #ef4444;">✗ 未設置</span>') + '</div>';
+                    configDetails += '<div>Chat ID: ' + ((data.hasChatId || data.hasGroupId) ? '<span style="color: #10b981;">✓ 已設置</span>' : '<span style="color: #ef4444;">✗ 未設置</span>') + '</div>';
+                    if (data.hasMessageThreadId) {
+                        configDetails += '<div>Message Thread ID: <span style="color: #10b981;">✓ 已設置</span></div>';
+                    }
+                    if (data.hasAdminChatId) {
+                        configDetails += '<div>Admin Chat ID: <span style="color: #10b981;">✓ 已設置</span></div>';
+                    }
                     configDetails += '</div>';
                     configDetails += '</div>';
                     

@@ -9,8 +9,6 @@ import { bookingModel } from '../models/Booking.js';
 import { query } from '../db/database.js';
 import { getUserFromRequest } from '../middleware/auth.js';
 import { userModel } from '../models/User.js';
-import axios from 'axios';
-import axios from 'axios';
 
 const router = Router();
 

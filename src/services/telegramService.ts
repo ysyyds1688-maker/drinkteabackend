@@ -315,7 +315,7 @@ class TelegramService {
       const telegramUserId = update.message.from.id.toString();
       const telegramUsername = update.message.from.username;
       const token = update.message.text.split(' ')[1];
-      const userId = await cacheService.get(`tg_link:${token}`);
+      const userId = await cacheService.get<string>(`tg_link:${token}`);
       
       if (userId) {
         // 綁定帳號
