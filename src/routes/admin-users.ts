@@ -159,7 +159,63 @@ router.put('/:userId/level', async (req, res) => {
       return res.status(400).json({ error: '請提供會員等級' });
     }
     
+    // 獲取目標用戶信息
+    const targetUser = await userModel.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 更新會員等級
     await userModel.updateMembership(userId, level);
+    
+    // 同時更新經驗值以匹配該等級，避免被自動計算覆蓋
+    const { userStatsModel } = await import('../models/UserStats.js');
+    const { getLevelFromExperience } = await import('../models/UserStats.js');
+    
+    // 獲取該等級對應的最低經驗值門檻
+    const getMinExperienceForLevel = (level: string, role: string): number => {
+      if (role === 'provider') {
+        // 後宮佳麗等級
+        const LADY_LEVEL_THRESHOLDS: Record<string, number> = {
+          lady_trainee: 0,
+          lady_apprentice: 100,
+          lady_junior: 500,
+          lady_senior: 2000,
+          lady_expert: 10000,
+          lady_master: 50000,
+          lady_elite: 100000,
+          lady_premium: 200000,
+          lady_royal: 500000,
+          lady_empress: 1000000,
+        };
+        return LADY_LEVEL_THRESHOLDS[level] || 0;
+      } else {
+        // 品茶客等級
+        const CLIENT_LEVEL_THRESHOLDS: Record<string, number> = {
+          tea_guest: 0,
+          tea_scholar: 100,
+          royal_tea_scholar: 500,
+          royal_tea_officer: 2000,
+          tea_king_attendant: 10000,
+          imperial_chief_tea_officer: 50000,
+          tea_king_confidant: 100000,
+          tea_king_personal_selection: 200000,
+          imperial_golden_seal_tea_officer: 500000,
+          national_master_tea_officer: 1000000,
+        };
+        return CLIENT_LEVEL_THRESHOLDS[level] || 0;
+      }
+    };
+    
+    // 獲取當前經驗值
+    const stats = await userStatsModel.getOrCreate(userId);
+    const minExperience = getMinExperienceForLevel(level, targetUser.role);
+    
+    // 如果當前經驗值低於該等級的最低門檻，更新經驗值
+    if (stats.experiencePoints < minExperience) {
+      await userStatsModel.addPoints(userId, 0, minExperience - stats.experiencePoints);
+      console.log(`[Admin] 更新用戶 ${userId} 的經驗值從 ${stats.experiencePoints} 到 ${minExperience} 以匹配等級 ${level}`);
+    }
     
     // 重新獲取用戶以返回更新後的數據
     const updatedUser = await userModel.findById(userId);

@@ -1407,74 +1407,60 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_user_badges_badge ON user_badges(badge_id)
     `);
 
+    // 確保 materialized view 已完全刪除（包括相關類型）
+    // 在創建之前再次嘗試刪除，確保不會因為已存在而失敗
+    try {
+      await pool.query(`DROP MATERIALIZED VIEW IF EXISTS profiles_materialized_view CASCADE;`);
+      console.log('✅ 已刪除現有的 materialized view');
+    } catch (error: any) {
+      // 忽略不存在的錯誤（42P01 = undefined_table）
+      if (error.code === '42P01') {
+        console.log('ℹ️  Materialized view 不存在，將創建新的');
+      } else {
+        console.warn('⚠️  刪除 materialized view 時出現警告:', error.message);
+        // 即使刪除失敗，也嘗試創建（可能會失敗，但至少會給出明確的錯誤）
+      }
+    }
+    
+    // 等待一小段時間確保刪除完成
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // 確保 materialized view 不存在後再創建
-    await pool.query(`
-      CREATE MATERIALIZED VIEW profiles_materialized_view AS
-      SELECT
-        p.id,
-        p."userId",
-        p.name,
-        p.nationality,
-        p.age,
-        p.height,
-        p.weight,
-        p.cup,
-        p.location,
-        p.district,
-        p.type,
-        p."imageUrl",
-        p.gallery,
-        p.albums,
-        p.price,
-        p.prices,
-        p.tags,
-        p."basicServices",
-        p."addonServices",
-        p."contactInfo",
-        p.remarks,
-        p.videos,
-        p."bookingProcess",
-        p."isNew",
-        p."isAvailable",
-        p."availableTimes",
-        p.views,
-        p.contact_count,
-        p."createdAt",
-        p."updatedAt",
-        CASE u.membership_level
-          WHEN 'tea_guest' THEN 1
-          WHEN 'tea_scholar' THEN 2
-          WHEN 'royal_tea_scholar' THEN 3
-          WHEN 'royal_tea_officer' THEN 4
-          WHEN 'tea_king_attendant' THEN 5
-          WHEN 'imperial_chief_tea_officer' THEN 6
-          WHEN 'tea_king_confidant' THEN 7
-          WHEN 'tea_king_personal_selection' THEN 8
-          WHEN 'imperial_golden_seal_tea_officer' THEN 9
-          WHEN 'national_master_tea_officer' THEN 10
-          WHEN 'lady_trainee' THEN 1
-          WHEN 'lady_apprentice' THEN 2
-          WHEN 'lady_junior' THEN 3
-          WHEN 'lady_senior' THEN 4
-          WHEN 'lady_expert' THEN 5
-          WHEN 'lady_master' THEN 6
-          WHEN 'lady_elite' THEN 7
-          WHEN 'lady_premium' THEN 8
-          WHEN 'lady_royal' THEN 9
-          WHEN 'lady_empress' THEN 10
-          ELSE 0
-        END AS level_value,
-        COALESCE(AVG(r.rating), 0) AS avg_rating,
-        CASE
-          WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
-          ELSE 0
-        END AS is_vip_value,
-        CASE
-          WHEN u.role = 'provider' THEN u.email_verified
-          ELSE NULL
-        END AS provider_email_verified,
-        (2.0 *
+    // 如果仍然存在，會拋出錯誤，但我們已經嘗試刪除了
+    try {
+      await pool.query(`
+        CREATE MATERIALIZED VIEW profiles_materialized_view AS
+        SELECT
+          p.id,
+          p."userId",
+          p.name,
+          p.nationality,
+          p.age,
+          p.height,
+          p.weight,
+          p.cup,
+          p.location,
+          p.district,
+          p.type,
+          p."imageUrl",
+          p.gallery,
+          p.albums,
+          p.price,
+          p.prices,
+          p.tags,
+          p."basicServices",
+          p."addonServices",
+          p."contactInfo",
+          p.remarks,
+          p.videos,
+          p."bookingProcess",
+          p."isNew",
+          p."isAvailable",
+          p."availableTimes",
+          p.views,
+          p.contact_count,
+          p."createdAt",
+          p."updatedAt",
           CASE u.membership_level
             WHEN 'tea_guest' THEN 1
             WHEN 'tea_scholar' THEN 2
@@ -1497,21 +1483,176 @@ export const initDatabase = async () => {
             WHEN 'lady_royal' THEN 9
             WHEN 'lady_empress' THEN 10
             ELSE 0
-          END +
-         1.0 * COALESCE(AVG(r.rating), 0) +
-         3.0 *
+          END AS level_value,
+          COALESCE(AVG(r.rating), 0) AS avg_rating,
           CASE
             WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
             ELSE 0
-          END
-        ) AS exposure_score
-      FROM profiles p
-      LEFT JOIN users u ON p."userId" = u.id
-      LEFT JOIN reviews r ON r.profile_id = p.id AND r.is_visible = TRUE
-      LEFT JOIN subscriptions s ON s.user_id = u.id
-      GROUP BY p.id, u.id, s.is_active, s.expires_at
-      ORDER BY exposure_score DESC, p."createdAt" DESC
-    `);
+          END AS is_vip_value,
+          CASE
+            WHEN u.role = 'provider' THEN u.email_verified
+            ELSE NULL
+          END AS provider_email_verified,
+          (2.0 *
+            CASE u.membership_level
+              WHEN 'tea_guest' THEN 1
+              WHEN 'tea_scholar' THEN 2
+              WHEN 'royal_tea_scholar' THEN 3
+              WHEN 'royal_tea_officer' THEN 4
+              WHEN 'tea_king_attendant' THEN 5
+              WHEN 'imperial_chief_tea_officer' THEN 6
+              WHEN 'tea_king_confidant' THEN 7
+              WHEN 'tea_king_personal_selection' THEN 8
+              WHEN 'imperial_golden_seal_tea_officer' THEN 9
+              WHEN 'national_master_tea_officer' THEN 10
+              WHEN 'lady_trainee' THEN 1
+              WHEN 'lady_apprentice' THEN 2
+              WHEN 'lady_junior' THEN 3
+              WHEN 'lady_senior' THEN 4
+              WHEN 'lady_expert' THEN 5
+              WHEN 'lady_master' THEN 6
+              WHEN 'lady_elite' THEN 7
+              WHEN 'lady_premium' THEN 8
+              WHEN 'lady_royal' THEN 9
+              WHEN 'lady_empress' THEN 10
+              ELSE 0
+            END +
+            1.0 * COALESCE(AVG(r.rating), 0) +
+            3.0 *
+            CASE
+              WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+              ELSE 0
+            END
+          ) AS exposure_score
+        FROM profiles p
+        LEFT JOIN users u ON p."userId" = u.id
+        LEFT JOIN reviews r ON r.profile_id = p.id AND r.is_visible = TRUE
+        LEFT JOIN subscriptions s ON s.user_id = u.id
+        GROUP BY p.id, u.id, s.is_active, s.expires_at
+        ORDER BY exposure_score DESC, p."createdAt" DESC
+      `);
+      console.log('✅ Materialized view 創建成功');
+    } catch (error: any) {
+      // 如果錯誤是因為已經存在（42P07），則嘗試刪除後重新創建
+      if (error.code === '42P07') {
+        console.log('⚠️  Materialized view 已存在，嘗試強制刪除後重新創建...');
+        try {
+          await pool.query(`DROP MATERIALIZED VIEW profiles_materialized_view CASCADE;`);
+          await new Promise(resolve => setTimeout(resolve, 200));
+          // 重新創建
+          await pool.query(`
+            CREATE MATERIALIZED VIEW profiles_materialized_view AS
+            SELECT
+              p.id,
+              p."userId",
+              p.name,
+              p.nationality,
+              p.age,
+              p.height,
+              p.weight,
+              p.cup,
+              p.location,
+              p.district,
+              p.type,
+              p."imageUrl",
+              p.gallery,
+              p.albums,
+              p.price,
+              p.prices,
+              p.tags,
+              p."basicServices",
+              p."addonServices",
+              p."contactInfo",
+              p.remarks,
+              p.videos,
+              p."bookingProcess",
+              p."isNew",
+              p."isAvailable",
+              p."availableTimes",
+              p.views,
+              p.contact_count,
+              p."createdAt",
+              p."updatedAt",
+              CASE u.membership_level
+                WHEN 'tea_guest' THEN 1
+                WHEN 'tea_scholar' THEN 2
+                WHEN 'royal_tea_scholar' THEN 3
+                WHEN 'royal_tea_officer' THEN 4
+                WHEN 'tea_king_attendant' THEN 5
+                WHEN 'imperial_chief_tea_officer' THEN 6
+                WHEN 'tea_king_confidant' THEN 7
+                WHEN 'tea_king_personal_selection' THEN 8
+                WHEN 'imperial_golden_seal_tea_officer' THEN 9
+                WHEN 'national_master_tea_officer' THEN 10
+                WHEN 'lady_trainee' THEN 1
+                WHEN 'lady_apprentice' THEN 2
+                WHEN 'lady_junior' THEN 3
+                WHEN 'lady_senior' THEN 4
+                WHEN 'lady_expert' THEN 5
+                WHEN 'lady_master' THEN 6
+                WHEN 'lady_elite' THEN 7
+                WHEN 'lady_premium' THEN 8
+                WHEN 'lady_royal' THEN 9
+                WHEN 'lady_empress' THEN 10
+                ELSE 0
+              END AS level_value,
+              COALESCE(AVG(r.rating), 0) AS avg_rating,
+              CASE
+                WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+                ELSE 0
+              END AS is_vip_value,
+              CASE
+                WHEN u.role = 'provider' THEN u.email_verified
+                ELSE NULL
+              END AS provider_email_verified,
+              (2.0 *
+                CASE u.membership_level
+                  WHEN 'tea_guest' THEN 1
+                  WHEN 'tea_scholar' THEN 2
+                  WHEN 'royal_tea_scholar' THEN 3
+                  WHEN 'royal_tea_officer' THEN 4
+                  WHEN 'tea_king_attendant' THEN 5
+                  WHEN 'imperial_chief_tea_officer' THEN 6
+                  WHEN 'tea_king_confidant' THEN 7
+                  WHEN 'tea_king_personal_selection' THEN 8
+                  WHEN 'imperial_golden_seal_tea_officer' THEN 9
+                  WHEN 'national_master_tea_officer' THEN 10
+                  WHEN 'lady_trainee' THEN 1
+                  WHEN 'lady_apprentice' THEN 2
+                  WHEN 'lady_junior' THEN 3
+                  WHEN 'lady_senior' THEN 4
+                  WHEN 'lady_expert' THEN 5
+                  WHEN 'lady_master' THEN 6
+                  WHEN 'lady_elite' THEN 7
+                  WHEN 'lady_premium' THEN 8
+                  WHEN 'lady_royal' THEN 9
+                  WHEN 'lady_empress' THEN 10
+                  ELSE 0
+                END +
+                1.0 * COALESCE(AVG(r.rating), 0) +
+                3.0 *
+                CASE
+                  WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+                  ELSE 0
+                END
+              ) AS exposure_score
+            FROM profiles p
+            LEFT JOIN users u ON p."userId" = u.id
+            LEFT JOIN reviews r ON r.profile_id = p.id AND r.is_visible = TRUE
+            LEFT JOIN subscriptions s ON s.user_id = u.id
+            GROUP BY p.id, u.id, s.is_active, s.expires_at
+            ORDER BY exposure_score DESC, p."createdAt" DESC
+          `);
+          console.log('✅ Materialized view 重新創建成功');
+        } catch (retryError: any) {
+          console.error('❌ 重新創建 materialized view 失敗:', retryError.message);
+          throw retryError;
+        }
+      } else {
+        // 其他錯誤直接拋出
+        throw error;
+      }
+    }
 
     // Create indexes for the materialized view
     await pool.query(`

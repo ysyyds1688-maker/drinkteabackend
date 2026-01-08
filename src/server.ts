@@ -32,6 +32,7 @@ import messagesRouter from './routes/messages.js';
 import statsRouter from './routes/stats.js';
 import performanceRouter from './routes/performance.js';
 import telegramRouter from './routes/telegram.js';
+import telegramNotificationsRouter from './routes/telegram-notifications.js';
 import miscRouter from './routes/misc.js';
 import { schedulerService } from './services/schedulerService.js';
 import { initRedis, closeRedis } from './services/redisService.js';
@@ -284,6 +285,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/performance', performanceRouter);
 app.use('/api/telegram', telegramRouter);
+app.use('/api/telegram-notifications', telegramNotificationsRouter);
 app.use('/api', miscRouter);
 
 // 後台管理系統頁面（可視化介面）

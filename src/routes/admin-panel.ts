@@ -863,6 +863,25 @@ router.get('/', (req, res) => {
                     <h2 style="color: #1a5f3f; margin-bottom: 1rem;">📊 管理面板總覽</h2>
                     <p style="color: #15803d; font-size: 1.1rem;">歡迎使用茶王管理系統</p>
                 </div>
+                <!-- Telegram 通知測試區域 -->
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 2rem; border-left: 4px solid #3b82f6;">
+                    <h3 style="color: #1a5f3f; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>📱</span>
+                        <span>Telegram 通知系統</span>
+                    </h3>
+                    <p style="color: #666; font-size: 0.875rem; margin-bottom: 1rem;">
+                        測試 Telegram Bot 連接並查看通知格式示例
+                    </p>
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button class="btn" onclick="testTelegramNotification()" style="background: #3b82f6; color: white;">
+                            🤖 測試 Telegram 通知
+                        </button>
+                        <button class="btn" onclick="checkTelegramConfig()" style="background: #6b7280; color: white;">
+                            ⚙️ 檢查配置狀態
+                        </button>
+                    </div>
+                    <div id="telegramTestResult" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; display: none;"></div>
+                </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
                     <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" onclick="showTab(null, 'profiles')" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
                         <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">🍵 高級茶管理</h3>
@@ -1829,6 +1848,73 @@ router.get('/', (req, res) => {
                 messageDiv.style.animation = 'slideIn 0.3s ease-out reverse';
                 setTimeout(() => messageDiv.remove(), 300);
             }, 3000);
+        }
+
+        // 測試 Telegram 通知
+        async function testTelegramNotification() {
+            const resultDiv = document.getElementById('telegramTestResult');
+            if (!resultDiv) return;
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 0.5rem; color: #3b82f6;"><div style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div> 正在發送測試消息...</div>';
+            
+            try {
+                const res = await fetch(API_BASE + '/api/telegram-notifications/test', {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    resultDiv.innerHTML = '<div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>✅</span><strong>測試成功！</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (data.message || '測試消息已發送到 Telegram 群組，請檢查是否收到。') + '</p></div>';
+                } else {
+                    resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (data.error || data.message || '未知錯誤') + '</p></div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + error.message + '</p></div>';
+            }
+        }
+
+        // 檢查 Telegram 配置狀態
+        async function checkTelegramConfig() {
+            const resultDiv = document.getElementById('telegramTestResult');
+            if (!resultDiv) return;
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 0.5rem; color: #3b82f6;"><div style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div> 正在檢查配置...</div>';
+            
+            try {
+                const res = await fetch(API_BASE + '/api/telegram/config', {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    const statusIcon = data.configured ? '✅' : '❌';
+                    const statusText = data.configured ? '已配置' : '未配置';
+                    const statusColor = data.configured ? '#10b981' : '#ef4444';
+                    const bgColor = data.configured ? '#d1fae5' : '#fee2e2';
+                    const borderColor = data.configured ? '#10b981' : '#ef4444';
+                    const textColor = data.configured ? '#065f46' : '#991b1b';
+                    
+                    let configDetails = '<div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid ' + borderColor + '; font-size: 0.875rem;">';
+                    configDetails += '<div style="margin-bottom: 0.5rem;"><strong>配置詳情：</strong></div>';
+                    configDetails += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">';
+                    configDetails += '<div>Bot Token: ' + (data.hasBotToken ? '<span style="color: #10b981;">✓ 已設置</span>' : '<span style="color: #ef4444;">✗ 未設置</span>') + '</div>';
+                    configDetails += '<div>Chat ID: ' + (data.hasGroupId ? '<span style="color: #10b981;">✓ 已設置</span>' : '<span style="color: #ef4444;">✗ 未設置</span>') + '</div>';
+                    configDetails += '</div>';
+                    configDetails += '</div>';
+                    
+                    resultDiv.innerHTML = '<div style="background: ' + bgColor + '; border: 1px solid ' + borderColor + '; color: ' + textColor + '; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>' + statusIcon + '</span><strong>配置狀態：' + statusText + '</strong></div>' + configDetails + '</div>';
+                } else {
+                    resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>檢查失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (data.error || '未知錯誤') + '</p></div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>檢查失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + error.message + '</p></div>';
+            }
         }
 
         // 刪除 Profile
@@ -3561,6 +3647,46 @@ router.get('/', (req, res) => {
                     showMessage('✅ 密碼已重置！');
                 } catch (error) {
                     showMessage('❌ 重置失敗: ' + error.message, 'error');
+                }
+            });
+        }
+
+        // 儲值積分
+        async function addUserPoints() {
+            if (!currentViewingUserId) return;
+            
+            const contentHtml = '<div style="margin-bottom: 1rem;">' +
+                '<p style="color: #f59e0b; font-weight: 600; margin-bottom: 1rem;">💰 為用戶儲值積分</p>' +
+                '<label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">積分數量：</label>' +
+                '<input type="number" id="pointsAmountInput" placeholder="請輸入要添加的積分數量..." min="1" style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem;" />' +
+                '<p style="margin-top: 0.5rem; font-size: 0.75rem; color: #666;">輸入正數表示增加積分</p>' +
+                '</div>';
+            
+            showUserActionModal('儲值積分', contentHtml, async function() {
+                const pointsInput = document.getElementById('pointsAmountInput');
+                const pointsAmount = pointsInput ? parseInt(pointsInput.value.trim()) : 0;
+                
+                if (!pointsAmount || pointsAmount <= 0) {
+                    showMessage('❌ 請輸入有效的積分數量（必須大於0）', 'error');
+                    return;
+                }
+                
+                try {
+                    const encodedUserId = encodeURIComponent(currentViewingUserId);
+                    const res = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/add-points', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ points: pointsAmount })
+                    });
+                    if (!res.ok) {
+                        const errorData = await res.json().catch(() => ({ error: '儲值失敗' }));
+                        throw new Error(errorData.error || '儲值失敗');
+                    }
+                    const data = await res.json();
+                    showMessage('✅ 積分已成功儲值！當前積分：' + (data.currentPoints || 0));
+                    viewUserDetail(currentViewingUserId); // 重新載入詳情
+                } catch (error) {
+                    showMessage('❌ 儲值失敗: ' + error.message, 'error');
                 }
             });
         }
