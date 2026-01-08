@@ -624,7 +624,15 @@ export const initDatabase = async () => {
     `);
 
     // --- Drop and Create Materialized View for Profiles ---
-    await pool.query(`DROP MATERIALIZED VIEW IF EXISTS profiles_materialized_view CASCADE;`);
+    // 先刪除相關的索引和 materialized view
+    try {
+      await pool.query(`DROP MATERIALIZED VIEW IF EXISTS profiles_materialized_view CASCADE;`);
+    } catch (error: any) {
+      // 忽略不存在的錯誤
+      if (error.code !== '42P01') { // 42P01 = undefined_table
+        console.warn('⚠️  刪除 materialized view 時出現警告:', error.message);
+      }
+    }
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_profiles_location ON profiles(location)
     `);
@@ -1400,8 +1408,9 @@ export const initDatabase = async () => {
     `);
 
 
+    // 確保 materialized view 不存在後再創建
     await pool.query(`
-      CREATE MATERIALIZED VIEW IF NOT EXISTS profiles_materialized_view AS
+      CREATE MATERIALIZED VIEW profiles_materialized_view AS
       SELECT
         p.id,
         p."userId",
