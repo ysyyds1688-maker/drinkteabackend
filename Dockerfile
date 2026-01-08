@@ -10,7 +10,9 @@ RUN npm ci --include=dev
 
 COPY . .
 
-RUN PATH=$PATH:./node_modules/.bin npm run build
+ENV PATH="/app/node_modules/.bin:$PATH"
+
+RUN npm run build
 
 RUN mkdir -p /app/data && chmod 777 /app/data
 
