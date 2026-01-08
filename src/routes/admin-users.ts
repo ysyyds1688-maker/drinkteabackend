@@ -80,6 +80,15 @@ router.get('/:userId', async (req, res) => {
       bookings = await bookingModel.getByClientId(userId);
     }
     
+    // 獲取用戶積分統計
+    const { userStatsModel } = await import('../models/UserStats.js');
+    let userStats = null;
+    try {
+      userStats = await userStatsModel.getOrCreate(userId);
+    } catch (error) {
+      console.warn('Failed to load user stats:', error);
+    }
+    
     res.json({
       user: {
         id: targetUser.id,
@@ -98,6 +107,8 @@ router.get('/:userId', async (req, res) => {
         isBanned: (targetUser as any).isBanned || false, // 封禁狀態
         violationLevel: (targetUser as any).violationLevel || 0, // 違規級別
         userTags: (targetUser as any).userTags || [], // 用戶標記
+        currentPoints: userStats?.currentPoints || 0, // 當前積分
+        totalPoints: userStats?.totalPoints || 0, // 總積分
       },
       bookings,
     });
@@ -260,6 +271,130 @@ router.post('/:userId/reset-password', async (req, res) => {
   } catch (error: any) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: error.message || '重置密碼失敗' });
+  }
+});
+
+// 自動驗證用戶（設置 email 驗證並生成隨機手機號碼）
+router.post('/:userId/auto-verify', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const adminUser = await getUserFromRequest(req);
+    
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+    
+    const targetUser = await userModel.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 生成隨機台灣手機號碼（09xxxxxxxx，10位數字）
+    const generateRandomPhone = () => {
+      const prefix = '09';
+      const randomDigits = Math.floor(100000000 + Math.random() * 900000000).toString();
+      return prefix + randomDigits;
+    };
+    
+    const randomPhone = generateRandomPhone();
+    
+    // 更新用戶：設置 email 驗證為 true（如果用戶有 email），設置手機號碼和手機驗證
+    const updateData: any = {
+      emailVerified: targetUser.email ? true : targetUser.emailVerified,
+      phoneVerified: true,
+      phoneNumber: randomPhone
+    };
+    
+    const updatedUser = await userModel.update(userId, updateData);
+    if (!updatedUser) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 清除用戶緩存
+    const { cacheService } = await import('../services/redisService.js');
+    await cacheService.delete(`cache:user:${userId}`);
+    if (targetUser.email) {
+      await cacheService.delete(`cache:user:email:${targetUser.email}`);
+    }
+    await cacheService.delete(`cache:user:phone:${randomPhone}`);
+    
+    res.json({ 
+      message: '用戶已自動驗證', 
+      user: updatedUser,
+      generatedPhone: randomPhone
+    });
+  } catch (error: any) {
+    console.error('Auto verify user error:', error);
+    res.status(500).json({ error: error.message || '自動驗證失敗' });
+  }
+});
+
+// 儲值積分
+router.post('/:userId/add-points', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { points } = req.body;
+    const adminUser = await getUserFromRequest(req);
+    
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+    
+    if (!points || points <= 0 || !Number.isInteger(points)) {
+      return res.status(400).json({ error: '請提供有效的積分數量（必須是大於0的整數）' });
+    }
+    
+    const { userStatsModel } = await import('../models/UserStats.js');
+    const result = await userStatsModel.addPoints(userId, points, 0); // 只加積分，不加經驗值
+    
+    // 清除用戶緩存
+    const { cacheService } = await import('../services/redisService.js');
+    await cacheService.delete(`cache:user:${userId}`);
+    
+    res.json({ 
+      message: '積分儲值成功', 
+      pointsAdded: points,
+      currentPoints: result.stats.currentPoints,
+      totalPoints: result.stats.totalPoints
+    });
+  } catch (error: any) {
+    console.error('Add points error:', error);
+    res.status(500).json({ error: error.message || '儲值積分失敗' });
+  }
+});
+
+// 更新用戶標記
+router.put('/:userId/tags', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { tags } = req.body;
+    const adminUser = await getUserFromRequest(req);
+    
+    if (!adminUser || adminUser.role !== 'admin') {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+    
+    if (!Array.isArray(tags)) {
+      return res.status(400).json({ error: '標記必須是數組格式' });
+    }
+    
+    // 驗證標記值（只允許預定義的標記）
+    const allowedTags = ['admin', 'staff', 'troll', 'vip', 'verified', 'test'];
+    const validTags = tags.filter((tag: string) => allowedTags.includes(tag));
+    
+    const updatedUser = await userModel.update(userId, { userTags: validTags });
+    if (!updatedUser) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+    
+    // 清除用戶緩存
+    const { cacheService } = await import('../services/redisService.js');
+    await cacheService.delete(`cache:user:${userId}`);
+    
+    res.json({ message: '用戶標記已更新', user: updatedUser });
+  } catch (error: any) {
+    console.error('Update user tags error:', error);
+    res.status(500).json({ error: error.message || '更新用戶標記失敗' });
   }
 });
 

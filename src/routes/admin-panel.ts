@@ -1010,11 +1010,14 @@ router.get('/', (req, res) => {
             <div style="padding: 1.5rem;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                     <div><strong>公開ID：</strong><span id="userDetailId">-</span></div>
+                    <div><strong>暱稱：</strong><span id="userDetailUserName">-</span></div>
                     <div><strong>Email：</strong><span id="userDetailEmail">-</span></div>
                     <div><strong>手機號：</strong><span id="userDetailPhone">-</span></div>
                     <div><strong>身份：</strong><span id="userDetailRole">-</span></div>
                     <div><strong>會員等級：</strong><span id="userDetailLevel">-</span></div>
                     <div><strong>驗證勳章：</strong><span id="userDetailBadges">-</span></div>
+                    <div><strong>當前積分：</strong><span id="userDetailCurrentPoints" style="color: #f59e0b; font-weight: 600;">-</span></div>
+                    <div><strong>總積分：</strong><span id="userDetailTotalPoints" style="color: #666;">-</span></div>
                     <div><strong>註冊時間：</strong><span id="userDetailCreated">-</span></div>
                     <div><strong>最後登入：</strong><span id="userDetailLastLogin">-</span></div>
                     <div><strong>會員到期：</strong><span id="userDetailExpires">-</span></div>
@@ -1038,6 +1041,7 @@ router.get('/', (req, res) => {
                     <h3 style="margin-bottom: 1rem;">操作</h3>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button class="btn" onclick="editUserLevel()">修改等級</button>
+                        <button class="btn" onclick="addUserPoints()">💰 儲值積分</button>
                         <button class="btn" id="userDetailBanBtn" onclick="banUser()">封禁用戶</button>
                         <button class="btn" id="userDetailUnbanBtn" style="display: none;" onclick="unbanUser()">解封用戶</button>
                         <button class="btn" onclick="resetUserPassword()">重置密碼</button>
@@ -1047,6 +1051,23 @@ router.get('/', (req, res) => {
                 <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
                     <h3 style="margin-bottom: 1rem;">預約記錄 (<span id="userDetailBookings">0</span>)</h3>
                     <div id="userDetailBookingsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用戶操作 Modal（用於輸入等級、封禁原因、密碼等） -->
+    <div id="userActionModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="userActionModalTitle">操作</h2>
+                <button class="close-btn" onclick="closeUserActionModal()">&times;</button>
+            </div>
+            <div style="padding: 1.5rem;">
+                <div id="userActionModalContent"></div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button class="btn" onclick="closeUserActionModal()">取消</button>
+                    <button class="btn btn-success" id="userActionConfirmBtn">確認</button>
                 </div>
             </div>
         </div>
@@ -3095,60 +3116,67 @@ router.get('/', (req, res) => {
                 return;
             }
             
+            // 獲取用戶標記顯示
+            const getUserTagsDisplay = (user) => {
+                const tags = user.userTags || [];
+                if (tags.length === 0) return '-';
+                const tagLabels = {
+                    'admin': '👑',
+                    'staff': '👔',
+                    'troll': '🤖',
+                    'vip': '💎',
+                    'verified': '✅',
+                    'test': '🧪'
+                };
+                return tags.map(function(tag) {
+                    return tagLabels[tag] || tag;
+                }).join(' ');
+            };
+            
             const isMobile = window.innerWidth <= 768;
             
             if (isMobile) {
-                // 手機：卡片式布局
+                // 手機：卡片式布局（簡化版）
                 list.innerHTML = '<div class="table-mobile">' +
                     users.map(u => {
                         const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
                         const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
                         const badges = getVerificationBadges(u);
-                        const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
-                        const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
+                        const tags = getUserTagsDisplay(u);
                         const publicId = u.publicId || u.id || '-';
                         const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safeEmail = String(u.email || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safePhone = String(u.phoneNumber || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         const banStatus = u.isBanned ? '<span style="color: #ef4444; font-size: 0.875rem;">❌ 已封禁</span>' : '<span style="color: #10b981; font-size: 0.875rem;">✅ 正常</span>';
                         return '<div class="table-card">' +
-                            '<div class="table-card-header">' + safeEmail + ' ' + banStatus + '</div>' +
-                            '<div class="table-card-row"><span class="table-card-label">公開ID:</span><span class="table-card-value"><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">' + safePublicId.substring(0, 12) + '...</code></span></div>' +
-                            '<div class="table-card-row"><span class="table-card-label">手機號:</span><span class="table-card-value">' + safePhone + '</span></div>' +
+                            '<div class="table-card-header"><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">' + safePublicId + '</code> ' + banStatus + '</div>' +
                             '<div class="table-card-row"><span class="table-card-label">身份:</span><span class="table-card-value">' + role + '</span></div>' +
+                            '<div class="table-card-row"><span class="table-card-label">標記:</span><span class="table-card-value">' + tags + '</span></div>' +
                             '<div class="table-card-row"><span class="table-card-label">會員等級:</span><span class="table-card-value">' + membership + '</span></div>' +
-                            '<div class="table-card-row"><span class="table-card-label">驗證勳章:</span><span class="table-card-value">' + badges + '</span></div>' +
+                            '<div class="table-card-row"><span class="table-card-label">驗證:</span><span class="table-card-value">' + badges + '</span></div>' +
                             '<div class="table-card-actions">' +
                             '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
                             '</div></div>';
                     }).join('') + '</div>' +
                     '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
             } else {
-                // 桌面：表格布局
-                list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>公開ID</th><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                // 桌面：表格布局（簡化版，只保留：公開ID、身份、標記、會員等級、驗證、狀態、操作）
+                list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>公開ID</th><th>身份</th><th>標記</th><th>會員等級</th><th>驗證</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
                     users.map(u => {
                         const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
                         const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
                         const badges = getVerificationBadges(u);
-                        const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
-                        const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
+                        const tags = getUserTagsDisplay(u);
                         const publicId = u.publicId || u.id || '-';
                         const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safeEmail = String(u.email || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        const safePhone = String(u.phoneNumber || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         const banStatus = u.isBanned ? '<span style="color: #ef4444; font-size: 0.875rem;">❌ 已封禁</span>' : '<span style="color: #10b981; font-size: 0.875rem;">✅ 正常</span>';
                         return '<tr>' +
                             '<td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">' + safePublicId + '</code></td>' +
-                            '<td>' + safeEmail + '</td>' +
-                            '<td>' + safePhone + '</td>' +
                             '<td>' + role + '</td>' +
+                            '<td>' + tags + '</td>' +
                             '<td>' + membership + '</td>' +
                             '<td>' + badges + '</td>' +
-                            '<td>' + createdAt + '</td>' +
-                            '<td>' + lastLogin + '</td>' +
                             '<td>' + banStatus + '</td>' +
                             '<td style="white-space: nowrap;">' +
-                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')" style="margin-right: 0.5rem;">查看詳情</button>' +
+                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
                             '</td>' +
                             '</tr>';
                     }).join('') + '</tbody></table></div>' +
@@ -3176,7 +3204,9 @@ router.get('/', (req, res) => {
                     return;
                 }
                 
-                const url = API_BASE + '/api/admin/users/' + userId;
+                // 對用戶ID進行URL編碼，處理包含 # 等特殊字符的情況
+                const encodedUserId = encodeURIComponent(userId);
+                const url = API_BASE + '/api/admin/users/' + encodedUserId;
                 console.log('請求用戶詳情:', url);
                 
                 const res = await fetch(url, {
@@ -3260,11 +3290,17 @@ router.get('/', (req, res) => {
             
             // 填充用戶信息
             document.getElementById('userDetailId').textContent = user.publicId || user.id;
+            const userNameEl = document.getElementById('userDetailUserName');
+            if (userNameEl) userNameEl.textContent = user.userName || '-';
             document.getElementById('userDetailEmail').textContent = user.email || '-';
             document.getElementById('userDetailPhone').textContent = user.phoneNumber || '-';
             document.getElementById('userDetailRole').textContent = roleText;
             document.getElementById('userDetailLevel').textContent = membershipText;
             document.getElementById('userDetailBadges').textContent = badgesText;
+            const currentPointsEl = document.getElementById('userDetailCurrentPoints');
+            const totalPointsEl = document.getElementById('userDetailTotalPoints');
+            if (currentPointsEl) currentPointsEl.textContent = (user.currentPoints || 0).toLocaleString();
+            if (totalPointsEl) totalPointsEl.textContent = (user.totalPoints || 0).toLocaleString();
             document.getElementById('userDetailCreated').textContent = createdAtText;
             document.getElementById('userDetailLastLogin').textContent = lastLoginText;
             document.getElementById('userDetailExpires').textContent = expiresAtText;
@@ -3353,88 +3389,176 @@ router.get('/', (req, res) => {
             currentViewingUserId = null;
         }
 
+        // 顯示用戶操作 Modal
+        function showUserActionModal(title, contentHtml, onConfirm) {
+            const modal = document.getElementById('userActionModal');
+            const titleEl = document.getElementById('userActionModalTitle');
+            const contentEl = document.getElementById('userActionModalContent');
+            const confirmBtn = document.getElementById('userActionConfirmBtn');
+            
+            if (titleEl) titleEl.textContent = title;
+            if (contentEl) contentEl.innerHTML = contentHtml;
+            
+            // 移除舊的事件監聽器並添加新的
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+            newConfirmBtn.onclick = function() {
+                onConfirm();
+                closeUserActionModal();
+            };
+            
+            modal.classList.add('active');
+        }
+
+        // 關閉用戶操作 Modal
+        function closeUserActionModal() {
+            const modal = document.getElementById('userActionModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
         // 修改用戶等級
         async function editUserLevel() {
             if (!currentViewingUserId) return;
-            const level = prompt('請輸入新的會員等級（例如：tea_scholar, royal_tea_officer 等）:');
-            if (!level) return;
             
-            try {
-                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/level', {
-                    method: 'PUT',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ level })
-                });
-                if (!res.ok) throw new Error('更新失敗');
-                alert('會員等級已更新！');
-                viewUserDetail(currentViewingUserId); // 重新載入詳情
-                loadUsers(); // 刷新列表
-            } catch (error) {
-                alert('更新失敗: ' + error.message);
-            }
+            const contentHtml = '<div style="margin-bottom: 1rem;">' +
+                '<label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">會員等級：</label>' +
+                '<select id="userLevelSelect" style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem;">' +
+                '<option value="tea_guest">茶客</option>' +
+                '<option value="tea_scholar">🥉 入門茶士</option>' +
+                '<option value="royal_tea_scholar">🥈 御前茶士</option>' +
+                '<option value="royal_tea_officer">🥇 御用茶官</option>' +
+                '<option value="tea_king_attendant">💎 茶王近侍</option>' +
+                '<option value="imperial_chief_tea_officer">👑 御前總茶官</option>' +
+                '<option value="tea_king_confidant">🤝 茶王心腹</option>' +
+                '<option value="tea_king_personal_selection">⭐ 茶王親選</option>' +
+                '<option value="imperial_golden_seal_tea_officer">🏆 御賜金印茶官</option>' +
+                '<option value="national_master_tea_officer">🌟 國師級茶官</option>' +
+                '<option value="lady_trainee">🌸 初級佳麗</option>' +
+                '<option value="lady_apprentice">🌺 見習佳麗</option>' +
+                '<option value="lady_junior">🌷 中級佳麗</option>' +
+                '<option value="lady_senior">🌹 高級佳麗</option>' +
+                '<option value="lady_expert">🌻 專家佳麗</option>' +
+                '<option value="lady_master">🌼 大師佳麗</option>' +
+                '<option value="lady_elite">🌺 精英佳麗</option>' +
+                '<option value="lady_premium">🌹 高級佳麗</option>' +
+                '<option value="lady_royal">👑 皇家佳麗</option>' +
+                '<option value="lady_empress">👸 皇后佳麗</option>' +
+                '</select>' +
+                '</div>';
+            
+            showUserActionModal('修改會員等級', contentHtml, async function() {
+                const levelSelect = document.getElementById('userLevelSelect');
+                const level = levelSelect ? levelSelect.value : null;
+                if (!level) return;
+                
+                try {
+                    const encodedUserId = encodeURIComponent(currentViewingUserId);
+                    const res = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/level', {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ level })
+                    });
+                    if (!res.ok) throw new Error('更新失敗');
+                    showMessage('✅ 會員等級已更新！');
+                    viewUserDetail(currentViewingUserId); // 重新載入詳情
+                    loadUsers(); // 刷新列表
+                } catch (error) {
+                    showMessage('❌ 更新失敗: ' + error.message, 'error');
+                }
+            });
         }
 
         // 封禁用戶
         async function banUser() {
             if (!currentViewingUserId) return;
-            const reason = prompt('請輸入封禁原因（可選）:') || '管理員封禁';
-            if (!confirm('確定要封禁此用戶嗎？')) return;
             
-            try {
-                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/ban', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ reason })
-                });
-                if (!res.ok) throw new Error('封禁失敗');
-                alert('用戶已封禁！');
-                viewUserDetail(currentViewingUserId); // 重新載入詳情
-                loadUsers(); // 刷新列表
-            } catch (error) {
-                alert('封禁失敗: ' + error.message);
-            }
+            const contentHtml = '<div style="margin-bottom: 1rem;">' +
+                '<p style="color: #ef4444; font-weight: 600; margin-bottom: 1rem;">⚠️ 確定要封禁此用戶嗎？</p>' +
+                '<label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">封禁原因（可選）：</label>' +
+                '<textarea id="banReasonInput" placeholder="請輸入封禁原因..." style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem; min-height: 80px; resize: vertical;"></textarea>' +
+                '</div>';
+            
+            showUserActionModal('封禁用戶', contentHtml, async function() {
+                const reasonInput = document.getElementById('banReasonInput');
+                const reason = reasonInput ? (reasonInput.value.trim() || '管理員封禁') : '管理員封禁';
+                
+                try {
+                    const encodedUserId = encodeURIComponent(currentViewingUserId);
+                    const res = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/ban', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ reason })
+                    });
+                    if (!res.ok) throw new Error('封禁失敗');
+                    showMessage('✅ 用戶已封禁！');
+                    viewUserDetail(currentViewingUserId); // 重新載入詳情
+                    loadUsers(); // 刷新列表
+                } catch (error) {
+                    showMessage('❌ 封禁失敗: ' + error.message, 'error');
+                }
+            });
         }
 
         // 解封用戶
         async function unbanUser() {
             if (!currentViewingUserId) return;
-            if (!confirm('確定要解封此用戶嗎？')) return;
             
-            try {
-                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/unban', {
-                    method: 'POST',
-                    headers: getAuthHeaders()
-                });
-                if (!res.ok) throw new Error('解封失敗');
-                alert('用戶已解封！');
-                viewUserDetail(currentViewingUserId); // 重新載入詳情
-                loadUsers(); // 刷新列表
-            } catch (error) {
-                alert('解封失敗: ' + error.message);
-            }
+            const contentHtml = '<div style="margin-bottom: 1rem;">' +
+                '<p style="color: #10b981; font-weight: 600;">✅ 確定要解封此用戶嗎？</p>' +
+                '</div>';
+            
+            showUserActionModal('解封用戶', contentHtml, async function() {
+                try {
+                    const encodedUserId = encodeURIComponent(currentViewingUserId);
+                    const res = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/unban', {
+                        method: 'POST',
+                        headers: getAuthHeaders()
+                    });
+                    if (!res.ok) throw new Error('解封失敗');
+                    showMessage('✅ 用戶已解封！');
+                    viewUserDetail(currentViewingUserId); // 重新載入詳情
+                    loadUsers(); // 刷新列表
+                } catch (error) {
+                    showMessage('❌ 解封失敗: ' + error.message, 'error');
+                }
+            });
         }
 
         // 重置密碼
         async function resetUserPassword() {
             if (!currentViewingUserId) return;
-            const newPassword = prompt('請輸入新密碼（至少6位）:');
-            if (!newPassword || newPassword.length < 6) {
-                alert('密碼長度至少6位');
-                return;
-            }
-            if (!confirm('確定要重置此用戶的密碼嗎？')) return;
             
-            try {
-                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/reset-password', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ newPassword })
-                });
-                if (!res.ok) throw new Error('重置失敗');
-                showMessage('✅ 密碼已重置！');
-            } catch (error) {
-                showMessage('❌ 重置失敗: ' + error.message, 'error');
-            }
+            const contentHtml = '<div style="margin-bottom: 1rem;">' +
+                '<p style="color: #f59e0b; font-weight: 600; margin-bottom: 1rem;">⚠️ 確定要重置此用戶的密碼嗎？</p>' +
+                '<label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">新密碼（至少6位）：</label>' +
+                '<input type="password" id="newPasswordInput" placeholder="請輸入新密碼..." style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem;" />' +
+                '<p style="margin-top: 0.5rem; font-size: 0.75rem; color: #666;">密碼長度至少6位</p>' +
+                '</div>';
+            
+            showUserActionModal('重置密碼', contentHtml, async function() {
+                const passwordInput = document.getElementById('newPasswordInput');
+                const newPassword = passwordInput ? passwordInput.value.trim() : '';
+                
+                if (!newPassword || newPassword.length < 6) {
+                    showMessage('❌ 密碼長度至少6位', 'error');
+                    return;
+                }
+                
+                try {
+                    const encodedUserId = encodeURIComponent(currentViewingUserId);
+                    const res = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/reset-password', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ newPassword })
+                    });
+                    if (!res.ok) throw new Error('重置失敗');
+                    showMessage('✅ 密碼已重置！');
+                } catch (error) {
+                    showMessage('❌ 重置失敗: ' + error.message, 'error');
+                }
+            });
         }
 
         // 切換用戶標記
@@ -3442,8 +3566,11 @@ router.get('/', (req, res) => {
             if (!currentViewingUserId) return;
             
             try {
+                // 對用戶ID進行URL編碼
+                const encodedUserId = encodeURIComponent(currentViewingUserId);
+                
                 // 先獲取當前用戶信息
-                const res = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId, {
+                const res = await fetch(API_BASE + '/api/admin/users/' + encodedUserId, {
                     headers: getAuthHeaders()
                 });
                 if (!res.ok) throw new Error('獲取用戶信息失敗');
@@ -3452,14 +3579,29 @@ router.get('/', (req, res) => {
                 
                 // 切換標記
                 let newTags;
-                if (currentTags.includes(tag)) {
-                    newTags = currentTags.filter(function(t) { return t !== tag; });
-                } else {
+                const isAdding = !currentTags.includes(tag);
+                if (isAdding) {
                     newTags = [...currentTags, tag];
+                } else {
+                    newTags = currentTags.filter(function(t) { return t !== tag; });
+                }
+                
+                // 如果是添加 'verified' 標記，先執行自動驗證
+                if (tag === 'verified' && isAdding) {
+                    const verifyRes = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/auto-verify', {
+                        method: 'POST',
+                        headers: getAuthHeaders()
+                    });
+                    if (!verifyRes.ok) {
+                        const errorData = await verifyRes.json().catch(() => ({ error: '自動驗證失敗' }));
+                        throw new Error(errorData.error || '自動驗證失敗');
+                    }
+                    const verifyData = await verifyRes.json();
+                    showMessage('✅ 用戶已自動驗證！Email 已驗證，手機號碼已生成：' + verifyData.generatedPhone);
                 }
                 
                 // 更新標記
-                const updateRes = await fetch(API_BASE + '/api/admin/users/' + currentViewingUserId + '/tags', {
+                const updateRes = await fetch(API_BASE + '/api/admin/users/' + encodedUserId + '/tags', {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify({ tags: newTags })
@@ -3468,9 +3610,11 @@ router.get('/', (req, res) => {
                 
                 // 重新載入用戶詳情
                 viewUserDetail(currentViewingUserId);
-                showMessage('✅ 用戶標記已更新');
+                if (tag !== 'verified' || !isAdding) {
+                    showMessage('✅ 用戶標記已更新');
+                }
             } catch (error) {
-                showMessage('❌ 更新標記失敗: ' + error.message, 'error');
+                showMessage('❌ 操作失敗: ' + error.message, 'error');
             }
         }
 
