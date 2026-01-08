@@ -22,7 +22,8 @@
     "update:rules": "tsx src/scripts/updateRulesPost.ts",
     "migrate:user-ids": "tsx src/scripts/migrateUserIds.ts",
     "migrate:user-public-ids": "tsx src/scripts/migrateUserPublicIds.ts",
-    "set:taipei-vip": "tsx src/scripts/setTaipeiProviderVip.ts"
+    "set:taipei-vip": "tsx src/scripts/setTaipeiProviderVip.ts",
+    "create:shill-accounts": "tsx src/scripts/createShillAccounts.ts"
   },
   "keywords": [],
   "author": "",

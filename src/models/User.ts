@@ -212,17 +212,79 @@ export const userModel = {
     const id = await userModel.generateUserId(role);
     const hashedPassword = await bcrypt.hash(userData.password, 10);
     
-    await query(`
-      INSERT INTO users (id, email, phone_number, password, user_name, role)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [
-      id,
-      userData.email || null,
-      userData.phoneNumber || null,
-      hashedPassword,
-      userData.userName || null,
-      userData.role || 'client'
-    ]);
+    // 加密存儲原始密碼（用於密碼提示功能）
+    let encryptedPassword: string | null = null;
+    try {
+      const { encryptPassword } = await import('../services/passwordEncryption.js');
+      encryptedPassword = encryptPassword(userData.password);
+    } catch (error) {
+      console.warn('加密密碼失敗（用於密碼提示功能）:', error);
+      // 不影響用戶創建，繼續執行
+    }
+    
+    // 檢查是否存在 password_encrypted 欄位
+    let hasEncryptedColumn = false;
+    try {
+      const checkResult = await query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'password_encrypted'
+      `);
+      hasEncryptedColumn = checkResult.rows.length > 0;
+    } catch (error) {
+      // 忽略錯誤
+    }
+    
+    if (hasEncryptedColumn) {
+      await query(`
+        INSERT INTO users (id, email, phone_number, password, password_encrypted, user_name, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        id,
+        userData.email || null,
+        userData.phoneNumber || null,
+        hashedPassword,
+        encryptedPassword,
+        userData.userName || null,
+        userData.role || 'client'
+      ]);
+    } else {
+      // 如果欄位不存在，先創建欄位
+      try {
+        await query(`
+          ALTER TABLE users 
+          ADD COLUMN IF NOT EXISTS password_encrypted TEXT
+        `);
+        
+        // 然後插入數據
+        await query(`
+          INSERT INTO users (id, email, phone_number, password, password_encrypted, user_name, role)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [
+          id,
+          userData.email || null,
+          userData.phoneNumber || null,
+          hashedPassword,
+          encryptedPassword,
+          userData.userName || null,
+          userData.role || 'client'
+        ]);
+      } catch (error: any) {
+        // 如果添加欄位失敗，使用舊的方式插入（不包含 password_encrypted）
+        console.warn('無法添加 password_encrypted 欄位，使用舊方式插入:', error.message);
+        await query(`
+          INSERT INTO users (id, email, phone_number, password, user_name, role)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          id,
+          userData.email || null,
+          userData.phoneNumber || null,
+          hashedPassword,
+          userData.userName || null,
+          userData.role || 'client'
+        ]);
+      }
+    }
     
     const user = await userModel.findById(id);
     if (!user) throw new Error('Failed to create user');

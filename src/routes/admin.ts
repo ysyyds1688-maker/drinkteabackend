@@ -9,9 +9,19 @@ import { Profile, Article } from '../types.js';
 const router = Router();
 
 // ==================== 統計資訊 ====================
-// GET /api/admin/stats - 取得後台統計資訊
+// 統計緩存（5分鐘）
+let statsCache: { data: any; timestamp: number } | null = null;
+const STATS_CACHE_TTL = 5 * 60 * 1000; // 5分鐘
+
+// GET /api/admin/stats - 取得後台統計資訊（帶緩存優化）
 router.get('/stats', async (req, res) => {
   try {
+    // 檢查緩存
+    const now = Date.now();
+    if (statsCache && (now - statsCache.timestamp) < STATS_CACHE_TTL) {
+      return res.json(statsCache.data);
+    }
+    
     console.log('GET /api/admin/stats');
     const profilesResult = await profileModel.getAll();
     const articlesResult = await articleModel.getAll();
@@ -79,6 +89,12 @@ router.get('/stats', async (req, res) => {
     } catch (error) {
       console.error('Failed to load booking stats:', error);
     }
+    
+    // 更新緩存
+    statsCache = {
+      data: stats,
+      timestamp: now,
+    };
     
     res.json(stats);
   } catch (error: any) {

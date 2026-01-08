@@ -30,11 +30,16 @@ import notificationsRouter from './routes/notifications.js';
 import reportsRouter from './routes/reports.js';
 import messagesRouter from './routes/messages.js';
 import statsRouter from './routes/stats.js';
+import performanceRouter from './routes/performance.js';
+import telegramRouter from './routes/telegram.js';
 import { schedulerService } from './services/schedulerService.js';
 import { initRedis, closeRedis } from './services/redisService.js';
 import { authLimiter, readLimiter, writeLimiter, writeLimiterIP } from './middleware/rateLimiter.js';
 import { queryLimiter } from './middleware/queryLimiter.js';
 import { updateUserActivity } from './middleware/updateUserActivity.js';
+import { performanceMonitor } from './middleware/performanceMonitor.js';
+import { requestLogger, logger, cleanupOldLogs } from './middleware/logger.js';
+import { initErrorTracking, errorTrackingMiddleware } from './services/errorTracking.js';
 
 // Load environment variables - 明確指定 .env 文件路徑
 // 使用 process.cwd() 獲取當前工作目錄（backend 目錄）
@@ -161,11 +166,11 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
+// 性能監控中間件（放在最前面以測量所有請求）
+app.use(performanceMonitor);
+
+// HTTP 請求日誌中間件
+app.use(requestLogger);
 
 // 更新用戶活躍時間（用於在線人數統計）
 // 放在 logging 之後，確保所有 API 請求都會經過
@@ -272,18 +277,33 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/performance', performanceRouter);
+app.use('/api/telegram', telegramRouter);
 
 // 後台管理系統頁面（可視化介面）
 app.use('/admin', adminPanelRouter);
+
+// 全局錯誤處理中間件（必須放在所有路由之後，404 之前）
+app.use((error: any, req: any, res: any, next: any) => {
+  errorTrackingMiddleware(error, req, res, next);
+});
 
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Error handler
+// Error handler (使用錯誤追蹤)
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
+  errorTrackingMiddleware(err, req, res, next);
+  
+  logger.error('HTTP 錯誤', {
+    error: err.message,
+    status: err.status || 500,
+    path: req.path,
+    method: req.method,
+  });
+  
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
@@ -367,9 +387,17 @@ initDatabase()
       console.warn('创建自动取消预约任务时出现警告:', error.message);
     }
     
+    // 初始化錯誤追蹤（Sentry）
+    initErrorTracking();
+    
     // 初始化 Redis（如果配置了）
     // 注意：Redis URL 後續再加入，目前先以內存緩存運行
     await initRedis();
+    
+    // 啟動定時清理舊日誌（每天運行一次）
+    setInterval(() => {
+      cleanupOldLogs(7); // 保留最近 7 天的日誌
+    }, 24 * 60 * 60 * 1000); // 每 24 小時運行一次
     
     // 启动定时任务
     schedulerService.startAllTasks();

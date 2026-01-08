@@ -301,12 +301,61 @@ router.post('/:id/contact', async (req, res) => {
     // 增加聯繫次數
     await profileModel.incrementContactCount(id);
     
+    // 獲取用戶信息（如果有登入）
+    let userInfo = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload) {
+          const { userModel } = await import('../models/User.js');
+          const user = await userModel.findById(payload.userId);
+          if (user) {
+            userInfo = {
+              id: user.id,
+              publicId: user.publicId || user.id,
+              email: user.email,
+              userName: user.userName,
+            };
+          }
+        }
+      } catch (error) {
+        // 忽略驗證錯誤，不影響主流程
+      }
+    }
+    
+    // 生成 Telegram 邀請連結（如果配置了 Telegram）
+    let telegramInviteLink: string | null = null;
+    try {
+      const { telegramService } = await import('../services/telegramService.js');
+      if (telegramService.isConfigured()) {
+        telegramInviteLink = await telegramService.generateOneTimeInviteLink();
+        
+        // 發送通知到管理群組（如果配置了管理群組）
+        if (userInfo) {
+          const notificationMessage = 
+            `🔔 新用戶聯繫客服\n\n` +
+            `用戶：${userInfo.userName || userInfo.email || '匿名'}\n` +
+            `用戶ID：${userInfo.publicId || userInfo.id}\n` +
+            `檔案：${profile.name}\n` +
+            `時間：${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`;
+          
+          await telegramService.sendNotification(notificationMessage);
+        }
+      }
+    } catch (error: any) {
+      // Telegram 服務失敗不影響主流程，只記錄錯誤
+      console.error('Telegram 服務錯誤:', error.message);
+    }
+    
     // 獲取更新後的聯繫次數
     const updatedProfile = await profileModel.getById(id);
     
     res.json({
       message: '聯繫次數已記錄',
       contactCount: updatedProfile?.contactCount || 0,
+      telegramInviteLink, // 返回 Telegram 邀請連結（如果有的話）
     });
   } catch (error: any) {
     console.error('記錄聯繫次數失敗:', error);

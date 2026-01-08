@@ -1328,6 +1328,15 @@ export const query = async (text: string, params?: any[]): Promise<QueryResult> 
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
+    
+    // 記錄查詢時間（用於性能監控）
+    try {
+      const { recordQueryTime } = await import('../middleware/performanceMonitor.js');
+      recordQueryTime(duration);
+    } catch (e) {
+      // 如果性能監控未載入，忽略錯誤
+    }
+    
     // 只在開發環境或查詢時間超過1秒時記錄（減少日誌開銷）
     if (process.env.NODE_ENV === 'development' || duration > 1000) {
       console.log('Executed query', { text: text.substring(0, 100), duration, rows: res.rowCount });

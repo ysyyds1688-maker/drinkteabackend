@@ -623,9 +623,21 @@ router.get('/', (req, res) => {
             </div>
 
             <div id="users-tab" class="hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                     <h2>用戶管理</h2>
-                    <button class="btn btn-success" onclick="exportUsers()">📥 導出用戶資料</button>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="text" id="userSearchInput" placeholder="🔍 搜尋 Email、公開ID、手機號..." 
+                               oninput="filterUsers()" 
+                               style="padding: 0.5rem 1rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem; min-width: 250px;" />
+                        <select id="userRoleFilter" onchange="filterUsers()" 
+                                style="padding: 0.5rem 1rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem;">
+                            <option value="">所有身份</option>
+                            <option value="client">👤 品茶客</option>
+                            <option value="provider">👩 後宮佳麗</option>
+                            <option value="admin">👑 管理員</option>
+                        </select>
+                        <button class="btn btn-success" onclick="exportUsers()">📥 導出用戶資料</button>
+                    </div>
                 </div>
                 <div id="users-list"></div>
             </div>
@@ -2380,6 +2392,9 @@ router.get('/', (req, res) => {
             }, 500);
         });
 
+        // 儲存原始用戶數據（用於搜索過濾）
+        let allUsersData = [];
+        
         // 載入用戶列表
         async function loadUsers() {
             try {
@@ -2395,65 +2410,115 @@ router.get('/', (req, res) => {
                     throw new Error('載入用戶失敗');
                 }
                 const users = await res.json();
-                const list = document.getElementById('users-list');
-                const getMembershipLabel = (level) => {
-                    const labels = {
-                        'tea_guest': '茶客',
-                        'tea_scholar': '🥉 入門茶士',
-                        'royal_tea_scholar': '🥈 御前茶士',
-                        'royal_tea_officer': '🥇 御用茶官',
-                        'tea_king_attendant': '💎 茶王近侍',
-                        'imperial_chief_tea_officer': '👑 御前總茶官',
-                        'tea_king_confidant': '🤝 茶王心腹',
-                        'tea_king_personal_selection': '⭐ 茶王親選',
-                        'imperial_golden_seal_tea_officer': '🏆 御賜金印茶官',
-                        'national_master_tea_officer': '🌟 國師級茶官',
-                        // 後宮佳麗等級
-                        'lady_trainee': '🌸 初級佳麗',
-                        'lady_apprentice': '🌺 見習佳麗',
-                        'lady_junior': '🌷 中級佳麗',
-                        'lady_senior': '🌹 高級佳麗',
-                        'lady_expert': '🌻 專家佳麗',
-                        'lady_master': '🌼 大師佳麗',
-                        'lady_elite': '🌺 精英佳麗',
-                        'lady_premium': '🌹 高級佳麗',
-                        'lady_royal': '👑 皇家佳麗',
-                        'lady_empress': '👸 皇后佳麗'
-                    };
-                    return labels[level] || level;
-                };
-                const getVerificationBadges = (badges) => {
-                    if (!badges || badges.length === 0) return '';
-                    const badgeIcons = {
-                        'email_verified': '✉️',
-                        'phone_verified': '📱'
-                    };
-                    return badges.map(b => badgeIcons[b] || '').join(' ');
-                };
-                list.innerHTML = '<table><thead><tr><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
-                    users.map(u => {
-                        const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
-                        const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
-                        const badges = getVerificationBadges(u.verificationBadges);
-                        const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
-                        const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
-                        return '<tr>' +
-                            '<td>' + (u.email || '-') + '</td>' +
-                            '<td>' + (u.phoneNumber || '-') + '</td>' +
-                            '<td>' + role + '</td>' +
-                            '<td>' + membership + '</td>' +
-                            '<td>' + (badges || '-') + '</td>' +
-                            '<td>' + createdAt + '</td>' +
-                            '<td>' + lastLogin + '</td>' +
-                            '<td>' +
-                            '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
-                            '</td>' +
-                            '</tr>';
-                    }).join('') + '</tbody></table>';
+                allUsersData = users; // 儲存原始數據
+                renderUsers(users);
             } catch (error) {
                 console.error('載入用戶失敗:', error);
                 document.getElementById('users-list').innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">載入失敗: ' + error.message + '</div>';
             }
+        }
+        
+        // 過濾用戶
+        function filterUsers() {
+            const searchTerm = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
+            const roleFilter = document.getElementById('userRoleFilter')?.value || '';
+            
+            let filtered = allUsersData.filter(u => {
+                // 搜索過濾
+                if (searchTerm) {
+                    const searchableText = [
+                        u.email || '',
+                        u.publicId || u.id || '',
+                        u.phoneNumber || '',
+                        u.userName || ''
+                    ].join(' ').toLowerCase();
+                    
+                    if (!searchableText.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                
+                // 身份過濾
+                if (roleFilter && u.role !== roleFilter) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            renderUsers(filtered);
+        }
+        
+        // 渲染用戶列表
+        function renderUsers(users) {
+            const list = document.getElementById('users-list');
+            if (!list) return;
+            
+            const getMembershipLabel = (level) => {
+                const labels = {
+                    'tea_guest': '茶客',
+                    'tea_scholar': '🥉 入門茶士',
+                    'royal_tea_scholar': '🥈 御前茶士',
+                    'royal_tea_officer': '🥇 御用茶官',
+                    'tea_king_attendant': '💎 茶王近侍',
+                    'imperial_chief_tea_officer': '👑 御前總茶官',
+                    'tea_king_confidant': '🤝 茶王心腹',
+                    'tea_king_personal_selection': '⭐ 茶王親選',
+                    'imperial_golden_seal_tea_officer': '🏆 御賜金印茶官',
+                    'national_master_tea_officer': '🌟 國師級茶官',
+                    // 後宮佳麗等級
+                    'lady_trainee': '🌸 初級佳麗',
+                    'lady_apprentice': '🌺 見習佳麗',
+                    'lady_junior': '🌷 中級佳麗',
+                    'lady_senior': '🌹 高級佳麗',
+                    'lady_expert': '🌻 專家佳麗',
+                    'lady_master': '🌼 大師佳麗',
+                    'lady_elite': '🌺 精英佳麗',
+                    'lady_premium': '🌹 高級佳麗',
+                    'lady_royal': '👑 皇家佳麗',
+                    'lady_empress': '👸 皇后佳麗'
+                };
+                return labels[level] || level;
+            };
+            
+            const getVerificationBadges = (user) => {
+                const badges = [];
+                if (user.emailVerified) badges.push('✉️');
+                if (user.phoneVerified) badges.push('📱');
+                return badges.length > 0 ? badges.join(' ') : '-';
+            };
+            
+            if (users.length === 0) {
+                list.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">沒有找到匹配的用戶</div>';
+                return;
+            }
+            
+            list.innerHTML = '<table><thead><tr><th>公開ID</th><th>Email</th><th>手機號</th><th>身份</th><th>會員等級</th><th>驗證勳章</th><th>註冊時間</th><th>最後登入</th><th>操作</th></tr></thead><tbody>' +
+                users.map(u => {
+                    const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
+                    const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
+                    const badges = getVerificationBadges(u);
+                    const createdAt = new Date(u.createdAt).toLocaleString('zh-TW');
+                    const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('zh-TW') : '-';
+                    const publicId = u.publicId || u.id || '-';
+                    const safePublicId = String(publicId).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const safeEmail = String(u.email || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const safePhone = String(u.phoneNumber || '-').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    return '<tr>' +
+                        '<td><code style="background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem;">' + safePublicId + '</code></td>' +
+                        '<td>' + safeEmail + '</td>' +
+                        '<td>' + safePhone + '</td>' +
+                        '<td>' + role + '</td>' +
+                        '<td>' + membership + '</td>' +
+                        '<td>' + badges + '</td>' +
+                        '<td>' + createdAt + '</td>' +
+                        '<td>' + lastLogin + '</td>' +
+                        '<td>' +
+                        '<button class="btn" onclick="viewUserDetail(' + JSON.stringify(u.id).replace(/"/g, '&quot;') + ')">查看詳情</button>' +
+                        '</td>' +
+                        '</tr>';
+                }).join('') + '</tbody></table>' +
+                '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
         }
 
         // 查看用戶詳情

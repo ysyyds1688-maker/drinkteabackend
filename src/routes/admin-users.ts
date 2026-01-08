@@ -30,9 +30,10 @@ router.get('/', async (req, res) => {
     
     const users = await userModel.getAll();
     
-    // 移除密码字段
+    // 移除密码字段，添加公開 ID
     const usersWithoutPassword = users.map(u => ({
       id: u.id,
+      publicId: u.publicId || u.id, // 顯示公開 ID
       email: u.email,
       phoneNumber: u.phoneNumber,
       role: u.role,
@@ -43,6 +44,7 @@ router.get('/', async (req, res) => {
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
       lastLoginAt: u.lastLoginAt,
+      userName: (u as any).userName, // 如果有的話
     }));
     
     res.json(usersWithoutPassword);
@@ -78,6 +80,7 @@ router.get('/:userId', async (req, res) => {
     res.json({
       user: {
         id: targetUser.id,
+        publicId: targetUser.publicId || targetUser.id, // 顯示公開 ID
         email: targetUser.email,
         phoneNumber: targetUser.phoneNumber,
         role: targetUser.role,
@@ -88,6 +91,7 @@ router.get('/:userId', async (req, res) => {
         createdAt: targetUser.createdAt,
         updatedAt: targetUser.updatedAt,
         lastLoginAt: targetUser.lastLoginAt,
+        userName: (targetUser as any).userName, // 如果有的話
       },
       bookings,
     });
