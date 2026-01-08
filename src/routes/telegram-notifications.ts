@@ -274,21 +274,75 @@ router.post('/test', async (req: Request, res: Response) => {
       });
     }
 
-    // 發送測試消息，包含所有類型的通知格式示例
+    // 獲取實際的當前統計數據
+    let onlineStats = { onlineCount: 0, loggedInCount: 0, guestCount: 0 };
+    let totalUsers = 0;
+    let totalProviders = 0;
+    let totalClients = 0;
+    let pendingBookings = 0;
+    
+    try {
+      // 獲取在線人數
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const activeUsersResult = await query(`
+        SELECT COUNT(DISTINCT id) as count
+        FROM users
+        WHERE last_login_at IS NOT NULL
+        AND last_login_at > $1
+      `, [fiveMinutesAgo]);
+      onlineStats.loggedInCount = parseInt(activeUsersResult.rows[0]?.count || '0', 10);
+      
+      const { getGuestOnlineCount } = await import('../middleware/updateUserActivity.js');
+      onlineStats.guestCount = getGuestOnlineCount();
+      onlineStats.onlineCount = onlineStats.loggedInCount + onlineStats.guestCount;
+
+      // 獲取總用戶數
+      const usersResult = await query(`SELECT COUNT(*) as count FROM users`);
+      totalUsers = parseInt(usersResult.rows[0]?.count || '0', 10);
+
+      // 獲取佳麗人數
+      const providersResult = await query(`SELECT COUNT(*) as count FROM users WHERE role = 'provider'`);
+      totalProviders = parseInt(providersResult.rows[0]?.count || '0', 10);
+
+      // 獲取品茶客人數
+      const clientsResult = await query(`SELECT COUNT(*) as count FROM users WHERE role = 'client'`);
+      totalClients = parseInt(clientsResult.rows[0]?.count || '0', 10);
+
+      // 獲取待處理預約數
+      const bookingsResult = await query(`
+        SELECT COUNT(*) as count 
+        FROM bookings 
+        WHERE status IN ('pending', 'confirmed')
+      `);
+      pendingBookings = parseInt(bookingsResult.rows[0]?.count || '0', 10);
+    } catch (error) {
+      console.error('[Telegram] 獲取統計數據失敗:', error);
+    }
+
+    // 發送測試消息，包含實際的當前數據
     const testMessage = `🤖 <b>稟報茶王：Telegram Bot 測試</b>
 
 ✅ <b>配置狀態</b>
    └─ Bot 連接成功，通知系統已就緒
 
-📊 <b>測試數據示例</b>
-   ├─ 在線人數：15 人（已登入：10，訪客：5）
-   ├─ 新註冊會員：2 位
-   ├─ 新預約：1 筆
-   └─ 新論壇發文：3 篇
+📊 <b>當前實際數據</b>
+   ├─ <b>在線人數：</b>${onlineStats.onlineCount} 人
+   │  ├─ 已登入：${onlineStats.loggedInCount} 人
+   │  └─ 訪客：${onlineStats.guestCount} 人
+   ├─ <b>總用戶數：</b>${totalUsers} 位
+   ├─ <b>佳麗人數：</b>${totalProviders} 位
+   ├─ <b>品茶客人數：</b>${totalClients} 位
+   └─ <b>待處理預約：</b>${pendingBookings} 筆
 
 💡 <b>提示</b>
    如果您收到此消息，說明 Telegram Bot 配置成功！
-   所有通知將發送到此話題中。`;
+   所有通知將發送到此話題中。
+   
+   每 5 分鐘會自動檢查並發送：
+   • 新註冊會員通知
+   • 新預約通知
+   • 新論壇發文通知
+   • 統計報告（有變化時）`;
 
     const success = await telegramService.sendNotification(testMessage);
 
