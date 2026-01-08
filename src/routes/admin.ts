@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Profile, Article } from '../types.js';
 import { getPerformanceStats, clearPerformanceMetrics } from '../middleware/performanceMonitor.js';
 import { telegramService } from '../services/telegramService.js';
+import { getHealthMetrics, getAggregatedMetrics } from '../services/monitoringService.js';
 
 const router = Router();
 
@@ -15,10 +16,14 @@ const router = Router();
 router.get('/monitor', async (req, res) => {
   try {
     const stats = getPerformanceStats();
+    const health = await getHealthMetrics();
+    const aggregated = await getAggregatedMetrics('24h');
     const tgConfigured = telegramService.isConfigured();
     
     res.json({
       performance: stats,
+      health,
+      aggregated,
       telegram: {
         configured: tgConfigured,
         botToken: !!process.env.TELEGRAM_BOT_TOKEN,
@@ -43,6 +48,21 @@ router.post('/monitor/clear', async (req, res) => {
     res.json({ message: '性能指標已清空' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/health - 詳細健康檢查（僅管理員）
+router.get('/health', async (req, res) => {
+  try {
+    const health = await getHealthMetrics();
+    const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error: any) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 

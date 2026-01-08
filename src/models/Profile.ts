@@ -2,8 +2,145 @@ import { query } from '../db/database.js';
 import { Profile } from '../types.js';
 import { cacheService } from '../services/redisService.js';
 
+// 檢查並創建物化視圖（如果不存在）
+const ensureMaterializedView = async (): Promise<void> => {
+  try {
+    // 檢查物化視圖是否存在
+    const checkResult = await query(`
+      SELECT EXISTS (
+        SELECT 1 FROM pg_matviews 
+        WHERE matviewname = 'profiles_materialized_view'
+      )
+    `);
+    
+    if (!checkResult.rows[0].exists) {
+      console.log('⚠️  profiles_materialized_view 不存在，正在創建...');
+      // 創建物化視圖
+      await query(`
+        CREATE MATERIALIZED VIEW profiles_materialized_view AS
+        SELECT
+          p.id,
+          p."userId",
+          p.name,
+          p.nationality,
+          p.age,
+          p.height,
+          p.weight,
+          p.cup,
+          p.location,
+          p.district,
+          p.type,
+          p."imageUrl",
+          p.gallery,
+          p.albums,
+          p.price,
+          p.prices,
+          p.tags,
+          p."basicServices",
+          p."addonServices",
+          p."contactInfo",
+          p.remarks,
+          p.videos,
+          p."bookingProcess",
+          p."isNew",
+          p."isAvailable",
+          p."availableTimes",
+          p.views,
+          p.contact_count,
+          p."createdAt",
+          p."updatedAt",
+          CASE u.membership_level
+            WHEN 'tea_guest' THEN 1
+            WHEN 'tea_scholar' THEN 2
+            WHEN 'royal_tea_scholar' THEN 3
+            WHEN 'royal_tea_officer' THEN 4
+            WHEN 'tea_king_attendant' THEN 5
+            WHEN 'imperial_chief_tea_officer' THEN 6
+            WHEN 'tea_king_confidant' THEN 7
+            WHEN 'tea_king_personal_selection' THEN 8
+            WHEN 'imperial_golden_seal_tea_officer' THEN 9
+            WHEN 'national_master_tea_officer' THEN 10
+            WHEN 'lady_trainee' THEN 1
+            WHEN 'lady_apprentice' THEN 2
+            WHEN 'lady_junior' THEN 3
+            WHEN 'lady_senior' THEN 4
+            WHEN 'lady_expert' THEN 5
+            WHEN 'lady_master' THEN 6
+            WHEN 'lady_elite' THEN 7
+            WHEN 'lady_premium' THEN 8
+            WHEN 'lady_royal' THEN 9
+            WHEN 'lady_empress' THEN 10
+            ELSE 0
+          END AS level_value,
+          COALESCE(AVG(r.rating), 0) AS avg_rating,
+          CASE
+            WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+            ELSE 0
+          END AS is_vip_value,
+          CASE
+            WHEN u.role = 'provider' THEN u.email_verified
+            ELSE NULL
+          END AS provider_email_verified,
+          (2.0 *
+            CASE u.membership_level
+              WHEN 'tea_guest' THEN 1
+              WHEN 'tea_scholar' THEN 2
+              WHEN 'royal_tea_scholar' THEN 3
+              WHEN 'royal_tea_officer' THEN 4
+              WHEN 'tea_king_attendant' THEN 5
+              WHEN 'imperial_chief_tea_officer' THEN 6
+              WHEN 'tea_king_confidant' THEN 7
+              WHEN 'tea_king_personal_selection' THEN 8
+              WHEN 'imperial_golden_seal_tea_officer' THEN 9
+              WHEN 'national_master_tea_officer' THEN 10
+              WHEN 'lady_trainee' THEN 1
+              WHEN 'lady_apprentice' THEN 2
+              WHEN 'lady_junior' THEN 3
+              WHEN 'lady_senior' THEN 4
+              WHEN 'lady_expert' THEN 5
+              WHEN 'lady_master' THEN 6
+              WHEN 'lady_elite' THEN 7
+              WHEN 'lady_premium' THEN 8
+              WHEN 'lady_royal' THEN 9
+              WHEN 'lady_empress' THEN 10
+              ELSE 0
+            END +
+            1.0 * COALESCE(AVG(r.rating), 0) +
+            3.0 *
+            CASE
+              WHEN u.role = 'provider' AND s.is_active = TRUE AND (s.expires_at IS NULL OR s.expires_at > NOW()) THEN 1
+              ELSE 0
+            END
+          ) AS exposure_score
+        FROM profiles p
+        LEFT JOIN users u ON p."userId" = u.id
+        LEFT JOIN reviews r ON r.profile_id = p.id AND r.is_visible = TRUE
+        LEFT JOIN subscriptions s ON s.user_id = u.id
+        GROUP BY p.id, u.id, s.is_active, s.expires_at
+        ORDER BY exposure_score DESC, p."createdAt" DESC
+      `);
+      
+      // 創建索引
+      await query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_profiles_id ON profiles_materialized_view(id);
+        CREATE INDEX IF NOT EXISTS idx_mv_profiles_user_id ON profiles_materialized_view("userId");
+        CREATE INDEX IF NOT EXISTS idx_mv_profiles_exposure_score ON profiles_materialized_view(exposure_score DESC);
+        CREATE INDEX IF NOT EXISTS idx_mv_profiles_location_type ON profiles_materialized_view(location, type);
+      `);
+      
+      console.log('✅ profiles_materialized_view 創建成功');
+    }
+  } catch (error: any) {
+    console.error('❌ 創建物化視圖失敗:', error);
+    throw error;
+  }
+};
+
 // 輔助函數：清除相關緩存並刷新物化視圖
 export async function clearProfileCachesAndRefreshView(profileId?: string) {
+  // 確保物化視圖存在
+  await ensureMaterializedView();
+  
   console.log('[Cache Invalidation] 清除 profiles 列表緩存...');
   await cacheService.deletePattern('cache:profiles:*');
   if (profileId) {
@@ -11,19 +148,38 @@ export async function clearProfileCachesAndRefreshView(profileId?: string) {
     await cacheService.delete(`cache:profile:${profileId}`);
   }
   console.log('[Materialized View Refresh] 刷新 profiles_materialized_view...');
-  await query('REFRESH MATERIALIZED VIEW profiles_materialized_view;');
+  try {
+    await query('REFRESH MATERIALIZED VIEW profiles_materialized_view;');
+  } catch (error: any) {
+    // 如果物化視圖不存在，嘗試創建它
+    if (error.code === '42P01') {
+      console.log('⚠️  物化視圖不存在，正在創建...');
+      await ensureMaterializedView();
+      await query('REFRESH MATERIALIZED VIEW profiles_materialized_view;');
+    } else {
+      throw error;
+    }
+  }
 }
+
 export const profileModel = {
   getAll: async (userId?: string, options?: { limit?: number; offset?: number }): Promise<{ profiles: Profile[]; total: number }> => {
+    // 確保物化視圖存在
+    await ensureMaterializedView();
+    
     const cacheKey = `cache:profiles:${userId || 'all'}:${options?.limit || 'no_limit'}:${options?.offset || 'no_offset'}`;
     const cachedData = await cacheService.get<{ profiles: Profile[]; total: number }>(cacheKey);
     if (cachedData) {
-      console.log(`[Cache Hit] Profile.getAll: ${cacheKey}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Cache Hit] Profile.getAll: ${cacheKey}`);
+      }
       return cachedData;
     }
 
     try {
-      console.log('[Profile.getAll] 開始查詢數據庫...', options);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Profile.getAll] 開始查詢數據庫...', options);
+      }
       const queryStartTime = Date.now();
       
       // 先獲取總數

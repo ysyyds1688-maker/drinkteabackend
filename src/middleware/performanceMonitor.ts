@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { performance } from 'perf_hooks';
 import { query } from '../db/database.js';
+import { storeMetrics } from '../services/monitoringService.js';
 
 // 性能指標收集
 interface PerformanceMetrics {
@@ -60,6 +61,14 @@ export const performanceMonitor = (req: Request, res: Response, next: NextFuncti
     if (performanceMetrics.length > MAX_METRICS) {
       performanceMetrics.shift();
     }
+
+    // 異步存儲到 Redis（不阻塞請求）
+    storeMetrics(metric).catch(err => {
+      // 靜默失敗，不影響主流程
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('存儲性能指標失敗:', err);
+      }
+    });
 
     // 如果響應時間過長或狀態碼是錯誤，記錄警告
     if (responseTime > 1000) {

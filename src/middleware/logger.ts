@@ -26,9 +26,34 @@ const getLogFilePath = (level: LogLevel): string => {
   return path.join(LOG_DIR, `${date}-${level.toLowerCase()}.log`);
 };
 
-// 格式化日誌訊息
+// 結構化日誌格式（JSON）
+interface StructuredLog {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  data?: any;
+  service: string;
+  environment: string;
+}
+
+// 格式化日誌訊息（支持結構化和傳統格式）
 const formatLogMessage = (level: LogLevel, message: string, data?: any): string => {
   const timestamp = new Date().toISOString();
+  
+  // 如果啟用結構化日誌，使用 JSON 格式
+  if (process.env.STRUCTURED_LOGGING === 'true') {
+    const structuredLog: StructuredLog = {
+      timestamp,
+      level,
+      message,
+      data,
+      service: 'drinkstea-backend',
+      environment: process.env.NODE_ENV || 'development',
+    };
+    return JSON.stringify(structuredLog) + '\n';
+  }
+  
+  // 傳統格式
   const dataStr = data ? ` ${JSON.stringify(data)}` : '';
   return `[${timestamp}] [${level}] ${message}${dataStr}\n`;
 };

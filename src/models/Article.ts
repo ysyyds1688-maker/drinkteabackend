@@ -1,8 +1,21 @@
 import { query } from '../db/database.js';
 import { Article } from '../types.js';
+import { cacheService } from '../services/redisService.js';
 
 export const articleModel = {
   getAll: async (options?: { limit?: number; offset?: number }): Promise<{ articles: Article[]; total: number }> => {
+    // 緩存鍵
+    const cacheKey = `cache:articles:${options?.limit || 'all'}:${options?.offset || 0}`;
+    
+    // 嘗試從緩存獲取
+    const cachedData = await cacheService.get<{ articles: Article[]; total: number }>(cacheKey);
+    if (cachedData) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Cache Hit] Article.getAll: ${cacheKey}`);
+      }
+      return cachedData;
+    }
+    
     // 先獲取總數
     const countResult = await query('SELECT COUNT(*) as total FROM articles');
     const total = parseInt(countResult.rows[0].total, 10);
@@ -34,7 +47,12 @@ export const articleModel = {
       content: row.content || undefined,
     }));
     
-    return { articles, total };
+    const response = { articles, total };
+    
+    // 存儲到緩存（5分鐘）
+    await cacheService.set(cacheKey, response, 300);
+    
+    return response;
   },
 
   getById: async (id: string): Promise<Article | null> => {
@@ -95,6 +113,10 @@ export const articleModel = {
       id
     ]);
 
+    // 清除相關緩存
+    await cacheService.delete(`cache:article:${id}`);
+    await cacheService.deletePattern('cache:articles:*');
+
     return await articleModel.getById(id);
   },
 
@@ -104,6 +126,13 @@ export const articleModel = {
 
   delete: async (id: string): Promise<boolean> => {
     const result = await query('DELETE FROM articles WHERE id = $1', [id]);
+    
+    // 清除相關緩存
+    if ((result.rowCount || 0) > 0) {
+      await cacheService.delete(`cache:article:${id}`);
+      await cacheService.deletePattern('cache:articles:*');
+    }
+    
     return (result.rowCount || 0) > 0;
   },
 };
