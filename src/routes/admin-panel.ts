@@ -813,66 +813,36 @@ router.get('/', (req, res) => {
         </div>
     </div>
     <div class="container">
+        <!-- 儀表板統計卡片（只顯示最重要的數據） -->
         <div class="stats" id="stats">
-            <div class="stat-card">
-                <h3>總 Profiles</h3>
-                <div class="value" id="totalProfiles">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>可用 Profiles</h3>
-                <div class="value" id="availableProfiles">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>總 Articles</h3>
-                <div class="value" id="totalArticles">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>總瀏覽次數</h3>
-                <div class="value" id="totalViews">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>總用戶數</h3>
-                <div class="value" id="totalUsers">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>佳麗人數</h3>
-                <div class="value" id="totalProviders">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>品茶客數</h3>
-                <div class="value" id="totalClients">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>總預約數</h3>
-                <div class="value" id="totalBookings">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>待處理預約</h3>
-                <div class="value" id="pendingBookings">-</div>
-            </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #1a5f3f 0%, #15803d 100%); color: white;">
+            <div class="stat-card" style="background: linear-gradient(135deg, #1a5f3f 0%, #15803d 100%); color: white; grid-column: span 2;">
                 <h3 style="color: rgba(255,255,255,0.9);">🟢 在線人數</h3>
-                <div class="value" id="onlineCount" style="color: white; font-size: 2.5rem;">-</div>
-                <div style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.9;">
-                    <span id="onlineLoggedIn">已登入: -</span> | <span id="onlineGuests">訪客: -</span>
+                <div class="value" id="onlineCount" style="color: white; font-size: 3rem; font-weight: 700;">-</div>
+                <div style="font-size: 0.875rem; margin-top: 0.5rem; opacity: 0.9; display: flex; gap: 1rem; justify-content: center;">
+                    <span id="onlineLoggedIn">已登入: -</span>
+                    <span>|</span>
+                    <span id="onlineGuests">訪客: -</span>
                 </div>
             </div>
-            <div class="stat-card">
-                <h3>國家 / 國籍篩選</h3>
-                <div>
-                    <select id="nationalityFilter" onchange="loadProfiles()" style="padding: 0.5rem 0.75rem; border-radius: 999px; border: 1px solid #e5e7eb; font-size: 0.875rem;">
-                        <option value="">全部</option>
-                        <option value="🇹🇼">🇹🇼 台灣</option>
-                        <option value="🇯🇵">🇯🇵 日本</option>
-                        <option value="🇰🇷">🇰🇷 韓國</option>
-                        <option value="🇭🇰">🇭🇰 香港</option>
-                        <option value="🇨🇳">🇨🇳 中國</option>
-                        <option value="🇹🇭">🇹🇭 泰國</option>
-                        <option value="🇻🇳">🇻🇳 越南</option>
-                        <option value="🇲🇾">🇲🇾 馬來西亞</option>
-                        <option value="🇸🇬">🇸🇬 新加坡</option>
-                    </select>
-                </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white;">
+                <h3 style="color: rgba(255,255,255,0.9);">📊 總用戶數</h3>
+                <div class="value" id="totalUsers" style="color: white; font-size: 2rem;">-</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white;">
+                <h3 style="color: rgba(255,255,255,0.9);">👩 佳麗人數</h3>
+                <div class="value" id="totalProviders" style="color: white; font-size: 2rem;">-</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); color: white;">
+                <h3 style="color: rgba(255,255,255,0.9);">👤 品茶客數</h3>
+                <div class="value" id="totalClients" style="color: white; font-size: 2rem;">-</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                <h3 style="color: rgba(255,255,255,0.9);">📅 待處理預約</h3>
+                <div class="value" id="pendingBookings" style="color: white; font-size: 2rem;">-</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                <h3 style="color: rgba(255,255,255,0.9);">✅ 可用 Profiles</h3>
+                <div class="value" id="availableProfiles" style="color: white; font-size: 2rem;">-</div>
             </div>
         </div>
 
@@ -887,10 +857,54 @@ router.get('/', (req, res) => {
         </div>
 
         <div class="content">
-            <div id="profiles-tab">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <!-- 儀表板標籤頁 -->
+            <div id="dashboard-tab">
+                <div style="padding: 2rem; text-align: center; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; margin-bottom: 2rem;">
+                    <h2 style="color: #1a5f3f; margin-bottom: 1rem;">📊 管理面板總覽</h2>
+                    <p style="color: #15803d; font-size: 1.1rem;">歡迎使用茶王管理系統</p>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" onclick="showTab(null, 'profiles')" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">🍵 高級茶管理</h3>
+                        <p style="color: #666; font-size: 0.875rem;">管理嚴選好茶資料</p>
+                        <div style="margin-top: 1rem; color: #1a5f3f; font-weight: 600;">點擊進入 →</div>
+                    </div>
+                    <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" onclick="showTab(null, 'provider-profiles')" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">👩 佳麗管理</h3>
+                        <p style="color: #666; font-size: 0.875rem;">管理茶茶上架資料</p>
+                        <div style="margin-top: 1rem; color: #1a5f3f; font-weight: 600;">點擊進入 →</div>
+                    </div>
+                    <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" onclick="showTab(null, 'users')" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">👥 用戶管理</h3>
+                        <p style="color: #666; font-size: 0.875rem;">查看和管理所有用戶</p>
+                        <div style="margin-top: 1rem; color: #1a5f3f; font-weight: 600;">點擊進入 →</div>
+                    </div>
+                    <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" onclick="showTab(null, 'bookings')" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">📅 預約管理</h3>
+                        <p style="color: #666; font-size: 0.875rem;">管理所有預約記錄</p>
+                        <div style="margin-top: 1rem; color: #1a5f3f; font-weight: 600;">點擊進入 →</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="profiles-tab" class="hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
                     <h2>高級茶管理（嚴選好茶）</h2>
-                    <button class="btn btn-success" onclick="showProfileForm()">+ 新增高級茶</button>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <select id="nationalityFilter" onchange="loadProfiles()" style="padding: 0.5rem 1rem; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 0.875rem;">
+                            <option value="">全部國籍</option>
+                            <option value="🇹🇼">🇹🇼 台灣</option>
+                            <option value="🇯🇵">🇯🇵 日本</option>
+                            <option value="🇰🇷">🇰🇷 韓國</option>
+                            <option value="🇭🇰">🇭🇰 香港</option>
+                            <option value="🇨🇳">🇨🇳 中國</option>
+                            <option value="🇹🇭">🇹🇭 泰國</option>
+                            <option value="🇻🇳">🇻🇳 越南</option>
+                            <option value="🇲🇾">🇲🇾 馬來西亞</option>
+                            <option value="🇸🇬">🇸🇬 新加坡</option>
+                        </select>
+                        <button class="btn btn-success" onclick="showProfileForm()">+ 新增高級茶</button>
+                    </div>
                 </div>
                 <div id="profiles-list"></div>
             </div>
@@ -939,6 +953,49 @@ router.get('/', (req, res) => {
                     <button class="tab" data-booking-tab="fish-market" onclick="showBookingTab(event, 'fish-market')" style="padding: 0.75rem 1.5rem; background: none; border: none; cursor: pointer; font-size: 0.875rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px;">特選魚市的預約</button>
                 </div>
                 <div id="bookings-list"></div>
+            </div>
+
+            <!-- 統計詳情標籤頁 -->
+            <div id="stats-detail-tab" class="hidden">
+                <h2 style="margin-bottom: 1.5rem;">📈 詳細統計數據</h2>
+                <div class="stats" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="stat-card">
+                        <h3>總 Profiles</h3>
+                        <div class="value" id="statsDetailTotalProfiles">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>可用 Profiles</h3>
+                        <div class="value" id="statsDetailAvailableProfiles">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>總 Articles</h3>
+                        <div class="value" id="statsDetailTotalArticles">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>總瀏覽次數</h3>
+                        <div class="value" id="statsDetailTotalViews">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>總用戶數</h3>
+                        <div class="value" id="statsDetailTotalUsers">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>佳麗人數</h3>
+                        <div class="value" id="statsDetailTotalProviders">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>品茶客數</h3>
+                        <div class="value" id="statsDetailTotalClients">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>總預約數</h3>
+                        <div class="value" id="statsDetailTotalBookings">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>待處理預約</h3>
+                        <div class="value" id="statsDetailPendingBookings">-</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1362,8 +1419,9 @@ router.get('/', (req, res) => {
         window.addEventListener('DOMContentLoaded', () => {
             if (checkAuth()) {
                 loadStats();
-                loadProfiles();
                 startOnlineStatsUpdate(); // 開始在線人數更新
+                // 默認顯示儀表板
+                showTab(null, 'dashboard');
             }
         });
 
@@ -1383,21 +1441,30 @@ router.get('/', (req, res) => {
                     headers: getAuthHeaders()
                 });
                 const stats = await res.json();
-                document.getElementById('totalProfiles').textContent = stats.profiles.total;
-                document.getElementById('availableProfiles').textContent = stats.profiles.available;
-                document.getElementById('totalArticles').textContent = stats.articles.total;
-                document.getElementById('totalViews').textContent = stats.articles.totalViews.toLocaleString();
+                
+                // 只更新儀表板上存在的元素（添加空值檢查）
+                const updateElement = (id, value) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.textContent = value;
+                    }
+                };
+                
+                // 更新儀表板上的統計卡片（只更新存在的）
+                updateElement('availableProfiles', stats.profiles?.available || '-');
                 
                 // 載入用戶統計（如果有的話）
                 if (stats.users) {
-                    document.getElementById('totalUsers').textContent = stats.users.total || '-';
-                    document.getElementById('totalProviders').textContent = stats.users.providers || '-';
-                    document.getElementById('totalClients').textContent = stats.users.clients || '-';
+                    updateElement('totalUsers', stats.users.total || '-');
+                    updateElement('totalProviders', stats.users.providers || '-');
+                    updateElement('totalClients', stats.users.clients || '-');
                 }
                 if (stats.bookings) {
-                    document.getElementById('totalBookings').textContent = stats.bookings.total || '-';
-                    document.getElementById('pendingBookings').textContent = stats.bookings.pending || '-';
+                    updateElement('pendingBookings', stats.bookings.pending || '-');
                 }
+                
+                // 同時更新統計詳情標籤頁的數據
+                loadStatsDetail(stats);
                 
                 // 恢復正常透明度
                 statCards.forEach(card => {
@@ -1413,6 +1480,38 @@ router.get('/', (req, res) => {
                         card.style.color = '#ef4444';
                     }
                 });
+            }
+        }
+
+        // 載入統計詳情（用於統計詳情標籤頁）
+        async function loadStatsDetail(statsData = null) {
+            try {
+                if (!statsData) {
+                    const res = await fetch(API_BASE + '/api/admin/stats', {
+                        headers: getAuthHeaders()
+                    });
+                    statsData = await res.json();
+                }
+                
+                // 更新統計詳情標籤頁的所有數據
+                const detailEls = {
+                    'statsDetailTotalProfiles': statsData.profiles?.total || '-',
+                    'statsDetailAvailableProfiles': statsData.profiles?.available || '-',
+                    'statsDetailTotalArticles': statsData.articles?.total || '-',
+                    'statsDetailTotalViews': statsData.articles?.totalViews?.toLocaleString() || '-',
+                    'statsDetailTotalUsers': statsData.users?.total || '-',
+                    'statsDetailTotalProviders': statsData.users?.providers || '-',
+                    'statsDetailTotalClients': statsData.users?.clients || '-',
+                    'statsDetailTotalBookings': statsData.bookings?.total || '-',
+                    'statsDetailPendingBookings': statsData.bookings?.pending || '-'
+                };
+                
+                Object.entries(detailEls).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = value;
+                });
+            } catch (error) {
+                console.error('載入統計詳情失敗:', error);
             }
         }
 
@@ -1650,9 +1749,9 @@ router.get('/', (req, res) => {
         function showTab(evt, tab) {
             if (!tab && evt) {
                 // 如果第一個參數是 event，第二個參數是 tab
-                tab = evt.target.getAttribute('data-tab') || 'profiles';
+                tab = evt.target.getAttribute('data-tab') || 'dashboard';
             } else if (!tab) {
-                tab = 'profiles';
+                tab = 'dashboard';
             }
             
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1674,10 +1773,13 @@ router.get('/', (req, res) => {
             document.getElementById('articles-tab').classList.toggle('hidden', tab !== 'articles');
             document.getElementById('users-tab').classList.toggle('hidden', tab !== 'users');
             document.getElementById('bookings-tab').classList.toggle('hidden', tab !== 'bookings');
+            document.getElementById('stats-detail-tab').classList.toggle('hidden', tab !== 'stats-detail');
+            document.getElementById('dashboard-tab').classList.toggle('hidden', tab !== 'dashboard');
             if (tab === 'profiles') loadProfiles();
             if (tab === 'provider-profiles') loadProviderProfiles();
             if (tab === 'articles') loadArticles();
             if (tab === 'users') loadUsers();
+            if (tab === 'stats-detail') loadStatsDetail();
             if (tab === 'bookings') {
                 // 初始化預約標籤頁
                 currentBookingTab = 'premium';
@@ -3170,16 +3272,16 @@ router.get('/', (req, res) => {
             
             // 更新用戶標記顯示
             const userTags = user.userTags || [];
+            const tagLabels = {
+                'admin': '👑 管理員',
+                'staff': '👔 內部人員',
+                'troll': '🤖 水軍',
+                'vip': '💎 VIP',
+                'verified': '✅ 已驗證',
+                'test': '🧪 測試帳號'
+            };
             const tagsText = userTags.length > 0 
-                ? userTags.map(tag => {
-                    const tagLabels: { [key: string]: string } = {
-                        'admin': '👑 管理員',
-                        'staff': '👔 內部人員',
-                        'troll': '🤖 水軍',
-                        'vip': '💎 VIP',
-                        'verified': '✅ 已驗證',
-                        'test': '🧪 測試帳號'
-                    };
+                ? userTags.map(function(tag) {
                     return tagLabels[tag] || tag;
                 }).join(', ')
                 : '無';
@@ -3330,13 +3432,13 @@ router.get('/', (req, res) => {
                 });
                 if (!res.ok) throw new Error('重置失敗');
                 showMessage('✅ 密碼已重置！');
-            } catch (error: any) {
+            } catch (error) {
                 showMessage('❌ 重置失敗: ' + error.message, 'error');
             }
         }
 
         // 切換用戶標記
-        async function toggleUserTag(tag: string) {
+        async function toggleUserTag(tag) {
             if (!currentViewingUserId) return;
             
             try {
@@ -3349,9 +3451,9 @@ router.get('/', (req, res) => {
                 const currentTags = data.user.userTags || [];
                 
                 // 切換標記
-                let newTags: string[];
+                let newTags;
                 if (currentTags.includes(tag)) {
-                    newTags = currentTags.filter((t: string) => t !== tag);
+                    newTags = currentTags.filter(function(t) { return t !== tag; });
                 } else {
                     newTags = [...currentTags, tag];
                 }
@@ -3367,7 +3469,7 @@ router.get('/', (req, res) => {
                 // 重新載入用戶詳情
                 viewUserDetail(currentViewingUserId);
                 showMessage('✅ 用戶標記已更新');
-            } catch (error: any) {
+            } catch (error) {
                 showMessage('❌ 更新標記失敗: ' + error.message, 'error');
             }
         }
