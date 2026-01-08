@@ -2,9 +2,6 @@
 // 支持多種 SMS 服務提供商：Twilio、AWS SNS、或其他自定義服務
 
 import { logger } from '../middleware/logger.js';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
 
 // 追蹤是否已輸出 SMS 配置日誌（避免重複輸出）
 let smsConfigLogged = false;
@@ -87,11 +84,8 @@ const sendViaTwilio = async (phoneNumber: string, message: string): Promise<void
 
   try {
     // 動態導入 Twilio（如果已安裝）
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - twilio 是可選依賴，可能未安裝
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const twilio = require('twilio');
-    const client = twilio(accountSid, authToken);
+    const twilio = await import('twilio');
+    const client = twilio.default(accountSid, authToken);
 
     await client.messages.create({
       body: message,
@@ -129,10 +123,7 @@ const sendViaAWSSNS = async (phoneNumber: string, message: string): Promise<void
 
   try {
     // 動態導入 AWS SDK（如果已安裝）
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore - @aws-sdk/client-sns 是可選依賴，可能未安裝
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+    const { SNSClient, PublishCommand } = await import('@aws-sdk/client-sns');
     const client = new SNSClient({
       region,
       credentials: {

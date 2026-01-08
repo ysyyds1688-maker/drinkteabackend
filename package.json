@@ -36,6 +36,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/nodemailer": "^7.0.4",
     "@types/redis": "^4.0.10",
+    "@aws-sdk/client-sns": "^3.500.0",
     "axios": "^1.6.0",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
@@ -50,6 +51,7 @@
     "nodemailer": "^7.0.12",
     "pg": "^8.11.3",
     "redis": "^5.10.0",
+    "twilio": "^4.10.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
