@@ -44,7 +44,15 @@ const getUserStatus = async (req: any): Promise<'guest' | 'logged_in' | 'subscri
 // 獲取特定用戶的評論（必須在 /profiles/:profileId/reviews 之前，避免路由衝突）
 router.get('/users/:userId/reviews', async (req, res) => {
   try {
-    const { userId } = req.params;
+    let { userId } = req.params;
+    
+    // 解碼 URL 編碼的 userId（處理特殊字符如 #）
+    try {
+      userId = decodeURIComponent(userId);
+    } catch (e) {
+      // 如果解碼失敗，使用原始值
+      console.warn('Failed to decode userId:', userId, e);
+    }
     const authHeader = req.headers.authorization;
     
     // 獲取當前用戶ID（如果已登入）

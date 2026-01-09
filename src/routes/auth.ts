@@ -474,7 +474,15 @@ router.post('/logout', async (req, res) => {
 // 獲取用戶詳情（公開，用於查看其他用戶資料）
 router.get('/users/:userId', async (req, res) => {
   try {
-    const { userId } = req.params;
+    let { userId } = req.params;
+    
+    // 解碼 URL 編碼的 userId（處理特殊字符如 #）
+    try {
+      userId = decodeURIComponent(userId);
+    } catch (e) {
+      // 如果解碼失敗，使用原始值
+      console.warn('Failed to decode userId:', userId, e);
+    }
     
     // 獲取用戶基本信息
     const user = await userModel.findById(userId);
@@ -556,6 +564,15 @@ router.get('/users/:userId', async (req, res) => {
     // 獲取勳章
     const badges = await badgeModel.getUserBadges(userId);
     
+    // 構建驗證徽章數組
+    const verificationBadges: string[] = [];
+    if (user.emailVerified) {
+      verificationBadges.push('email_verified');
+    }
+    if (user.phoneVerified) {
+      verificationBadges.push('phone_verified');
+    }
+    
     res.json({
       id: user.id,
       userName: user.userName,
@@ -564,6 +581,7 @@ router.get('/users/:userId', async (req, res) => {
       phoneNumber: user.phoneNumber,
       emailVerified: user.emailVerified || false,
       phoneVerified: user.phoneVerified || false,
+      verificationBadges: verificationBadges,
       role: user.role,
       membershipLevel: calculatedLevel,
       isVip,

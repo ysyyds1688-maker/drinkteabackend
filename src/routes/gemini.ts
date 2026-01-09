@@ -168,4 +168,82 @@ router.post('/analyze-name', async (req, res) => {
   }
 });
 
+// POST /api/gemini/suggest-tags - Suggest tags for forum post
+router.post('/suggest-tags', async (req, res) => {
+  try {
+    const { title, content, category } = req.body;
+    
+    if (!title && !content) {
+      return res.status(400).json({ error: 'Title or content is required' });
+    }
+
+    const apiKey = getApiKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+    const categoryLabels: Record<string, string> = {
+      'general': '綜合討論',
+      'premium_tea': '嚴選好茶',
+      'fish_market': '特選魚市',
+      'booking': '預約交流',
+      'experience': '經驗分享',
+      'question': '問題求助',
+      'chat': '閒聊區',
+      'lady_promotion': '佳麗御選名鑑',
+      'announcement': '官方公告'
+    };
+
+    const categoryLabel = category ? categoryLabels[category] || category : '';
+
+    const prompt = `請根據以下茶帖內容，建議3-8個相關的標籤。標籤應該簡潔、相關且有用於分類和搜尋。
+
+分類：${categoryLabel || '未指定'}
+標題：${title || '（無標題）'}
+內容：${content || '（無內容）'}
+
+請根據主題、內容重點、討論類型等，提供合適的標籤建議。標籤應該是中文，長度在2-6個字之間，例如：經驗分享、新手求助、推薦、評價、問題、討論等。`;
+
+    const responseSchema = {
+      type: 'object',
+      properties: {
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '建議的標籤列表，3-8個標籤'
+        }
+      },
+      required: ['tags']
+    };
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: responseSchema as any,
+      },
+      systemInstruction: '你是一個專業的內容分析助手，擅長根據文章主題和內容提取關鍵標籤。請提供簡潔、相關且有用的標籤建議。'
+    });
+
+    const response = await result.response;
+    const resultData = JSON.parse(response.text());
+
+    res.json({ tags: resultData.tags || [] });
+  } catch (error: any) {
+    console.error('Gemini suggest-tags error:', error);
+    
+    let errorMessage = '標籤建議失敗';
+    if (error.message?.includes('GEMINI_API_KEY')) {
+      errorMessage = 'GEMINI_API_KEY 未設定，請檢查環境變數';
+    } else if (error.message?.includes('API key')) {
+      errorMessage = 'Gemini API Key 無效，請檢查環境變數設定';
+    } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      errorMessage = '無法連接到 Gemini API，請檢查網絡連線';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(500).json({ error: errorMessage });
+  }
+});
+
 export default router;

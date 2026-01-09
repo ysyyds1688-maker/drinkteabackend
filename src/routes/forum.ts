@@ -221,7 +221,15 @@ router.get('/posts', queryLimiter, forumPostsCache, async (req, res) => {
 // 獲取特定用戶的帖子（必須在 /posts/:id 之前，否則會被 /posts/:id 攔截）
 router.get('/posts/user/:userId', async (req, res) => {
   try {
-    const { userId } = req.params;
+    let { userId } = req.params;
+    
+    // 解碼 URL 編碼的 userId（處理特殊字符如 #）
+    try {
+      userId = decodeURIComponent(userId);
+    } catch (e) {
+      // 如果解碼失敗，使用原始值
+      console.warn('Failed to decode userId:', userId, e);
+    }
     const { limit, offset } = req.query;
     
     const posts = await forumModel.getPostsByUserId(

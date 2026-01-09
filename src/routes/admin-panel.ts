@@ -3281,6 +3281,14 @@ router.get('/', (req, res) => {
                         if (!bVal) return -1;
                         return aVal.localeCompare(bVal, 'zh-TW');
                         
+                    case 'publicId':
+                        // 公開ID：按字母順序排序
+                        aVal = (a.publicId || a.id || '').trim();
+                        bVal = (b.publicId || b.id || '').trim();
+                        return currentSortDirection === 'desc' 
+                            ? bVal.localeCompare(aVal, 'zh-TW')
+                            : aVal.localeCompare(bVal, 'zh-TW');
+                        
                     default:
                         return 0;
                 }
@@ -3428,11 +3436,11 @@ router.get('/', (req, res) => {
                 };
                 
                 list.innerHTML = '<div class="table-desktop"><table><thead><tr>' +
-                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'publicId\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">公開ID' + getSortIndicator('publicId') + '</th>' +
-                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'userName\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">暱稱' + getSortIndicator('userName') + '</th>' +
-                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'role\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">身份' + getSortIndicator('role') + '</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(&quot;publicId&quot;)" onmouseover="this.style.background=&quot;#f3f4f6&quot;" onmouseout="this.style.background=&quot;&quot;">公開ID' + getSortIndicator('publicId') + '</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(&quot;userName&quot;)" onmouseover="this.style.background=&quot;#f3f4f6&quot;" onmouseout="this.style.background=&quot;&quot;">暱稱' + getSortIndicator('userName') + '</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(&quot;role&quot;)" onmouseover="this.style.background=&quot;#f3f4f6&quot;" onmouseout="this.style.background=&quot;&quot;">身份' + getSortIndicator('role') + '</th>' +
                     '<th>標記</th>' +
-                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'membershipLevel\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">會員等級' + getSortIndicator('membershipLevel') + '</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(&quot;membershipLevel&quot;)" onmouseover="this.style.background=&quot;#f3f4f6&quot;" onmouseout="this.style.background=&quot;&quot;">會員等級' + getSortIndicator('membershipLevel') + '</th>' +
                     '<th>驗證</th>' +
                     '<th>狀態</th>' +
                     '<th>操作</th>' +
