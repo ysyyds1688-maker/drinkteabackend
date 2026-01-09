@@ -1387,16 +1387,60 @@ router.get('/', (req, res) => {
         
         // 獲取 Authorization header
         function getAuthHeaders() {
-            const token = localStorage.getItem('auth_token');
+            const token = safeGetItem('auth_token');
             return {
                 'Content-Type': 'application/json',
                 'Authorization': token ? 'Bearer ' + token : ''
             };
         }
 
+        // 安全的 localStorage 操作（Safari 兼容）
+        function safeSetItem(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch (e) {
+                console.warn('localStorage.setItem 失敗，嘗試使用 sessionStorage:', e);
+                try {
+                    sessionStorage.setItem(key, value);
+                    return true;
+                } catch (e2) {
+                    console.error('sessionStorage 也失敗:', e2);
+                    return false;
+                }
+            }
+        }
+        
+        function safeGetItem(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                console.warn('localStorage.getItem 失敗，嘗試使用 sessionStorage:', e);
+                try {
+                    return sessionStorage.getItem(key);
+                } catch (e2) {
+                    console.error('sessionStorage 也失敗:', e2);
+                    return null;
+                }
+            }
+        }
+        
+        function safeRemoveItem(key) {
+            try {
+                localStorage.removeItem(key);
+            } catch (e) {
+                console.warn('localStorage.removeItem 失敗:', e);
+            }
+            try {
+                sessionStorage.removeItem(key);
+            } catch (e) {
+                console.warn('sessionStorage.removeItem 失敗:', e);
+            }
+        }
+
         // 檢查登入狀態
         function checkAuth() {
-            const token = localStorage.getItem('auth_token');
+            const token = safeGetItem('auth_token');
             if (!token) {
                 document.getElementById('loginOverlay').style.display = 'flex';
                 document.querySelector('.container').style.display = 'none';
@@ -1406,12 +1450,17 @@ router.get('/', (req, res) => {
             document.querySelector('.container').style.display = 'block';
             // 顯示用戶信息
             try {
-                const user = JSON.parse(localStorage.getItem('user_info') || '{}');
-                if (user.email) {
-                    document.getElementById('userEmail').textContent = user.email;
-                    document.getElementById('userInfo').style.display = 'flex';
+                const userInfo = safeGetItem('user_info');
+                if (userInfo) {
+                    const user = JSON.parse(userInfo);
+                    if (user.email) {
+                        document.getElementById('userEmail').textContent = user.email;
+                        document.getElementById('userInfo').style.display = 'flex';
+                    }
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('解析用戶信息失敗:', e);
+            }
             return true;
         }
 
@@ -1444,9 +1493,16 @@ router.get('/', (req, res) => {
                     throw new Error('只有管理員可以登入後台系統');
                 }
 
-                // 保存 token 和用戶信息
-                localStorage.setItem('auth_token', data.token);
-                localStorage.setItem('user_info', JSON.stringify(data.user));
+                // 保存 token 和用戶信息（使用安全的存儲方法，兼容 Safari）
+                const tokenSaved = safeSetItem('auth_token', data.token);
+                const userInfoSaved = safeSetItem('user_info', JSON.stringify(data.user));
+                
+                if (!tokenSaved || !userInfoSaved) {
+                    // 如果存儲失敗，顯示警告但繼續
+                    console.warn('⚠️ 無法保存登入信息到 localStorage/sessionStorage，可能是 Safari 隱私設置限制');
+                    // 在 Safari 中，可能需要用戶允許網站存儲數據
+                    alert('⚠️ 警告：無法保存登入信息。請檢查 Safari 的隱私設置，允許網站存儲數據。\n\n設置路徑：Safari > 偏好設定 > 隱私權 > 取消勾選「防止跨網站追蹤」');
+                }
 
                 // 隱藏登入界面
                 checkAuth();
@@ -1465,8 +1521,8 @@ router.get('/', (req, res) => {
 
         // 處理登出
         function handleLogout() {
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('user_info');
+            safeRemoveItem('auth_token');
+            safeRemoveItem('user_info');
             checkAuth();
         }
 
@@ -1871,7 +1927,7 @@ router.get('/', (req, res) => {
             if (!resultDiv) return;
             
             // 檢查是否已登入
-            const token = localStorage.getItem('auth_token');
+            const token = safeGetItem('auth_token');
             if (!token) {
                 resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<div style="background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>⚠️</span><strong>請先登入</strong></div><p style="margin: 0; font-size: 0.875rem;">請先登入後台管理系統後再測試 Telegram 通知</p></div>';
@@ -1911,7 +1967,7 @@ router.get('/', (req, res) => {
             if (!resultDiv) return;
             
             // 檢查是否已登入
-            const token = localStorage.getItem('auth_token');
+            const token = safeGetItem('auth_token');
             if (!token) {
                 resultDiv.style.display = 'block';
                 resultDiv.innerHTML = '<div style="background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>⚠️</span><strong>請先登入</strong></div><p style="margin: 0; font-size: 0.875rem;">請先登入後台管理系統後再檢查配置</p></div>';
@@ -3156,7 +3212,7 @@ router.get('/', (req, res) => {
         // 載入用戶列表
         async function loadUsers() {
             try {
-                const token = localStorage.getItem('auth_token');
+                const token = safeGetItem('auth_token');
                 if (!token) {
                     alert('請先登入');
                     return;
@@ -3478,7 +3534,7 @@ router.get('/', (req, res) => {
         async function viewUserDetail(userId) {
             try {
                 currentViewingUserId = userId;
-                const token = localStorage.getItem('auth_token');
+                const token = safeGetItem('auth_token');
                 if (!token) {
                     showMessage('請先登入', 'error');
                     return;
@@ -3960,7 +4016,7 @@ router.get('/', (req, res) => {
         // 導出用戶資料
         async function exportUsers() {
             try {
-                const token = localStorage.getItem('auth_token');
+                const token = safeGetItem('auth_token');
                 if (!token) {
                     alert('請先登入');
                     return;
@@ -4044,7 +4100,7 @@ router.get('/', (req, res) => {
         // 載入預約列表
         async function loadBookings() {
             try {
-                const token = localStorage.getItem('auth_token');
+                const token = safeGetItem('auth_token');
                 if (!token) {
                     alert('請先登入');
                     return;
@@ -4138,7 +4194,7 @@ router.get('/', (req, res) => {
         // 更新預約狀態
         async function updateBookingStatus(bookingId, status) {
             try {
-                const token = localStorage.getItem('auth_token');
+                const token = safeGetItem('auth_token');
                 if (!token) {
                     alert('請先登入');
                     return;
