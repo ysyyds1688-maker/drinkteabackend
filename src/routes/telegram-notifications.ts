@@ -145,12 +145,12 @@ async function checkAndReportTelegram(requireAdmin: boolean = false): Promise<{ 
         SELECT 
           fp.id,
           fp.title,
-          fp.author_id,
+          fp.user_id,
           fp.category,
           fp.created_at,
           u.user_name as author_name
         FROM forum_posts fp
-        LEFT JOIN users u ON fp.author_id = u.id
+        LEFT JOIN users u ON fp.user_id = u.id
         WHERE fp.created_at > $1
         ORDER BY fp.created_at DESC
       `, [checkTime.toISOString()]);
@@ -158,7 +158,7 @@ async function checkAndReportTelegram(requireAdmin: boolean = false): Promise<{ 
       newPosts = newPostsResult.rows.map(row => ({
         id: row.id,
         title: row.title,
-        authorId: row.author_id,
+        authorId: row.user_id,
         authorName: row.author_name,
         category: row.category,
         createdAt: row.created_at,

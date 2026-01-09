@@ -1855,6 +1855,14 @@ router.get('/', (req, res) => {
             const resultDiv = document.getElementById('telegramTestResult');
             if (!resultDiv) return;
             
+            // 檢查是否已登入
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<div style="background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>⚠️</span><strong>請先登入</strong></div><p style="margin: 0; font-size: 0.875rem;">請先登入後台管理系統後再測試 Telegram 通知</p></div>';
+                return;
+            }
+            
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 0.5rem; color: #3b82f6;"><div style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div> 正在發送測試消息...</div>';
             
@@ -1869,10 +1877,16 @@ router.get('/', (req, res) => {
                 if (res.ok && data.success) {
                     resultDiv.innerHTML = '<div style="background: #d1fae5; border: 1px solid #10b981; color: #065f46; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>✅</span><strong>測試成功！</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (data.message || '測試消息已發送到 Telegram 群組，請檢查是否收到。') + '</p></div>';
                 } else {
-                    resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (data.error || data.message || '未知錯誤') + '</p></div>';
+                    let errorMsg = data.error || data.message || '未知錯誤';
+                    if (res.status === 401) {
+                        errorMsg = '未授權：請重新登入後台管理系統';
+                    } else if (res.status === 403) {
+                        errorMsg = '無權訪問：僅管理員可以使用此功能';
+                    }
+                    resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + errorMsg + '</p></div>';
                 }
             } catch (error) {
-                resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + error.message + '</p></div>';
+                resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (error.message || '網絡錯誤，請檢查連接') + '</p></div>';
             }
         }
 
@@ -1880,6 +1894,14 @@ router.get('/', (req, res) => {
         async function checkTelegramConfig() {
             const resultDiv = document.getElementById('telegramTestResult');
             if (!resultDiv) return;
+            
+            // 檢查是否已登入
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<div style="background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>⚠️</span><strong>請先登入</strong></div><p style="margin: 0; font-size: 0.875rem;">請先登入後台管理系統後再檢查配置</p></div>';
+                return;
+            }
             
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 0.5rem; color: #3b82f6;"><div style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div> 正在檢查配置...</div>';
@@ -1916,10 +1938,16 @@ router.get('/', (req, res) => {
                     
                     resultDiv.innerHTML = '<div style="background: ' + bgColor + '; border: 1px solid ' + borderColor + '; color: ' + textColor + '; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>' + statusIcon + '</span><strong>配置狀態：' + statusText + '</strong></div>' + configDetails + '</div>';
                 } else {
-                    resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>檢查失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (data.error || '未知錯誤') + '</p></div>';
+                    let errorMsg = data.error || data.message || '未知錯誤';
+                    if (res.status === 401) {
+                        errorMsg = '未授權：請重新登入後台管理系統';
+                    } else if (res.status === 403) {
+                        errorMsg = '無權訪問：僅管理員可以查看 Telegram 配置';
+                    }
+                    resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>檢查失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + errorMsg + '</p></div>';
                 }
             } catch (error) {
-                resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>檢查失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + error.message + '</p></div>';
+                resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>檢查失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (error.message || '網絡錯誤，請檢查連接') + '</p></div>';
             }
         }
 
