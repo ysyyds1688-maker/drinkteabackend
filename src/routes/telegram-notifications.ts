@@ -288,7 +288,7 @@ router.post('/check-and-report', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
 

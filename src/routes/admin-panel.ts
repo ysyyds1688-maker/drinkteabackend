@@ -1046,13 +1046,26 @@ router.get('/', (req, res) => {
                 
                 <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0;">
                     <h3 style="margin-bottom: 1rem;">用戶標記</h3>
+                    <div style="margin-bottom: 0.75rem; font-size: 0.875rem; color: #666;">
+                        <strong>職務標記：</strong>
+                    </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
                         <button class="btn" id="tagAdminBtn" onclick="toggleUserTag('admin')" style="background: #fbbf24; color: #1a1a1a; opacity: 0.5;">👑 管理員</button>
+                        <button class="btn" id="tagModeratorBtn" onclick="toggleUserTag('moderator')" style="background: #8b5cf6; color: white; opacity: 0.5;">🛡️ 版主</button>
+                        <button class="btn" id="tagSubModeratorBtn" onclick="toggleUserTag('sub_moderator')" style="background: #a78bfa; color: white; opacity: 0.5;">🛡️ 副版主</button>
                         <button class="btn" id="tagStaffBtn" onclick="toggleUserTag('staff')" style="background: #3b82f6; color: white; opacity: 0.5;">👔 內部人員</button>
-                        <button class="btn" id="tagTrollBtn" onclick="toggleUserTag('troll')" style="background: #ef4444; color: white; opacity: 0.5;">🤖 水軍</button>
+                    </div>
+                    <div style="margin-bottom: 0.75rem; font-size: 0.875rem; color: #666; margin-top: 1rem;">
+                        <strong>其他標記：</strong>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
                         <button class="btn" id="tagVipBtn" onclick="toggleUserTag('vip')" style="background: #10b981; color: white; opacity: 0.5;">💎 VIP</button>
                         <button class="btn" id="tagVerifiedBtn" onclick="toggleUserTag('verified')" style="background: #8b5cf6; color: white; opacity: 0.5;">✅ 已驗證</button>
+                        <button class="btn" id="tagTrollBtn" onclick="toggleUserTag('troll')" style="background: #ef4444; color: white; opacity: 0.5;">🤖 水軍</button>
                         <button class="btn" id="tagTestBtn" onclick="toggleUserTag('test')" style="background: #6b7280; color: white; opacity: 0.5;">🧪 測試帳號</button>
+                    </div>
+                    <div style="padding: 0.75rem; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 0.875rem; color: #1e40af; margin-top: 0.5rem;">
+                        <strong>💡 說明：</strong>職務標記（管理員、版主、副版主）會賦予用戶相應的管理權限。其他標記僅用於標識用戶屬性。
                     </div>
                 </div>
                 
@@ -1424,8 +1437,10 @@ router.get('/', (req, res) => {
                     throw new Error(data.error || '登入失敗');
                 }
 
-                // 檢查是否為 admin
-                if (data.user.role !== 'admin') {
+                // 檢查是否為 admin（檢查 role 或 userTags）
+                const userTags = data.user.userTags || [];
+                const isAdmin = data.user.role === 'admin' || (Array.isArray(userTags) && userTags.includes('admin'));
+                if (!isAdmin) {
                     throw new Error('只有管理員可以登入後台系統');
                 }
 
@@ -3161,6 +3176,119 @@ router.get('/', (req, res) => {
             }
         }
         
+        // 排序狀態
+        let currentSortField = null;
+        let currentSortDirection = 'asc'; // 'asc' 或 'desc'
+        
+        // 排序用戶
+        function sortUsers(field) {
+            // 如果點擊同一個欄位，切換排序方向
+            if (currentSortField === field) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortField = field;
+                currentSortDirection = 'asc';
+            }
+            
+            // 獲取過濾後的用戶列表
+            const searchTerm = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
+            const roleFilter = document.getElementById('userRoleFilter')?.value || '';
+            
+            let filtered = allUsersData.filter(u => {
+                // 搜索過濾
+                if (searchTerm) {
+                    const searchableText = [
+                        u.email || '',
+                        u.publicId || u.id || '',
+                        u.phoneNumber || '',
+                        u.userName || ''
+                    ].join(' ').toLowerCase();
+                    
+                    if (!searchableText.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+                
+                // 身份過濾
+                if (roleFilter && u.role !== roleFilter) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // 執行排序
+            filtered.sort(function(a, b) {
+                let aVal, bVal;
+                
+                switch (field) {
+                    case 'membershipLevel':
+                        // 會員等級：從高到低（定義等級順序）
+                        const levelOrder = {
+                            // 品茶客等級（從低到高）
+                            'tea_guest': 1,
+                            'tea_scholar': 2,
+                            'royal_tea_scholar': 3,
+                            'royal_tea_officer': 4,
+                            'tea_king_attendant': 5,
+                            'imperial_chief_tea_officer': 6,
+                            'tea_king_confidant': 7,
+                            'tea_king_personal_selection': 8,
+                            'imperial_golden_seal_tea_officer': 9,
+                            'national_master_tea_officer': 10,
+                            // 後宮佳麗等級（從低到高）
+                            'lady_trainee': 1,
+                            'lady_apprentice': 2,
+                            'lady_junior': 3,
+                            'lady_senior': 4,
+                            'lady_expert': 5,
+                            'lady_master': 6,
+                            'lady_elite': 7,
+                            'lady_premium': 8,
+                            'lady_royal': 9,
+                            'lady_empress': 10
+                        };
+                        aVal = levelOrder[a.membershipLevel] || 0;
+                        bVal = levelOrder[b.membershipLevel] || 0;
+                        // 降序排列（高級在前）
+                        return currentSortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+                        
+                    case 'userName':
+                        // 暱稱：有到無
+                        aVal = (a.userName || '').trim();
+                        bVal = (b.userName || '').trim();
+                        if (!aVal && !bVal) return 0;
+                        if (!aVal) return currentSortDirection === 'desc' ? -1 : 1; // 無暱稱排在最後
+                        if (!bVal) return currentSortDirection === 'desc' ? 1 : -1;
+                        // 有暱稱的按字母順序
+                        return currentSortDirection === 'desc' 
+                            ? bVal.localeCompare(aVal, 'zh-TW')
+                            : aVal.localeCompare(bVal, 'zh-TW');
+                        
+                    case 'role':
+                        // 身份：品茶客和後宮佳麗分組
+                        const roleOrder = { 'client': 1, 'provider': 2, 'admin': 3 };
+                        aVal = roleOrder[a.role] || 0;
+                        bVal = roleOrder[b.role] || 0;
+                        if (aVal !== bVal) {
+                            return currentSortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+                        }
+                        // 同身份內按暱稱排序
+                        aVal = (a.userName || '').trim();
+                        bVal = (b.userName || '').trim();
+                        if (!aVal && !bVal) return 0;
+                        if (!aVal) return 1;
+                        if (!bVal) return -1;
+                        return aVal.localeCompare(bVal, 'zh-TW');
+                        
+                    default:
+                        return 0;
+                }
+            });
+            
+            renderUsers(filtered);
+        }
+        
         // 過濾用戶
         function filterUsers() {
             const searchTerm = (document.getElementById('userSearchInput')?.value || '').toLowerCase();
@@ -3188,6 +3316,12 @@ router.get('/', (req, res) => {
                 
                 return true;
             });
+            
+            // 如果有排序，應用排序
+            if (currentSortField) {
+                sortUsers(currentSortField);
+                return; // sortUsers 會調用 renderUsers
+            }
             
             renderUsers(filtered);
         }
@@ -3242,6 +3376,8 @@ router.get('/', (req, res) => {
                 if (tags.length === 0) return '-';
                 const tagLabels = {
                     'admin': '👑',
+                    'moderator': '🛡️',
+                    'sub_moderator': '🛡️',
                     'staff': '👔',
                     'troll': '🤖',
                     'vip': '💎',
@@ -3281,7 +3417,26 @@ router.get('/', (req, res) => {
                     '<div style="margin-top: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 6px; text-align: center; color: #666; font-size: 0.875rem;">共顯示 ' + users.length + ' 位用戶</div>';
             } else {
                 // 桌面：表格布局（簡化版，只保留：公開ID、暱稱、身份、標記、會員等級、驗證、狀態、操作）
-                list.innerHTML = '<div class="table-desktop"><table><thead><tr><th>公開ID</th><th>暱稱</th><th>身份</th><th>標記</th><th>會員等級</th><th>驗證</th><th>狀態</th><th>操作</th></tr></thead><tbody>' +
+                // 生成排序指示器
+                const getSortIndicator = function(field) {
+                    if (currentSortField !== field) {
+                        return '<span style="color: #ccc; margin-left: 0.25rem;">↕</span>';
+                    }
+                    return currentSortDirection === 'asc' 
+                        ? '<span style="color: #1a5f3f; margin-left: 0.25rem;">↑</span>'
+                        : '<span style="color: #1a5f3f; margin-left: 0.25rem;">↓</span>';
+                };
+                
+                list.innerHTML = '<div class="table-desktop"><table><thead><tr>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'publicId\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">公開ID' + getSortIndicator('publicId') + '</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'userName\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">暱稱' + getSortIndicator('userName') + '</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'role\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">身份' + getSortIndicator('role') + '</th>' +
+                    '<th>標記</th>' +
+                    '<th style="cursor: pointer; user-select: none;" onclick="sortUsers(\'membershipLevel\')" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">會員等級' + getSortIndicator('membershipLevel') + '</th>' +
+                    '<th>驗證</th>' +
+                    '<th>狀態</th>' +
+                    '<th>操作</th>' +
+                    '</tr></thead><tbody>' +
                     users.map(u => {
                         const role = u.role === 'client' ? '👤 品茶客' : u.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
                         const membership = getMembershipLabel(u.membershipLevel || 'tea_guest');
@@ -3451,8 +3606,20 @@ router.get('/', (req, res) => {
             }
             
             // 更新標記按鈕狀態
-            ['admin', 'staff', 'troll', 'vip', 'verified', 'test'].forEach(tag => {
-                const btn = document.getElementById('tag' + tag.charAt(0).toUpperCase() + tag.slice(1) + 'Btn');
+            const tagButtonMap = {
+                'admin': 'tagAdminBtn',
+                'moderator': 'tagModeratorBtn',
+                'sub_moderator': 'tagSubModeratorBtn',
+                'staff': 'tagStaffBtn',
+                'troll': 'tagTrollBtn',
+                'vip': 'tagVipBtn',
+                'verified': 'tagVerifiedBtn',
+                'test': 'tagTestBtn'
+            };
+            
+            Object.keys(tagButtonMap).forEach(tag => {
+                const btnId = tagButtonMap[tag];
+                const btn = document.getElementById(btnId);
                 if (btn) {
                     if (userTags.includes(tag)) {
                         btn.classList.add('active');

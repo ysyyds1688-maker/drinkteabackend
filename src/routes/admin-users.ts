@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { userModel } from '../models/User.js';
 import { bookingModel, Booking } from '../models/Booking.js';
 import { verifyToken } from '../services/authService.js';
+import { hasAdminPermission } from '../utils/permissions.js';
 
 const router = Router();
 
@@ -25,8 +26,8 @@ const getUserFromRequest = async (req: any) => {
 router.get('/', async (req, res) => {
   try {
     const user = await getUserFromRequest(req);
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: '无权访问' });
+    if (!hasAdminPermission(user)) {
+      return res.status(403).json({ error: '無權訪問' });
     }
     
     const users = await userModel.getAll();
@@ -63,8 +64,8 @@ router.get('/:userId', async (req, res) => {
     const { userId } = req.params;
     const user = await getUserFromRequest(req);
     
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: '无权访问' });
+    if (!hasAdminPermission(user)) {
+      return res.status(403).json({ error: '無權訪問' });
     }
     
     const targetUser = await userModel.findById(userId);
@@ -124,7 +125,7 @@ router.put('/:userId', async (req, res) => {
     const { userId } = req.params;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -151,7 +152,7 @@ router.put('/:userId/level', async (req, res) => {
     const { level } = req.body;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -237,7 +238,7 @@ router.post('/:userId/ban', async (req, res) => {
     const { reason } = req.body;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -269,7 +270,7 @@ router.post('/:userId/unban', async (req, res) => {
     const { userId } = req.params;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -298,7 +299,7 @@ router.post('/:userId/reset-password', async (req, res) => {
     const { newPassword } = req.body;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -336,7 +337,7 @@ router.post('/:userId/auto-verify', async (req, res) => {
     const { userId } = req.params;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -392,7 +393,7 @@ router.post('/:userId/add-points', async (req, res) => {
     const { points } = req.body;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -426,7 +427,7 @@ router.put('/:userId/tags', async (req, res) => {
     const { tags } = req.body;
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!hasAdminPermission(adminUser)) {
       return res.status(403).json({ error: '無權訪問' });
     }
     
@@ -435,7 +436,7 @@ router.put('/:userId/tags', async (req, res) => {
     }
     
     // 驗證標記值（只允許預定義的標記）
-    const allowedTags = ['admin', 'staff', 'troll', 'vip', 'verified', 'test'];
+    const allowedTags = ['admin', 'moderator', 'sub_moderator', 'staff', 'troll', 'vip', 'verified', 'test'];
     const validTags = tags.filter((tag: string) => allowedTags.includes(tag));
     
     const updatedUser = await userModel.update(userId, { userTags: validTags });
