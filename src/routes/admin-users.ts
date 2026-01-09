@@ -242,6 +242,10 @@ router.post('/:userId/ban', async (req, res) => {
       return res.status(403).json({ error: '無權訪問' });
     }
     
+    if (!adminUser) {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+    
     // 更新用戶封禁狀態
     const banReason = reason || '管理員封禁';
     const bannedAt = new Date().toISOString();

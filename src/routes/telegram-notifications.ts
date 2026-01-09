@@ -9,6 +9,7 @@ import { bookingModel } from '../models/Booking.js';
 import { query } from '../db/database.js';
 import { getUserFromRequest } from '../middleware/auth.js';
 import { userModel } from '../models/User.js';
+import { hasAdminPermission } from '../utils/permissions.js';
 
 // 存儲上次檢查的時間戳
 let lastCheckTime: Date = new Date();
