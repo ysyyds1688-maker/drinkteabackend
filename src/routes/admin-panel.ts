@@ -1467,11 +1467,30 @@ router.get('/', (req, res) => {
         // 處理登入
         async function handleLogin(event) {
             event.preventDefault();
-            const email = document.getElementById('loginEmail').value;
+            const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
+            const loginBtn = event.target.querySelector('button[type="submit"]') || event.target;
+
+            // 清除之前的錯誤
+            errorDiv.textContent = '';
+            errorDiv.classList.remove('show');
+
+            // 驗證輸入
+            if (!email || !password) {
+                errorDiv.textContent = '請輸入 Email 和密碼';
+                errorDiv.classList.add('show');
+                return;
+            }
+
+            // 顯示載入狀態
+            const originalBtnText = loginBtn.textContent;
+            loginBtn.disabled = true;
+            loginBtn.textContent = '登入中...';
 
             try {
+                console.log('[登入] 開始登入請求', { email, apiBase: API_BASE });
+                
                 const res = await fetch(API_BASE + '/api/auth/login', {
                     method: 'POST',
                     headers: {
@@ -1480,28 +1499,60 @@ router.get('/', (req, res) => {
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await res.json();
+                console.log('[登入] 收到回應', { status: res.status, ok: res.ok });
+
+                let data;
+                try {
+                    data = await res.json();
+                    console.log('[登入] 解析回應數據', { hasUser: !!data.user, hasToken: !!data.token, userRole: data.user?.role });
+                } catch (parseError) {
+                    console.error('[登入] JSON 解析失敗', parseError);
+                    const text = await res.text();
+                    console.error('[登入] 回應內容', text);
+                    throw new Error('伺服器回應格式錯誤，請稍後再試');
+                }
 
                 if (!res.ok) {
-                    throw new Error(data.error || '登入失敗');
+                    const errorMsg = data.error || '登入失敗 (HTTP ' + res.status + ')';
+                    console.error('[登入] 登入失敗', { status: res.status, error: errorMsg });
+                    throw new Error(errorMsg);
+                }
+
+                // 檢查是否有用戶數據和 token
+                if (!data.user) {
+                    console.error('[登入] 回應中缺少用戶數據');
+                    throw new Error('登入回應中缺少用戶數據');
+                }
+
+                if (!data.token) {
+                    console.error('[登入] 回應中缺少 token');
+                    throw new Error('登入回應中缺少 token');
                 }
 
                 // 檢查是否為 admin（檢查 role 或 userTags）
                 const userTags = data.user.userTags || [];
                 const isAdmin = data.user.role === 'admin' || (Array.isArray(userTags) && userTags.includes('admin'));
+                
+                console.log('[登入] 檢查管理員權限', { 
+                    role: data.user.role, 
+                    userTags: userTags, 
+                    isAdmin: isAdmin 
+                });
+
                 if (!isAdmin) {
-                    throw new Error('只有管理員可以登入後台系統');
+                    throw new Error('只有管理員可以登入後台系統。您的角色：' + (data.user.role || '未知'));
                 }
 
                 // 保存 token 和用戶信息（使用安全的存儲方法，兼容 Safari）
                 const tokenSaved = safeSetItem('auth_token', data.token);
                 const userInfoSaved = safeSetItem('user_info', JSON.stringify(data.user));
                 
+                console.log('[登入] 保存登入信息', { tokenSaved, userInfoSaved });
+
                 if (!tokenSaved || !userInfoSaved) {
                     // 如果存儲失敗，顯示警告但繼續
-                    console.warn('⚠️ 無法保存登入信息到 localStorage/sessionStorage，可能是 Safari 隱私設置限制');
-                    // 在 Safari 中，可能需要用戶允許網站存儲數據
-                    alert('⚠️ 警告：無法保存登入信息。請檢查 Safari 的隱私設置，允許網站存儲數據。\n\n設置路徑：Safari > 偏好設定 > 隱私權 > 取消勾選「防止跨網站追蹤」');
+                    console.warn('⚠️ 無法保存登入信息到 localStorage/sessionStorage');
+                    alert('⚠️ 警告：無法保存登入信息。請檢查瀏覽器的隱私設置，允許網站存儲數據。');
                 }
 
                 // 隱藏登入界面
@@ -1510,12 +1561,22 @@ router.get('/', (req, res) => {
                 // 載入數據
                 loadStats();
                 loadProfiles();
+                
+                console.log('[登入] 登入成功');
             } catch (error) {
-                errorDiv.textContent = error.message;
+                console.error('[登入] 登入錯誤', error);
+                const errorMessage = error.message || '登入失敗，請稍後再試';
+                errorDiv.textContent = errorMessage;
                 errorDiv.classList.add('show');
+                
+                // 錯誤信息顯示 10 秒
                 setTimeout(() => {
                     errorDiv.classList.remove('show');
-                }, 5000);
+                }, 10000);
+            } finally {
+                // 恢復按鈕狀態
+                loginBtn.disabled = false;
+                loginBtn.textContent = originalBtnText;
             }
         }
 
