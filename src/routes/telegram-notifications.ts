@@ -263,8 +263,18 @@ router.post('/test', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
-      return res.status(403).json({ error: '無權訪問' });
+    if (!adminUser) {
+      return res.status(401).json({ 
+        error: '未授權',
+        message: '請先登入後台管理系統'
+      });
+    }
+    
+    if (adminUser.role !== 'admin') {
+      return res.status(403).json({ 
+        error: '無權訪問',
+        message: '僅管理員可查看 Telegram 配置'
+      });
     }
 
     if (!telegramService.isConfigured()) {
@@ -370,8 +380,18 @@ router.get('/config', async (req: Request, res: Response) => {
   try {
     const adminUser = await getUserFromRequest(req);
     
-    if (!adminUser || adminUser.role !== 'admin') {
-      return res.status(403).json({ error: '無權訪問' });
+    if (!adminUser) {
+      return res.status(401).json({ 
+        error: '未授權',
+        message: '請先登入後台管理系統'
+      });
+    }
+    
+    if (adminUser.role !== 'admin') {
+      return res.status(403).json({ 
+        error: '無權訪問',
+        message: '僅管理員可查看 Telegram 配置'
+      });
     }
 
     const isConfigured = telegramService.isConfigured();

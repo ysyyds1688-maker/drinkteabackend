@@ -1885,7 +1885,7 @@ router.get('/', (req, res) => {
             resultDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 0.5rem; color: #3b82f6;"><div style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div> 正在檢查配置...</div>';
             
             try {
-                const res = await fetch(API_BASE + '/api/telegram/config', {
+                const res = await fetch(API_BASE + '/api/telegram-notifications/config', {
                     method: 'GET',
                     headers: getAuthHeaders()
                 });
