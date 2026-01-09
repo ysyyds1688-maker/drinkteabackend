@@ -184,20 +184,76 @@ async function checkAndReportTelegram(requireAdmin: boolean = false): Promise<{ 
       newPostsCount,
     };
 
-    // 只有在有變化時才發送統計報告
-    if (newUsersCount > 0 || newBookingsCount > 0 || newPostsCount > 0 || 
-        Math.abs(onlineStats.onlineCount - lastStats.onlineCount) > 2) { // 在線人數變化超過 2 才發送
-      await telegramService.sendNotification(
-        telegramService.formatMessage('📊 網站統計報告', [
-          `👥 <b>在線人數：</b>${stats.onlineCount}`,
-          `   ├─ 已登入：${stats.loggedInCount}`,
-          `   └─ 訪客：${stats.guestCount}`,
-          '',
-          `👤 <b>新註冊會員：</b>${stats.newUsersCount}`,
-          `📅 <b>新預約：</b>${stats.newBookingsCount}`,
-          `📝 <b>新論壇發文：</b>${stats.newPostsCount}`,
-        ])
-      );
+    // 計算距離上次檢查的時間（分鐘）
+    const minutesSinceLastCheck = Math.floor((now.getTime() - lastCheckTime.getTime()) / (1000 * 60));
+    
+    // 每 5 分鐘發送一次統計報告（即使沒有變化）
+    // 或者如果有新活動，立即發送
+    const shouldSendReport = minutesSinceLastCheck >= 5 || 
+                             newUsersCount > 0 || 
+                             newBookingsCount > 0 || 
+                             newPostsCount > 0 || 
+                             Math.abs(onlineStats.onlineCount - lastStats.onlineCount) > 2;
+
+    if (shouldSendReport) {
+      console.log(`[Telegram] 準備發送統計報告 - 在線: ${stats.onlineCount}, 新用戶: ${stats.newUsersCount}, 新預約: ${stats.newBookingsCount}, 新發文: ${stats.newPostsCount}`);
+      
+      // 根據活動情況選擇不同的開場白
+      let opening = '';
+      if (stats.newUsersCount > 0 || stats.newBookingsCount > 0 || stats.newPostsCount > 0) {
+        opening = '🎉 <b>啟稟茶王，皇朝有喜！</b>';
+      } else {
+        opening = '📊 <b>啟稟茶王，臣等謹奏：</b>';
+      }
+
+      const timestamp = new Date().toLocaleString('zh-TW', { 
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const content = [
+        opening,
+        '',
+        `⏰ <b>奏報時辰：</b>${timestamp}`,
+        '',
+        `👥 <b>皇朝人氣</b>`,
+        `   ├─ 總在線人數：<b>${stats.onlineCount}</b> 位`,
+        `   ├─ 已登入臣民：${stats.loggedInCount} 位`,
+        `   └─ 訪客遊人：${stats.guestCount} 位`,
+        '',
+        `📈 <b>近期動態（過去 5 分鐘）</b>`,
+      ];
+
+      if (stats.newUsersCount > 0) {
+        content.push(`   ├─ 🎊 新加入臣民：<b>${stats.newUsersCount}</b> 位`);
+      } else {
+        content.push(`   ├─ 新加入臣民：0 位`);
+      }
+
+      if (stats.newBookingsCount > 0) {
+        content.push(`   ├─ 📅 新預約訂單：<b>${stats.newBookingsCount}</b> 筆`);
+      } else {
+        content.push(`   ├─ 新預約訂單：0 筆`);
+      }
+
+      if (stats.newPostsCount > 0) {
+        content.push(`   └─ 📝 新論壇發文：<b>${stats.newPostsCount}</b> 篇`);
+      } else {
+        content.push(`   └─ 新論壇發文：0 篇`);
+      }
+
+      content.push('');
+      content.push('🙏 <i>臣等謹此稟報，恭請茶王聖裁</i>');
+
+      await telegramService.sendNotification(content.join('\n'));
+      
+      console.log('[Telegram] 統計報告已發送');
+    } else {
+      console.log(`[Telegram] 跳過發送報告 - 距離上次檢查僅 ${minutesSinceLastCheck} 分鐘，且無新活動`);
     }
 
     // 更新上次檢查時間和統計
@@ -330,29 +386,42 @@ router.post('/test', async (req: Request, res: Response) => {
     }
 
     // 發送測試消息，包含實際的當前數據
-    const testMessage = `🤖 <b>稟報茶王：Telegram Bot 測試</b>
+    const timestamp = new Date().toLocaleString('zh-TW', { 
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-✅ <b>配置狀態</b>
-   └─ Bot 連接成功，通知系統已就緒
+    const testMessage = `🤖 <b>啟稟茶王，臣等測試通報系統！</b>
 
-📊 <b>當前實際數據</b>
-   ├─ <b>在線人數：</b>${onlineStats.onlineCount} 人
-   │  ├─ 已登入：${onlineStats.loggedInCount} 人
-   │  └─ 訪客：${onlineStats.guestCount} 人
+✅ <b>系統狀態</b>
+   └─ Bot 連接成功，通報系統已就緒
+
+⏰ <b>測試時辰：</b>${timestamp}
+
+📊 <b>臣等謹報當前皇朝數據</b>
+   ├─ <b>在線人數：</b>${onlineStats.onlineCount} 位
+   │  ├─ 已登入臣民：${onlineStats.loggedInCount} 位
+   │  └─ 訪客遊人：${onlineStats.guestCount} 位
    ├─ <b>總用戶數：</b>${totalUsers} 位
-   ├─ <b>佳麗人數：</b>${totalProviders} 位
-   ├─ <b>品茶客人數：</b>${totalClients} 位
+   ├─ <b>後宮佳麗：</b>${totalProviders} 位
+   ├─ <b>品茶客數：</b>${totalClients} 位
    └─ <b>待處理預約：</b>${pendingBookings} 筆
 
-💡 <b>提示</b>
-   如果您收到此消息，說明 Telegram Bot 配置成功！
-   所有通知將發送到此話題中。
+💡 <b>通報系統說明</b>
+   若茶王收到此消息，說明 Telegram Bot 配置成功！
+   所有通報將發送到此話題中。
    
-   每 5 分鐘會自動檢查並發送：
-   • 新註冊會員通知
-   • 新預約通知
-   • 新論壇發文通知
-   • 統計報告（有變化時）`;
+   📅 <b>自動通報機制（每 5 分鐘）</b>
+   • 🎊 新註冊會員通報
+   • 📅 新預約訂單通報
+   • 📝 新論壇發文通報
+   • 📊 定期統計報告
+
+🙏 <i>臣等謹此測試，恭請茶王確認系統運作正常</i>`;
 
     const success = await telegramService.sendNotification(testMessage);
 

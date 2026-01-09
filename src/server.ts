@@ -427,9 +427,16 @@ initDatabase()
       // 每 5 分鐘執行一次
       setInterval(async () => {
         try {
-          await checkAndReportTelegram(false);
+          console.log('[Telegram] 定時任務觸發 - 開始檢查並發送報告...');
+          const result = await checkAndReportTelegram(false);
+          if (result.success) {
+            console.log('[Telegram] 定時任務執行成功');
+          } else {
+            console.warn('[Telegram] 定時任務執行完成，但有問題:', result.error);
+          }
         } catch (error: any) {
           console.error('[Telegram] 定時任務執行失敗:', error.message);
+          console.error('[Telegram] 錯誤堆棧:', error.stack);
         }
       }, 5 * 60 * 1000); // 每 5 分鐘
     } else {

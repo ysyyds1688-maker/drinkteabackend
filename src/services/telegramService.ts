@@ -151,21 +151,49 @@ class TelegramService {
       minute: '2-digit'
     });
 
+    // 根據活動情況選擇不同的開場白
+    let opening = '';
+    if (stats.newUsersCount > 0 || stats.newBookingsCount > 0 || stats.newPostsCount > 0) {
+      opening = '🎉 <b>啟稟茶王，皇朝有喜！</b>';
+    } else {
+      opening = '📊 <b>啟稟茶王，臣等謹奏：</b>';
+    }
+
     const content = [
-      `🕐 <b>時間：</b>${timestamp}`,
+      opening,
       '',
-      `👥 <b>在線人數統計</b>`,
-      `   ├─ 總在線：<b>${stats.onlineCount}</b> 人`,
-      `   ├─ 已登入：${stats.loggedInCount} 人`,
-      `   └─ 訪客：${stats.guestCount} 人`,
+      `⏰ <b>奏報時辰：</b>${timestamp}`,
       '',
-      `📈 <b>活動統計（過去 5 分鐘）</b>`,
-      `   ├─ 新註冊會員：<b>${stats.newUsersCount}</b> 位`,
-      `   ├─ 新預約：<b>${stats.newBookingsCount}</b> 筆`,
-      `   └─ 新論壇發文：<b>${stats.newPostsCount}</b> 篇`,
+      `👥 <b>皇朝人氣</b>`,
+      `   ├─ 總在線人數：<b>${stats.onlineCount}</b> 位`,
+      `   ├─ 已登入臣民：${stats.loggedInCount} 位`,
+      `   └─ 訪客遊人：${stats.guestCount} 位`,
+      '',
+      `📈 <b>近期動態（過去 5 分鐘）</b>`,
     ];
 
-    const message = this.formatMessage('📊 稟報茶王：網站統計報告', content);
+    if (stats.newUsersCount > 0) {
+      content.push(`   ├─ 🎊 新加入臣民：<b>${stats.newUsersCount}</b> 位`);
+    } else {
+      content.push(`   ├─ 新加入臣民：0 位`);
+    }
+
+    if (stats.newBookingsCount > 0) {
+      content.push(`   ├─ 📅 新預約訂單：<b>${stats.newBookingsCount}</b> 筆`);
+    } else {
+      content.push(`   ├─ 新預約訂單：0 筆`);
+    }
+
+    if (stats.newPostsCount > 0) {
+      content.push(`   └─ 📝 新論壇發文：<b>${stats.newPostsCount}</b> 篇`);
+    } else {
+      content.push(`   └─ 新論壇發文：0 篇`);
+    }
+
+    content.push('');
+    content.push('🙏 <i>臣等謹此稟報，恭請茶王聖裁</i>');
+
+    const message = content.join('\n');
     return await this.sendNotification(message);
   }
 
@@ -182,26 +210,47 @@ class TelegramService {
   }): Promise<boolean> {
     const roleText = user.role === 'client' ? '👤 品茶客' : user.role === 'provider' ? '👩 後宮佳麗' : '👑 管理員';
     const roleEmoji = user.role === 'client' ? '👤' : user.role === 'provider' ? '👩' : '👑';
+    const roleTitle = user.role === 'client' ? '品茶客' : user.role === 'provider' ? '後宮佳麗' : '管理員';
+    
+    // 根據角色選擇不同的開場白
+    let opening = '';
+    if (user.role === 'provider') {
+      opening = '🎊 <b>啟稟茶王，後宮添新佳麗！</b>';
+    } else if (user.role === 'client') {
+      opening = '🎉 <b>啟稟茶王，有品茶客加入皇朝！</b>';
+    } else {
+      opening = '👑 <b>啟稟茶王，管理層有新成員！</b>';
+    }
     
     const content = [
-      `${roleEmoji} <b>稟報茶王：新用戶註冊</b>`,
+      opening,
       '',
-      `📋 <b>用戶資訊</b>`,
-      `   ├─ 公開ID: <code>${user.publicId || user.id}</code>`,
-      `   ├─ 身份: ${roleText}`,
-      user.userName ? `   ├─ 暱稱: ${user.userName}` : '',
-      user.email ? `   ├─ Email: ${user.email}` : '',
-      user.phoneNumber ? `   └─ 手機: ${user.phoneNumber}` : '',
-    ].filter(Boolean);
+      `📋 <b>臣等謹報新成員資訊</b>`,
+      `   ├─ 公開身份：<code>${user.publicId || user.id}</code>`,
+      `   ├─ 身份等級：${roleText}`,
+    ];
 
-    // 如果沒有 userName，調整最後一項的格式
-    if (!user.userName && user.email && user.phoneNumber) {
-      const lastIndex = content.length - 1;
-      content[lastIndex] = content[lastIndex].replace('└─', '├─');
-      content.push(`   └─ 手機: ${user.phoneNumber}`);
-    } else if (!user.userName && (user.email || user.phoneNumber)) {
+    if (user.userName) {
+      content.push(`   ├─ 暱稱：${user.userName}`);
+    }
+    if (user.email) {
+      content.push(`   ├─ 聯絡方式：${user.email}`);
+    }
+    if (user.phoneNumber) {
+      content.push(`   └─ 手機號碼：${user.phoneNumber}`);
+    } else if (!user.userName && user.email) {
       const lastIndex = content.length - 1;
       content[lastIndex] = content[lastIndex].replace('├─', '└─');
+    } else if (!user.userName && !user.email) {
+      const lastIndex = content.length - 1;
+      content[lastIndex] = content[lastIndex].replace('├─', '└─');
+    }
+
+    content.push('');
+    if (user.role === 'provider') {
+      content.push('💝 <i>恭賀茶王，後宮陣容再添新力！</i>');
+    } else {
+      content.push('🙏 <i>臣等謹此稟報，恭請茶王知悉</i>');
     }
 
     const message = content.join('\n');
@@ -222,16 +271,35 @@ class TelegramService {
     serviceType?: string;
   }): Promise<boolean> {
     const content = [
-      `📅 <b>稟報茶王：新預約通知</b>`,
+      '📅 <b>啟稟茶王，有新的預約訂單！</b>',
       '',
-      `📋 <b>預約資訊</b>`,
-      `   ├─ 預約ID: <code>${booking.id}</code>`,
-      booking.profileName ? `   ├─ 佳麗: ${booking.profileName}` : `   ├─ Profile ID: <code>${booking.profileId}</code>`,
-      booking.clientName ? `   ├─ 客戶: ${booking.clientName}` : `   ├─ 客戶ID: <code>${booking.clientId}</code>`,
-      `   ├─ 日期: ${booking.bookingDate}`,
-      `   ├─ 時間: ${booking.bookingTime}`,
-      booking.serviceType ? `   └─ 服務類型: ${booking.serviceType}` : `   └─ 服務類型: 待確認`,
+      '📋 <b>臣等謹報預約詳情</b>',
+      `   ├─ 訂單編號：<code>${booking.id}</code>`,
     ];
+
+    if (booking.profileName) {
+      content.push(`   ├─ 佳麗名稱：<b>${booking.profileName}</b>`);
+    } else {
+      content.push(`   ├─ 佳麗ID：<code>${booking.profileId}</code>`);
+    }
+
+    if (booking.clientName) {
+      content.push(`   ├─ 品茶客：<b>${booking.clientName}</b>`);
+    } else {
+      content.push(`   ├─ 客戶ID：<code>${booking.clientId}</code>`);
+    }
+
+    content.push(`   ├─ 預約日期：${booking.bookingDate}`);
+    content.push(`   ├─ 預約時辰：${booking.bookingTime}`);
+
+    if (booking.serviceType) {
+      content.push(`   └─ 服務類型：${booking.serviceType}`);
+    } else {
+      content.push(`   └─ 服務類型：待確認`);
+    }
+
+    content.push('');
+    content.push('💰 <i>恭賀茶王，皇朝生意興隆！</i>');
 
     const message = content.join('\n');
     return await this.sendNotification(message);
@@ -260,14 +328,23 @@ class TelegramService {
     };
 
     const categoryText = categoryMap[post.category] || `📌 ${post.category}`;
+    
     const content = [
-      `📝 <b>稟報茶王：新論壇發文</b>`,
+      '📝 <b>啟稟茶王，論壇有新動態！</b>',
       '',
-      `📋 <b>文章資訊</b>`,
-      `   ├─ 標題: ${post.title}`,
-      `   ├─ 分類: ${categoryText}`,
-      post.authorName ? `   └─ 作者: ${post.authorName}` : `   └─ 作者ID: <code>${post.authorId}</code>`,
+      '📋 <b>臣等謹報發文詳情</b>',
+      `   ├─ 文章標題：<b>${post.title}</b>`,
+      `   ├─ 所屬版塊：${categoryText}`,
     ];
+
+    if (post.authorName) {
+      content.push(`   └─ 發文者：${post.authorName}`);
+    } else {
+      content.push(`   └─ 發文者ID：<code>${post.authorId}</code>`);
+    }
+
+    content.push('');
+    content.push('💬 <i>恭賀茶王，論壇人氣旺盛！</i>');
 
     const message = content.join('\n');
     return await this.sendNotification(message);
