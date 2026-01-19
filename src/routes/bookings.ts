@@ -1,0 +1,1326 @@
+import { Router } from 'express';
+import { bookingModel } from '../models/Booking.js';
+import { verifyToken } from '../services/authService.js';
+import { userModel } from '../models/User.js';
+import { userStatsModel } from '../models/UserStats.js';
+import { query } from '../db/database.js';
+
+const router = Router();
+
+// 獲取用戶資訊（用於權限檢查）
+const getUserFromRequest = async (req: any) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  const token = authHeader.substring(7);
+  const payload = verifyToken(token);
+  if (!payload) return null;
+  
+  const user = await userModel.findById(payload.userId);
+  return user;
+};
+
+// 創建預約（需要登入）
+router.post('/', async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    // 允許 client 和 admin 創建預約（管理員也可以作為茶客預約）
+    if (user.role !== 'client' && user.role !== 'admin') {
+      return res.status(403).json({ error: '只有茶客可以創建預約' });
+    }
+    
+    // 檢查用戶是否被凍結
+    const { bookingRestrictionModel } = await import('../models/BookingRestriction.js');
+    const isFrozen = await bookingRestrictionModel.isUserFrozen(user.id);
+    
+    if (isFrozen) {
+      const restriction = await bookingRestrictionModel.getActiveByUserId(user.id);
+      const reason = restriction?.reason || '取消預約次數過多';
+      return res.status(403).json({ 
+        error: `您的預約權限已被凍結，原因：${reason}。請聯繫客服處理。`,
+        restriction: {
+          reason,
+          frozenAt: restriction?.frozenAt,
+          cancellationCount: restriction?.cancellationCount,
+        }
+      });
+    }
+    
+    const { profileId, serviceType, bookingDate, bookingTime, location, notes } = req.body;
+    
+    if (!profileId || !bookingDate || !bookingTime) {
+      return res.status(400).json({ error: '請提供必要的預約資訊' });
+    }
+    
+    // 獲取 profile 的 providerId（如果有）
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(profileId);
+    
+    if (!profile) {
+      return res.status(404).json({ error: '茶茶檔案不存在' });
+    }
+    
+    // 如果 profile 有 userId 欄位，使用它作為 providerId（特選魚市）
+    const providerId = profile.userId || undefined;
+    
+    // 檢查驗證狀態：至少需要 email 驗證才能預約特選魚市和嚴選好茶
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: '預約特選魚市和嚴選好茶需要先完成 Email 驗證。請前往個人資料頁面完成驗證。',
+        requiresVerification: 'email',
+        hasEmailVerified: user.emailVerified,
+        hasPhoneVerified: user.phoneVerified,
+      });
+    }
+    
+    // 檢查佳麗是否被凍結（僅針對特選魚市）
+    if (providerId) {
+      const { providerRestrictionModel } = await import('../models/ProviderRestriction.js');
+      const isProviderFrozen = await providerRestrictionModel.isUserFrozen(providerId);
+      
+      if (isProviderFrozen) {
+        const restriction = await providerRestrictionModel.getActiveByUserId(providerId);
+        const reason = restriction?.reason || '檢舉次數過多';
+        return res.status(403).json({
+          error: `該佳麗帳號已被凍結，無法接受預約。原因：${reason}。請選擇其他佳麗。`,
+          restriction: {
+            reason,
+            frozenAt: restriction?.frozenAt,
+            reportCount: restriction?.reportCount,
+          }
+        });
+      }
+    }
+    
+    // 嚴選好茶每月預約次數限制（僅針對沒有 providerId 的預約）
+    if (!providerId) {
+      try {
+        const { getPremiumTeaBookingLimit } = await import('../utils/membershipBenefits.js');
+        const { subscriptionModel } = await import('../models/Subscription.js');
+        
+        // 檢查用戶是否有活躍的VIP訂閱
+        const activeSubscription = await subscriptionModel.getActiveByUserId(user.id);
+        const isVip = activeSubscription !== null && 
+          activeSubscription.isActive && 
+          (!activeSubscription.expiresAt || new Date(activeSubscription.expiresAt) > new Date());
+        
+        // 獲取用戶等級
+        const userLevel = user.membershipLevel as any;
+        
+        // 計算每月預約次數上限
+        const monthlyLimit = getPremiumTeaBookingLimit(userLevel, isVip);
+        
+        // 獲取當月已預約次數
+        const currentMonthCount = await bookingModel.getClientPremiumTeaBookingsCountThisMonth(user.id);
+        
+        if (currentMonthCount >= monthlyLimit) {
+          // 獲取當月第一天和最後一天（台灣時區）
+          const now = new Date();
+          const taiwanDateStr = now.toLocaleDateString('en-CA', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          const [year, month] = taiwanDateStr.split('-').map(Number);
+          const monthStart = new Date(year, month - 1, 1);
+          const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+          
+          const monthStartStr = monthStart.toLocaleDateString('zh-TW', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          const monthEndStr = monthEnd.toLocaleDateString('zh-TW', { 
+            timeZone: 'Asia/Taipei',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          
+          let errorMessage = `您在本月（${monthStartStr} 至 ${monthEndStr}）已預約 ${currentMonthCount} 次嚴選好茶，本月上限為 ${monthlyLimit} 次。`;
+          
+          if (!isVip) {
+            errorMessage += '\n\n購買VIP會員可根據等級增加每月預約次數上限。';
+          } else {
+            errorMessage += '\n\n升級會員等級可進一步增加每月預約次數上限。';
+          }
+          
+          return res.status(403).json({
+            error: errorMessage,
+            limitType: 'monthly_premium_tea',
+            currentCount: currentMonthCount,
+            maxCount: monthlyLimit,
+            isVip,
+            userLevel,
+            monthStart: monthStartStr,
+            monthEnd: monthEndStr,
+          });
+        }
+      } catch (error: any) {
+        console.error('檢查嚴選好茶預約限制失敗:', error);
+        // 如果檢查失敗，不阻止預約（避免影響用戶體驗）
+      }
+    }
+    
+    // 防駭客機制：特選魚市預約限制（僅針對有 providerId 的預約）
+    if (providerId) {
+      // 1. 檢查是否在24小時內重複預約同一佳麗
+      const recentDuplicate = await bookingModel.checkRecentDuplicateBooking(user.id, providerId, 24);
+      if (recentDuplicate) {
+        return res.status(403).json({
+          error: `您在24小時內已向該佳麗提交過預約（預約時間：${new Date(recentDuplicate.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}），請等待該預約處理完成後再預約。`,
+          existingBookingId: recentDuplicate.id,
+          limitType: 'duplicate',
+        });
+      }
+      
+      // 2. 檢查同一天是否已預約超過2個時段
+      const sameDayBookingsCount = await bookingModel.getClientBookingsCountByDate(user.id, bookingDate);
+      if (sameDayBookingsCount >= 2) {
+        return res.status(403).json({
+          error: `您在同一天（${bookingDate}）已預約 ${sameDayBookingsCount} 個時段，同一天最多只能預約 2 個時段。`,
+          limitType: 'daily',
+          currentCount: sameDayBookingsCount,
+          maxCount: 2,
+        });
+      }
+
+      // 計算一週的開始和結束日期（週一到週日）
+      const bookingDateObj = new Date(bookingDate + 'T00:00:00');
+      const dayOfWeek = bookingDateObj.getDay(); // 0 = 週日, 1 = 週一, ...
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 轉換為週一到週日（0-6）
+      
+      const weekStart = new Date(bookingDateObj);
+      weekStart.setDate(bookingDateObj.getDate() - daysFromMonday);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+      
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      
+      // 檢查一週內是否已預約超過10個時段
+      const weekBookingsCount = await bookingModel.getClientBookingsCountByWeek(user.id, weekStartStr, weekEndStr);
+      if (weekBookingsCount >= 10) {
+        return res.status(403).json({
+          error: `您在本週（${weekStartStr} 至 ${weekEndStr}）已預約 ${weekBookingsCount} 個時段，一週最多只能預約 10 個時段。`,
+          limitType: 'weekly',
+          currentCount: weekBookingsCount,
+          maxCount: 10,
+          weekStart: weekStartStr,
+          weekEnd: weekEndStr,
+        });
+      }
+    }
+    
+    // 時間衝突檢查：檢查該佳麗在相同日期和時間是否已有預約（僅針對特選魚市）
+    if (providerId) {
+      const hasConflict = await bookingModel.checkProviderTimeConflict(providerId, bookingDate, bookingTime);
+      if (hasConflict) {
+        return res.status(403).json({
+          error: `該佳麗在 ${bookingDate} ${bookingTime} 時段已有預約，請選擇其他時間。`,
+          conflictType: 'time_slot',
+          bookingDate,
+          bookingTime,
+        });
+      }
+    }
+    
+    // 茶客保護機制：檢查佳麗是否有被檢舉的記錄
+    if (providerId) {
+      const { reportModel } = await import('../models/Report.js');
+      
+      // 檢查該佳麗是否有未解決的詐騙或招攬檢舉
+      const recentReports = await reportModel.getByTargetUserId(providerId);
+      const unresolvedScamReports = recentReports.filter(
+        r => r.reportType === 'scam' || r.reportType === 'solicitation'
+      ).filter(r => r.status === 'pending' || r.status === 'reviewing');
+      
+      if (unresolvedScamReports.length >= 3) {
+        // 如果有3個或以上未解決的詐騙/招攬檢舉，警告茶客
+        return res.status(403).json({
+          error: '該佳麗有多個未解決的檢舉記錄，為保護您的權益，建議您選擇其他佳麗。如有疑問，請聯繫客服。',
+          warning: true,
+          reportCount: unresolvedScamReports.length,
+        });
+      } else if (unresolvedScamReports.length > 0) {
+        // 如果有未解決的檢舉，提醒茶客
+        console.log(`⚠️ 警告：佳麗 ${providerId} 有 ${unresolvedScamReports.length} 個未解決的檢舉記錄`);
+      }
+      
+      // 檢查該佳麗是否有被永久凍結的記錄（如果有，不允許預約）
+      const providerUser = await userModel.findById(providerId);
+      if (providerUser && providerUser.violationLevel === 4) {
+        return res.status(403).json({
+          error: '該佳麗帳號已被永久除名，驅逐出御茶室，無法接受預約。',
+        });
+      }
+    }
+    
+    const booking = await bookingModel.create({
+      providerId,
+      clientId: user.id,
+      profileId,
+      serviceType,
+      bookingDate,
+      bookingTime,
+      location,
+      notes,
+    });
+    
+    // 如果是特選魚市（有providerId），創建預約訊息給茶客和佳麗
+    if (providerId) {
+      try {
+        const { notificationModel } = await import('../models/Notification.js');
+        const { v4: uuidv4 } = await import('uuid');
+        const clientName = user.userName || user.email || user.phoneNumber || '一位茶客';
+        const bookingDateTime = `${bookingDate} ${bookingTime}`;
+        const threadId = booking.id; // 使用預約 ID 作為 threadId
+        
+        // 獲取服務類型描述
+        const serviceTypeDesc = profile.prices?.[serviceType as keyof typeof profile.prices]?.desc || serviceType;
+        const serviceTypePrice = profile.prices?.[serviceType as keyof typeof profile.prices]?.price || 0;
+        
+        // 創建給茶客的預約確認訊息（包含預約詳情）
+        const clientMessageId = uuidv4();
+        const clientMessage = `您已發送預約請求給 ${profile.name}\n\n預約詳情：\n• 服務類型：${serviceTypeDesc}${serviceTypePrice > 0 ? ` (NT$ ${serviceTypePrice.toLocaleString()})` : ''}\n• 預約日期：${bookingDate}\n• 預約時間：${bookingTime}${location ? `\n• 地點：${location}` : ''}${notes ? `\n• 備註：${notes}` : ''}\n\n請等待佳麗確認預約。`;
+        
+        await query(
+          `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [clientMessageId, user.id, user.id, profileId, threadId, clientMessage, new Date(), true]
+        );
+        
+        // 創建給佳麗的預約請求訊息（包含預約詳情和確認/拒絕按鈕提示）
+        const providerMessageId = uuidv4();
+        const providerMessage = `${clientName} 發送了預約請求\n\n預約詳情：\n• 服務類型：${serviceTypeDesc}${serviceTypePrice > 0 ? ` (NT$ ${serviceTypePrice.toLocaleString()})` : ''}\n• 預約日期：${bookingDate}\n• 預約時間：${bookingTime}${location ? `\n• 地點：${location}` : ''}${notes ? `\n• 備註：${notes}` : ''}\n\n請在訊息收件箱中確認或拒絕此預約。`;
+        
+        await query(
+          `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [providerMessageId, user.id, providerId, profileId, threadId, providerMessage, new Date(), false]
+        );
+        
+        // 發送通知給佳麗
+        await notificationModel.create({
+          userId: providerId,
+          type: 'booking',
+          title: '新的預約請求',
+          content: `${clientName} 預約了您的服務\n預約時間：${bookingDateTime}${location ? `\n地點：${location}` : ''}${notes ? `\n備註：${notes}` : ''}\n\n請在24小時內確認預約。`,
+          link: `/user-profile?tab=messages`,
+          metadata: {
+            bookingId: booking.id,
+            clientId: user.id,
+            profileId: profileId,
+            bookingDate: bookingDate,
+            bookingTime: bookingTime,
+            messageId: providerMessageId,
+            threadId: threadId,
+          },
+        });
+        
+        // 發送通知給茶客
+        await notificationModel.create({
+          userId: user.id,
+          type: 'booking',
+          title: '預約請求已發送',
+          content: `您已發送預約請求給 ${profile.name}\n預約時間：${bookingDateTime}\n\n請前往訊息收件箱查看詳情。`,
+          link: `/user-profile?tab=messages`,
+          metadata: {
+            bookingId: booking.id,
+            profileId: profileId,
+            bookingDate: bookingDate,
+            bookingTime: bookingTime,
+            messageId: clientMessageId,
+            threadId: threadId,
+          },
+        });
+        
+        console.log(`已創建預約訊息給茶客 ${user.id} 和佳麗 ${providerId}`);
+      } catch (error) {
+        console.error('創建預約訊息失敗:', error);
+        // 不阻止預約創建，只記錄錯誤
+      }
+    }
+    
+    // 返回預約資訊，包括對方的聯絡方式（如果已預約）
+    const bookingResponse: any = { ...booking };
+    
+    // 如果是特選魚市（有providerId），返回佳麗的聯絡方式
+    if (providerId && profile.contactInfo) {
+      bookingResponse.providerContactInfo = profile.contactInfo;
+    }
+    
+    res.status(201).json(bookingResponse);
+  } catch (error: any) {
+    console.error('Create booking error:', error);
+    res.status(500).json({ error: error.message || '創建預約失敗' });
+  }
+});
+
+// 獲取我的預約（Provider、Client 或 Admin）
+router.get('/my', async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    let bookings;
+    if (user.role === 'provider') {
+      bookings = await bookingModel.getByProviderId(user.id);
+    } else if (user.role === 'admin') {
+      // 管理員可以查看所有預約（作為 client 視角，顯示 profile 資訊）
+      bookings = await bookingModel.getByClientId(user.id);
+      // 如果管理員沒有作為 client 的預約，也可以查看所有預約
+      if (bookings.length === 0) {
+        bookings = await bookingModel.getAll();
+      }
+    } else {
+      bookings = await bookingModel.getByClientId(user.id);
+    }
+    
+    res.json(bookings);
+  } catch (error: any) {
+    console.error('Get my bookings error:', error);
+    res.status(500).json({ error: error.message || '獲取預約失敗' });
+  }
+});
+
+// GET /api/bookings/available-times/:profileId - 獲取某個 profile 在特定日期的可用時間
+router.get('/available-times/:profileId', async (req, res) => {
+  try {
+    const { profileId } = req.params;
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({ error: '請提供日期參數' });
+    }
+    
+    // 獲取 profile 信息
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(profileId);
+    
+    if (!profile) {
+      return res.status(404).json({ error: '茶茶檔案不存在' });
+    }
+    
+    // 獲取該日期已預約的時間
+    const bookedTimes = await bookingModel.getBookedTimesByProfileAndDate(profileId, date as string);
+    
+    // 定義所有可能的時間選項
+    const allTimeSlots = [
+      '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00',
+      '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00'
+    ];
+    
+    // 計算可用時間（排除已預約的時間）
+    const availableTimes = allTimeSlots.filter(time => !bookedTimes.includes(time));
+    
+    res.json({
+      profileId,
+      date,
+      availableTimes,
+      bookedTimes,
+      allTimeSlots,
+    });
+  } catch (error: any) {
+    console.error('Get available times error:', error);
+    res.status(500).json({ error: error.message || '獲取可用時間失敗' });
+  }
+});
+
+// 獲取所有預約（管理員）
+router.get('/all', async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: '無權訪問' });
+    }
+    
+    const bookings = await bookingModel.getAll();
+    res.json(bookings);
+  } catch (error: any) {
+    console.error('Get all bookings error:', error);
+    res.status(500).json({ error: error.message || '獲取預約失敗' });
+  }
+});
+
+// 更新預約狀態
+router.put('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, cancellationReason } = req.body; // 添加取消原因參數
+    
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const validStatuses = ['pending', 'accepted', 'rejected', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: '无效的状态' });
+    }
+    
+    const existingBooking = await bookingModel.getById(id);
+    if (!existingBooking) {
+      return res.status(404).json({ error: '預約不存在' });
+    }
+    
+    // 如果是佳麗取消預約，必須提供取消原因
+    if (status === 'cancelled' && user.role === 'provider' && existingBooking.providerId === user.id) {
+      if (!cancellationReason || cancellationReason.trim().length === 0) {
+        return res.status(400).json({ error: '取消預約必須填寫原因說明' });
+      }
+      if (cancellationReason.trim().length < 5) {
+        return res.status(400).json({ error: '取消原因說明至少需要5個字元' });
+      }
+    }
+    
+    const booking = await bookingModel.updateStatus(id, status, user.id, user.role);
+    
+    if (!booking) {
+      return res.status(403).json({ error: '無權修改此預約' });
+    }
+    
+    // 發送狀態變更通知
+    try {
+      const { notificationModel } = await import('../models/Notification.js');
+      const { profileModel } = await import('../models/Profile.js');
+      
+      if (user.role === 'provider' && booking.providerId === user.id) {
+        // 佳麗更新狀態，通知茶客
+        const client = await userModel.findById(booking.clientId);
+        const profile = await profileModel.getById(booking.profileId);
+        
+        if (!profile) {
+          console.error(`❌ Profile ${booking.profileId} 不存在，無法發送確認訊息`);
+          return res.status(404).json({ error: 'Profile 不存在' });
+        }
+        
+        const clientName = client?.userName || client?.email || client?.phoneNumber || '茶客';
+        const providerName = user.userName || user.email || user.phoneNumber || '佳麗';
+        const providerId = booking.providerId; // 確保 providerId 可用
+        
+        let notificationTitle = '';
+        let notificationContent = '';
+        
+        if (status === 'accepted') {
+          notificationTitle = '預約已確認';
+          notificationContent = `${providerName} 已確認您的預約\n預約時間：${booking.bookingDate} ${booking.bookingTime}${booking.location ? `\n地點：${booking.location}` : ''}`;
+          
+          // 創建確認訊息給茶客（包含聯繫方式和預約流程）
+          try {
+            const { v4: uuidv4 } = await import('uuid');
+            const threadId = booking.id;
+            
+            // 構建確認訊息內容（包含聯絡方式）
+            let confirmationMessage = `我已確認 請用聯繫方式聯絡我一起品茶! ❤️\n\n`;
+            
+            // 格式化並添加聯絡方式
+            if (profile.contactInfo) {
+              const contactInfo = profile.contactInfo;
+              const contactParts: string[] = [];
+              
+              if (contactInfo.line) {
+                contactParts.push(`LINE: ${contactInfo.line}`);
+              }
+              if (contactInfo.phone) {
+                contactParts.push(`電話: ${contactInfo.phone}`);
+              }
+              if (contactInfo.email) {
+                contactParts.push(`Email: ${contactInfo.email}`);
+              }
+              if (contactInfo.telegram) {
+                contactParts.push(`Telegram: ${contactInfo.telegram}`);
+              }
+              if (contactInfo.socialAccounts && Object.keys(contactInfo.socialAccounts).length > 0) {
+                Object.entries(contactInfo.socialAccounts).forEach(([platform, account]) => {
+                  contactParts.push(`${platform}: ${account}`);
+                });
+              }
+              
+              if (contactParts.length > 0) {
+                confirmationMessage += `【我的聯絡方式】\n${contactParts.join('\n')}`;
+              }
+              
+              if (contactInfo.contactInstructions) {
+                confirmationMessage += `\n\n${contactInfo.contactInstructions}`;
+              }
+            }
+            
+            // 創建確認訊息（sender_id 使用 providerId，表示是佳麗發送的確認訊息）
+            const confirmationMessageId = uuidv4();
+            const hasContactInfo = !!(profile.contactInfo && Object.keys(profile.contactInfo).length > 0);
+            console.log(`[預約確認] 準備發送確認訊息:`, {
+              messageId: confirmationMessageId,
+              senderId: providerId,
+              recipientId: booking.clientId,
+              profileId: booking.profileId,
+              threadId: threadId,
+              hasContactInfo: hasContactInfo
+            });
+            
+            await query(
+              `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [confirmationMessageId, providerId, booking.clientId, booking.profileId, threadId, confirmationMessage, new Date(), false]
+            );
+            
+            console.log(`✅ 確認訊息已插入數據庫，訊息ID: ${confirmationMessageId}`);
+            
+            // 發送通知給茶客
+            await notificationModel.create({
+              userId: booking.clientId,
+              type: 'booking',
+              title: '預約已確認',
+              content: `${providerName} 已確認您的預約\n預約時間：${booking.bookingDate} ${booking.bookingTime}\n\n請前往訊息收件箱查看聯繫方式和預約流程。`,
+              link: `/user-profile?tab=messages`,
+              metadata: {
+                bookingId: booking.id,
+                profileId: booking.profileId,
+                messageId: confirmationMessageId,
+                threadId: threadId,
+              },
+            });
+            
+            console.log(`✅ 已發送確認訊息給茶客 ${booking.clientId}`);
+          } catch (error: any) {
+            console.error('❌ 創建確認訊息失敗:', error);
+            console.error('錯誤詳情:', error.stack);
+            console.error('預約ID:', booking.id);
+            console.error('茶客ID:', booking.clientId);
+            console.error('佳麗ID:', booking.providerId);
+            console.error('Profile ID:', booking.profileId);
+            // 不阻止預約確認，只記錄錯誤
+          }
+        } else if (status === 'rejected') {
+          notificationTitle = '預約已拒絕';
+          notificationContent = `${providerName} 已拒絕您的預約請求`;
+          
+          // 創建拒絕訊息給茶客
+          try {
+            const { v4: uuidv4 } = await import('uuid');
+            const threadId = booking.id;
+            
+            const rejectionMessage = `❌ 預約已拒絕\n\n很抱歉，${profile.name} 無法接受您的預約請求。\n\n預約詳情：\n• 預約日期：${booking.bookingDate}\n• 預約時間：${booking.bookingTime}${booking.location ? `\n• 地點：${booking.location}` : ''}\n\n如有疑問，請聯繫客服。`;
+            
+            const rejectionMessageId = uuidv4();
+            await query(
+              `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [rejectionMessageId, providerId, booking.clientId, booking.profileId, threadId, rejectionMessage, new Date(), false]
+            );
+            
+            await notificationModel.create({
+              userId: booking.clientId,
+              type: 'booking',
+              title: '預約已拒絕',
+              content: `${providerName} 已拒絕您的預約請求\n\n請前往訊息收件箱查看詳情。`,
+              link: `/user-profile?tab=messages`,
+              metadata: {
+                bookingId: booking.id,
+                profileId: booking.profileId,
+                messageId: rejectionMessageId,
+                threadId: threadId,
+              },
+            });
+            
+            console.log(`已發送拒絕訊息給茶客 ${booking.clientId}`);
+          } catch (error) {
+            console.error('創建拒絕訊息失敗:', error);
+          }
+        } else if (status === 'completed') {
+          notificationTitle = '預約已完成';
+          notificationContent = `您的預約已完成，請記得給予評論！`;
+        } else if (status === 'cancelled') {
+          notificationTitle = '預約已取消';
+          const cancellationReason = req.body.cancellationReason || '未提供原因';
+          notificationContent = `${providerName} 已取消您的預約`;
+          
+          // 創建取消訊息給茶客（包含取消原因）
+          try {
+            const { v4: uuidv4 } = await import('uuid');
+            const threadId = booking.id;
+            
+            const cancellationMessage = `❌ 預約已取消\n\n很抱歉，${profile.name} 已取消您的預約。\n\n預約詳情：\n• 預約日期：${booking.bookingDate}\n• 預約時間：${booking.bookingTime}${booking.location ? `\n• 地點：${booking.location}` : ''}\n\n取消原因：\n${cancellationReason}\n\n如有疑問，請聯繫客服。`;
+            
+            const cancellationMessageId = uuidv4();
+            await query(
+              `INSERT INTO messages (id, sender_id, recipient_id, profile_id, thread_id, message, created_at, is_read)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+              [cancellationMessageId, providerId, booking.clientId, booking.profileId, threadId, cancellationMessage, new Date(), false]
+            );
+            
+            await notificationModel.create({
+              userId: booking.clientId,
+              type: 'booking',
+              title: '預約已取消',
+              content: `${providerName} 已取消您的預約\n\n取消原因：${cancellationReason}\n\n請前往訊息收件箱查看詳情。`,
+              link: `/user-profile?tab=messages`,
+              metadata: {
+                bookingId: booking.id,
+                profileId: booking.profileId,
+                messageId: cancellationMessageId,
+                threadId: threadId,
+              },
+            });
+            
+            console.log(`已發送取消訊息給茶客 ${booking.clientId}`);
+          } catch (error) {
+            console.error('創建取消訊息失敗:', error);
+          }
+        }
+        
+        if (notificationTitle) {
+          await notificationModel.create({
+            userId: booking.clientId,
+            type: 'booking',
+            title: notificationTitle,
+            content: notificationContent,
+            link: `/user-profile?tab=bookings`,
+            metadata: {
+              bookingId: booking.id,
+              status: status,
+            },
+          });
+        }
+        
+        // 更新回應預約任務進度（當佳麗接受或拒絕預約時）
+        if (status === 'accepted' || status === 'rejected') {
+          try {
+            const { tasksModel } = await import('../models/Tasks.js');
+            const taskResult = await tasksModel.updateTaskProgress(user.id, 'lady_respond_booking');
+            
+            if (taskResult.completed) {
+              await userStatsModel.addPoints(
+                user.id,
+                taskResult.pointsEarned,
+                taskResult.experienceEarned
+              );
+              
+              // 創建任務完成通知
+              try {
+                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_respond_booking');
+                if (definition) {
+                  await notificationModel.create({
+                    userId: user.id,
+                    type: 'task',
+                    title: '任務完成',
+                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                    link: `/user-profile?tab=points`,
+                    metadata: {
+                      taskType: 'lady_respond_booking',
+                      taskName: definition.name,
+                      pointsEarned: taskResult.pointsEarned,
+                      experienceEarned: taskResult.experienceEarned,
+                    },
+                  });
+                }
+              } catch (error) {
+                console.error('創建任務完成通知失敗:', error);
+              }
+            }
+            
+            // 更新平均回應時間（當佳麗回應預約時）
+            try {
+              const bookingCreatedAt = new Date(booking.createdAt);
+              const now = new Date();
+              const responseTimeMinutes = Math.floor((now.getTime() - bookingCreatedAt.getTime()) / (1000 * 60));
+              
+              // 獲取當前的平均回應時間
+              const currentStats = await userStatsModel.getOrCreate(user.id);
+              const currentAvgResponseTime = currentStats.averageResponseTime || 0;
+              const totalResponses = await query(`
+                SELECT COUNT(*) as count FROM bookings 
+                WHERE provider_id = $1 AND (status = 'accepted' OR status = 'rejected')
+              `, [user.id]);
+              const responseCount = parseInt(totalResponses.rows[0]?.count || '0');
+              
+              // 計算新的平均回應時間
+              const newAvgResponseTime = responseCount > 0
+                ? Math.round((currentAvgResponseTime * (responseCount - 1) + responseTimeMinutes) / responseCount)
+                : responseTimeMinutes;
+              
+              await userStatsModel.updateCounts(user.id, {
+                averageResponseTime: newAvgResponseTime,
+              });
+            } catch (error) {
+              console.error('更新平均回應時間失敗:', error);
+            }
+          } catch (error) {
+            console.error('更新回應預約任務失敗:', error);
+          }
+        }
+      } else if (user.role === 'client' && booking.clientId === user.id) {
+        // 茶客更新狀態，通知佳麗（如果有）
+        if (booking.providerId) {
+          const clientName = user.userName || user.email || user.phoneNumber || '茶客';
+          
+          if (status === 'cancelled') {
+            // 防範亂取消機制：檢查是否在短時間內大量取消
+            const recentCancellationCount = await bookingModel.getRecentCancellationCount(user.id, 1);
+            if (recentCancellationCount >= 3) {
+              // 如果1小時內取消3次以上，直接觸發警告
+              try {
+                const { notificationModel } = await import('../models/Notification.js');
+                await notificationModel.create({
+                  userId: user.id,
+                  type: 'warning',
+                  title: '取消頻率過高警告',
+                  content: `您在1小時內已取消 ${recentCancellationCount + 1} 次預約，請謹慎使用取消功能。頻繁取消將導致帳號被凍結。`,
+                  link: `/user-profile?tab=bookings`,
+                  metadata: {
+                    type: 'cancellation_warning',
+                    count: recentCancellationCount + 1,
+                  },
+                });
+              } catch (error) {
+                console.error('發送取消警告通知失敗:', error);
+              }
+            }
+            
+            // 增加茶客的取消次數
+            try {
+              const cancellationResult = await userModel.incrementCancellationCount(user.id);
+              
+              // 如果達到3次，創建凍結記錄並發送通知
+              if (cancellationResult.count >= 3) {
+                const { bookingRestrictionModel, calculateViolationLevel } = await import('../models/BookingRestriction.js');
+                const { userModel } = await import('../models/User.js');
+                
+                // 檢查是否已經有凍結記錄
+                const existingRestriction = await bookingRestrictionModel.getActiveByUserId(user.id);
+                
+                if (!existingRestriction) {
+                  // 獲取用戶當前的違規級別（用於判斷累犯）
+                  const currentUser = await userModel.findById(user.id);
+                  const previousViolationLevel = currentUser?.violationLevel || 0;
+                  
+                  // 計算新的違規級別
+                  const violationLevel = calculateViolationLevel(
+                    cancellationResult.count,
+                    'cancellation_limit',
+                    previousViolationLevel
+                  );
+                  
+                  // 創建新的凍結記錄（會自動計算凍結期限）
+                  const restriction = await bookingRestrictionModel.create({
+                    userId: user.id,
+                    restrictionType: 'cancellation_limit',
+                    reason: `取消預約次數已達 ${cancellationResult.count} 次`,
+                    cancellationCount: cancellationResult.count,
+                    violationLevel,
+                  });
+                  
+                  // 更新用戶的違規級別和標記
+                  let warningBadge = false;
+                  if (violationLevel >= 2) {
+                    // 累犯第一次（總計6次）開始顯示警示標記
+                    warningBadge = true;
+                  }
+                  
+                  await userModel.updateViolationLevel(user.id, violationLevel, warningBadge, undefined);
+                  
+                  // 根據違規級別發送不同的通知
+                  let freezeDuration = '';
+                  if (violationLevel === 1) {
+                    freezeDuration = '1個月';
+                  } else if (violationLevel === 2) {
+                    freezeDuration = '6個月';
+                  } else if (violationLevel === 3) {
+                    freezeDuration = '1年';
+                  } else if (violationLevel === 4) {
+                    freezeDuration = '永久';
+                  }
+                  
+                  const unfreezeDate = restriction.autoUnfreezeAt 
+                    ? new Date(restriction.autoUnfreezeAt).toLocaleDateString('zh-TW')
+                    : '需管理員手動解除';
+                  
+                  await notificationModel.create({
+                    userId: user.id,
+                    type: 'warning',
+                    title: '⚠️ 預約權限已被凍結',
+                    content: violationLevel === 4 
+                      ? `您的預約權限已被凍結。原因：取消預約次數已達 ${cancellationResult.count} 次。您已被永久除名，驅逐出御茶室，將無法預約嚴選好茶和特選魚市。`
+                      : `您的預約權限已被凍結。原因：取消預約次數已達 ${cancellationResult.count} 次。凍結期限：${freezeDuration}${restriction.autoUnfreezeAt ? `（預計解凍時間：${unfreezeDate}）` : ''}。您將無法預約嚴選好茶和特選魚市。${violationLevel >= 2 ? '您的帳號已標記為失信茶客。' : ''}`,
+                    link: `/user-profile?tab=bookings`,
+                    metadata: {
+                      type: 'booking_frozen',
+                      count: cancellationResult.count,
+                      violationLevel,
+                    },
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('更新取消次數失敗:', error);
+            }
+            
+            await notificationModel.create({
+              userId: booking.providerId,
+              type: 'booking',
+              title: '預約已取消',
+              content: `${clientName} 已取消預約`,
+              link: `/user-profile?tab=bookings`,
+              metadata: {
+                bookingId: booking.id,
+                status: status,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('發送預約狀態變更通知失敗:', error);
+      // 不阻止狀態更新，只記錄錯誤
+    }
+    
+    // ========================================================================
+    // ⚠️ 預約完成處理（重要：不更新預約次數統計）
+    // ========================================================================
+    // 當預約狀態變為 'completed' 時，只給予經驗值獎勵（+25經驗值/次）。
+    // 
+    // ⚠️ 注意：預約次數統計不在這裡更新，而是在用戶發表評論時才計數。
+    //
+    // 預約次數判斷標準（詳細說明請參考專案根目錄的「預約次數判斷機制說明.md」）：
+    // - 特選魚市：預約成功（accepted/completed）+ 評論 = 計數一次
+    // - 嚴選好茶：管理員確認赴約（completed）+ 評論 = 計數一次
+    //
+    // 🔔 後續實作時不要在這裡添加預約次數統計邏輯，保持只在評論時計數。
+    // ========================================================================
+    if (status === 'completed' && existingBooking.status !== 'completed') {
+      try {
+        // 給客戶經驗值（如果是客戶完成的預約）
+        if (user.role === 'client' && booking.clientId === user.id) {
+          await userStatsModel.addPoints(booking.clientId, 0, 25); // 只給經驗值，不給積分
+        }
+        // 給後宮佳麗經驗值並檢查自動解鎖成就（如果是供茶人完成的預約）
+        if (user.role === 'provider' && booking.providerId === user.id) {
+          await userStatsModel.addPoints(booking.providerId, 0, 25); // 只給經驗值，不給積分
+          
+          // 更新「完成預約」任務進度
+          try {
+            const { tasksModel } = await import('../models/Tasks.js');
+            const { notificationModel } = await import('../models/Notification.js');
+            const taskResult = await tasksModel.updateTaskProgress(booking.providerId, 'lady_complete_booking', 1);
+            
+            if (taskResult.completed) {
+              await userStatsModel.addPoints(
+                booking.providerId,
+                taskResult.pointsEarned,
+                taskResult.experienceEarned
+              );
+              
+              // 創建任務完成通知
+              try {
+                const definition = tasksModel.getTaskDefinitions().find(d => d.type === 'lady_complete_booking');
+                if (definition) {
+                  await notificationModel.create({
+                    userId: booking.providerId,
+                    type: 'task',
+                    title: '任務完成',
+                    content: `恭喜您完成了「${definition.name}」任務！獲得 ${taskResult.pointsEarned} 積分和 ${taskResult.experienceEarned} 經驗值。`,
+                    link: `/user-profile?tab=points`,
+                    metadata: {
+                      taskType: 'lady_complete_booking',
+                      taskName: definition.name,
+                      pointsEarned: taskResult.pointsEarned,
+                      experienceEarned: taskResult.experienceEarned,
+                    },
+                  });
+                }
+              } catch (error) {
+                console.error('創建任務完成通知失敗:', error);
+              }
+            }
+          } catch (error) {
+            console.error('更新完成預約任務失敗:', error);
+          }
+          
+          // 更新回頭客統計數據
+          try {
+            const { query } = await import('../db/database.js');
+            // 檢查該客戶是否為回頭客（之前有完成的預約）
+            const previousCompletedBookings = await query(`
+              SELECT COUNT(*) as count FROM bookings 
+              WHERE provider_id = $1 AND client_id = $2 AND status = 'completed' AND id != $3
+            `, [booking.providerId, booking.clientId, booking.id]);
+            
+            const previousCount = parseInt(previousCompletedBookings.rows[0]?.count || '0');
+            
+            if (previousCount > 0) {
+              // 這是回頭客，更新回頭客預約次數
+              await userStatsModel.updateCounts(booking.providerId, {
+                repeatClientBookingsCount: 1,
+              });
+              
+              // 檢查是否為新的回頭客（之前沒有完成過預約）
+              const uniqueReturningClients = await query(`
+                SELECT COUNT(DISTINCT client_id) as count FROM bookings 
+                WHERE provider_id = $1 AND status = 'completed' AND client_id IN (
+                  SELECT DISTINCT client_id FROM bookings 
+                  WHERE provider_id = $1 AND status = 'completed' 
+                  GROUP BY client_id HAVING COUNT(*) > 1
+                )
+              `, [booking.providerId]);
+              
+              const uniqueCount = parseInt(uniqueReturningClients.rows[0]?.count || '0');
+              await userStatsModel.updateCounts(booking.providerId, {
+                uniqueReturningClientsCount: uniqueCount,
+              });
+            }
+          } catch (error) {
+            console.error('更新回頭客統計數據失敗:', error);
+          }
+          
+          // 更新連續完成預約次數
+          try {
+            const { query } = await import('../db/database.js');
+            const currentStats = await userStatsModel.getOrCreate(booking.providerId);
+            const currentConsecutive = currentStats.consecutiveCompletedBookings || 0;
+            
+            // 檢查最後一次完成的預約時間
+            const lastCompletedBooking = await query(`
+              SELECT updated_at FROM bookings 
+              WHERE provider_id = $1 AND status = 'completed' AND id != $2
+              ORDER BY updated_at DESC LIMIT 1
+            `, [booking.providerId, booking.id]);
+            
+            if (lastCompletedBooking.rows.length > 0) {
+              const lastCompletedDate = new Date(lastCompletedBooking.rows[0].updated_at);
+              const today = new Date();
+              const diffDays = Math.floor((today.getTime() - lastCompletedDate.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (diffDays <= 1) {
+                // 連續完成，增加計數
+                await userStatsModel.updateCounts(booking.providerId, {
+                  consecutiveCompletedBookings: currentConsecutive + 1,
+                });
+              } else {
+                // 中斷了，重置為 1
+                await userStatsModel.updateCounts(booking.providerId, {
+                  consecutiveCompletedBookings: 1,
+                });
+              }
+            } else {
+              // 這是第一次完成預約
+              await userStatsModel.updateCounts(booking.providerId, {
+                consecutiveCompletedBookings: 1,
+              });
+            }
+          } catch (error) {
+            console.error('更新連續完成預約次數失敗:', error);
+          }
+          
+          // 更新取消率
+          try {
+            const { query } = await import('../db/database.js');
+            const totalBookings = await query(`
+              SELECT COUNT(*) as total FROM bookings WHERE provider_id = $1
+            `, [booking.providerId]);
+            const cancelledBookings = await query(`
+              SELECT COUNT(*) as cancelled FROM bookings WHERE provider_id = $1 AND status = 'cancelled'
+            `, [booking.providerId]);
+            
+            const total = parseInt(totalBookings.rows[0]?.total || '0');
+            const cancelled = parseInt(cancelledBookings.rows[0]?.cancelled || '0');
+            const cancellationRate = total > 0 ? cancelled / total : 0;
+            
+            await userStatsModel.updateCounts(booking.providerId, {
+              cancellationRate: cancellationRate,
+            });
+          } catch (error) {
+            console.error('更新取消率失敗:', error);
+          }
+          
+          // 檢查並自動解鎖符合條件的成就
+          const { achievementModel } = await import('../models/Achievement.js');
+          const unlocked = await achievementModel.checkAndUnlockAchievements(booking.providerId);
+          if (unlocked.length > 0) {
+            console.log(`後宮佳麗 ${booking.providerId} 自動解鎖了 ${unlocked.length} 個成就:`, unlocked.map(a => a.achievementName));
+          }
+        }
+      } catch (error) {
+        console.error('給完成預約者經驗值失敗:', error);
+      }
+    }
+    
+    res.json(booking);
+  } catch (error: any) {
+    console.error('Update booking status error:', error);
+    res.status(500).json({ error: error.message || '更新預約失敗' });
+  }
+});
+
+// 刪除預約
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await getUserFromRequest(req);
+    
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const success = await bookingModel.delete(id, user.id, user.role);
+    
+    if (!success) {
+      return res.status(403).json({ error: '無權刪除此預約' });
+    }
+    
+    res.json({ message: '删除成功' });
+  } catch (error: any) {
+    console.error('Delete booking error:', error);
+    res.status(500).json({ error: error.message || '刪除預約失敗' });
+  }
+});
+
+// 更新评论状态
+router.put('/:id/review-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reviewed } = req.body;
+    
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const booking = await bookingModel.getById(id);
+    if (!booking) {
+      return res.status(404).json({ error: '預約不存在' });
+    }
+    
+    // 检查权限
+    if (user.role === 'client' && booking.clientId !== user.id) {
+      return res.status(403).json({ error: '無權修改此預約' });
+    }
+    if (user.role === 'provider' && booking.providerId !== user.id) {
+      return res.status(403).json({ error: '無權修改此預約' });
+    }
+    
+    const updatedBooking = await bookingModel.updateReviewStatus(
+      id,
+      user.role as 'client' | 'provider',
+      reviewed === true
+    );
+    
+    res.json(updatedBooking);
+  } catch (error: any) {
+    console.error('Update review status error:', error);
+    res.status(500).json({ error: error.message || '更新评论状态失败' });
+  }
+});
+
+// 回報放鳥（佳麗回報茶客沒有到場）- 必須在 GET /:id 之前
+router.post('/:id/report-no-show', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await getUserFromRequest(req);
+    
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    if (user.role !== 'provider') {
+      return res.status(403).json({ error: '只有佳麗可以回報失約' });
+    }
+    
+    const booking = await bookingModel.reportNoShow(id, user.id);
+    
+    if (!booking) {
+      return res.status(403).json({ error: '無法回報此預約為失約，請確認預約狀態和權限' });
+    }
+    
+    // 發送通知給茶客
+    try {
+      const { notificationModel } = await import('../models/Notification.js');
+      const client = await userModel.findById(booking.clientId);
+      const clientName = client?.userName || client?.email || client?.phoneNumber || '茶客';
+      const providerName = user.userName || user.email || user.phoneNumber || '佳麗';
+      
+      await notificationModel.create({
+        userId: booking.clientId,
+        type: 'warning',
+          title: '⚠️ 預約失約回報',
+          content: `${providerName} 回報您未到場，預約已取消。此記錄將計入您的失約次數。`,
+        link: `/user-profile?tab=bookings`,
+        metadata: {
+          bookingId: booking.id,
+          type: 'no_show',
+        },
+      });
+      
+      // 增加放鳥次數並檢查是否需要凍結
+      const clientUser = await userModel.findById(booking.clientId);
+      if (clientUser) {
+        const noShowResult = await userModel.incrementNoShowCount(booking.clientId);
+        const updatedClientUser = await userModel.findById(booking.clientId);
+        
+        // 發送放鳥回報通知
+        await notificationModel.create({
+          userId: booking.clientId,
+          type: 'warning',
+          title: '⚠️ 預約失約回報',
+          content: `${providerName} 回報您未到場，預約已取消。此記錄將計入您的失約次數。`,
+          link: `/user-profile?tab=bookings`,
+          metadata: {
+            bookingId: booking.id,
+            type: 'no_show',
+          },
+        });
+        
+        // 如果達到3次放鳥，創建凍結記錄
+        if (noShowResult.count >= 3 && updatedClientUser) {
+          const { bookingRestrictionModel, calculateViolationLevel } = await import('../models/BookingRestriction.js');
+          
+          // 檢查是否已經有放鳥相關的凍結記錄
+          const existingRestriction = await bookingRestrictionModel.getActiveByUserId(booking.clientId);
+          const isNoShowRestriction = existingRestriction?.restrictionType === 'no_show';
+          
+          if (!existingRestriction || !isNoShowRestriction) {
+            // 獲取用戶當前的違規級別（用於判斷累犯）
+            const previousViolationLevel = updatedClientUser.violationLevel || 0;
+            
+            // 計算新的違規級別（放鳥規則）
+            const violationLevel = calculateViolationLevel(
+              noShowResult.count,
+              'no_show',
+              previousViolationLevel
+            );
+            
+            // 創建新的凍結記錄
+            const restriction = await bookingRestrictionModel.create({
+              userId: booking.clientId,
+              restrictionType: 'no_show',
+              reason: `失約次數已達 ${noShowResult.count} 次`,
+              noShowCount: noShowResult.count,
+              violationLevel,
+            });
+            
+            // 更新用戶的違規級別和放鳥標記
+            let noShowBadge = false;
+            if (noShowResult.count >= 3) {
+              // 3次放鳥開始顯示放鳥標記
+              noShowBadge = true;
+            }
+            
+            await userModel.updateViolationLevel(booking.clientId, violationLevel, undefined, noShowBadge);
+            
+            // 根據違規級別發送不同的通知
+            let freezeDuration = '';
+            if (violationLevel === 1) {
+              freezeDuration = '1個月';
+            } else if (violationLevel === 2) {
+              freezeDuration = '1年';
+            } else if (violationLevel === 4) {
+              freezeDuration = '永久';
+            }
+            
+            const unfreezeDate = restriction.autoUnfreezeAt 
+              ? new Date(restriction.autoUnfreezeAt).toLocaleDateString('zh-TW')
+              : '需管理員手動解除';
+            
+            await notificationModel.create({
+              userId: booking.clientId,
+              type: 'warning',
+              title: '⚠️ 預約權限已被凍結（失約）',
+              content: violationLevel === 4
+            ? `您的預約權限已被凍結。原因：失約次數已達 ${noShowResult.count} 次。您已被永久除名，驅逐出御茶室，將無法預約嚴選好茶和特選魚市。`
+            : `您的預約權限已被凍結。原因：失約次數已達 ${noShowResult.count} 次。凍結期限：${freezeDuration}${restriction.autoUnfreezeAt ? `（預計解凍時間：${unfreezeDate}）` : ''}。您將無法預約嚴選好茶和特選魚市。您的帳號已標記為失約茶客。`,
+              link: `/user-profile?tab=bookings`,
+              metadata: {
+                type: 'booking_frozen_no_show',
+                count: noShowResult.count,
+                violationLevel,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('發送失約回報通知失敗:', error);
+    }
+    
+    res.json({ message: '已回報為失約', booking });
+  } catch (error: any) {
+    console.error('Report no-show error:', error);
+    res.status(500).json({ error: error.message || '回報失約失敗' });
+  }
+});
+
+// 獲取預約詳情（包括對方聯絡方式）
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await getUserFromRequest(req);
+    
+    if (!user) {
+      return res.status(401).json({ error: '請先登入' });
+    }
+    
+    const booking = await bookingModel.getById(id);
+    if (!booking) {
+      return res.status(404).json({ error: '預約不存在' });
+    }
+    
+    // 檢查權限
+    if (user.role !== 'admin') {
+      if (user.role === 'client' && booking.clientId !== user.id) {
+        return res.status(403).json({ error: '無權查看此預約' });
+      }
+      if (user.role === 'provider' && booking.providerId !== user.id) {
+        return res.status(403).json({ error: '無權查看此預約' });
+      }
+    }
+    
+    // 獲取 profile 資訊
+    const { profileModel } = await import('../models/Profile.js');
+    const profile = await profileModel.getById(booking.profileId);
+    
+    // 獲取對方資訊
+    const { userModel } = await import('../models/User.js');
+    let otherUser = null;
+    if (user.role === 'client' && booking.providerId) {
+      otherUser = await userModel.findById(booking.providerId);
+    } else if (user.role === 'provider' && booking.clientId) {
+      otherUser = await userModel.findById(booking.clientId);
+    }
+    
+    const response: any = { ...booking };
+    
+    // 只有在有预约记录时才返回对方联络方式
+    if (profile) {
+      if (user.role === 'client' && booking.providerId && profile.contactInfo) {
+        // 茶客查看佳麗聯絡方式
+        response.providerContactInfo = profile.contactInfo;
+      } else if (user.role === 'provider' && booking.clientId && otherUser) {
+        // 佳麗查看茶客聯絡方式（如果有）
+        response.clientContactInfo = {
+          phone: otherUser.phoneNumber,
+          email: otherUser.email
+        };
+      }
+    }
+    
+    res.json(response);
+  } catch (error: any) {
+    console.error('Get booking detail error:', error);
+    res.status(500).json({ error: error.message || '獲取預約詳情失敗' });
+  }
+});
+
+export default router;
+
