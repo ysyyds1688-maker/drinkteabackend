@@ -19,7 +19,7 @@ router.get('/', (req, res) => {
   } catch(e) {}
   // #endregion
   try {
-    const html = `<!DOCTYPE html>
+    const html = String.raw`<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
