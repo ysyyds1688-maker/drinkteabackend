@@ -103,16 +103,20 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] HTML string length:', finalHtml.length);
     console.log('[DEBUG] HTML UTF-8 byte length:', actualByteLength);
     console.log('[DEBUG] HTML ends with </html>:', finalHtml.endsWith('</html>'));
-    const scriptTags = (finalHtml.match(/<script>/g) || []).length;
-    const closeScriptTags = (finalHtml.match(/<\/script>/g) || []).length;
+    const scriptTagRegex = /<script>/g;
+    const closeScriptTagRegex = /<\/script>/g;
+    const scriptTags = (finalHtml.match(scriptTagRegex) || []).length;
+    const closeScriptTags = (finalHtml.match(closeScriptTagRegex) || []).length;
     console.log('[DEBUG] Script tags - open:', scriptTags, 'close:', closeScriptTags);
     // Check for any unclosed strings in the script content
     const scriptStart = finalHtml.indexOf('<script>');
     const scriptEnd = finalHtml.indexOf('</script>');
     if (scriptStart >= 0 && scriptEnd >= 0) {
       const scriptContent = finalHtml.substring(scriptStart + 8, scriptEnd);
-      const singleQuotes = (scriptContent.match(/'/g) || []).length;
-      const doubleQuotes = (scriptContent.match(/"/g) || []).length;
+      const singleQuoteRegex2 = /'/g;
+      const doubleQuoteRegex2 = /"/g;
+      const singleQuotes = (scriptContent.match(singleQuoteRegex2) || []).length;
+      const doubleQuotes = (scriptContent.match(doubleQuoteRegex2) || []).length;
       console.log('[DEBUG] Script content quotes - single:', singleQuotes, 'double:', doubleQuotes);
       // Check for unmatched quotes (odd numbers indicate unclosed strings)
       if (singleQuotes % 2 !== 0) {
@@ -189,10 +193,12 @@ router.get('/', (req, res) => {
     // Validate and send HTML
     const trimmedHtml = finalHtml.trim();
     
-    if (!trimmedHtml.startsWith('<!DOCTYPE html>')) {
+    const doctypeStart = '<!DOCTYPE html>';
+    if (!trimmedHtml.startsWith(doctypeStart)) {
         return res.status(500).send('HTML generation error: Invalid start');
     }
-    if (!trimmedHtml.endsWith('</html>')) {
+    const htmlEnd = '</html>';
+    if (!trimmedHtml.endsWith(htmlEnd)) {
         return res.status(500).send('HTML generation error: Invalid end');
     }
     
