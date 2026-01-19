@@ -903,6 +903,17 @@ router.get('/', (req, res) => {
                         <p style="color: #666; font-size: 0.875rem;">管理所有預約記錄</p>
                         <div style="margin-top: 1rem; color: #1a5f3f; font-weight: 600;">點擊進入 →</div>
                     </div>
+                    <!-- 資料備份 (PostgreSQL) - 直接連到備份 API，避免再加複雜 JS -->
+                    <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s;">
+                        <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">💾 資料備份（PostgreSQL）</h3>
+                        <p style="color: #666; font-size: 0.875rem;">
+                            點擊下方按鈕，從伺服器即時匯出 <strong>PostgreSQL 資料庫</strong> 的 SQL 備份檔案（.sql），請妥善保存。
+                        </p>
+                        <a href="/api/admin/backup/db" target="_blank"
+                           style="display: inline-block; margin-top: 1rem; padding: 0.75rem 1.5rem; background: #10b981; color: #ffffff; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 500;">
+                            💾 下載資料庫 SQL 備份
+                        </a>
+                    </div>
                 </div>
             </div>
 
