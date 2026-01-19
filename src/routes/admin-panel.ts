@@ -98,7 +98,9 @@ router.get('/', (req, res) => {
     } catch(e) {}
     // #endregion
     // Set proper content type - DO NOT set Content-Length manually, let Express handle it
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const contentTypeHeader = 'Content-Type';
+    const contentTypeValue = 'text/html; charset=utf-8';
+    res.setHeader(contentTypeHeader, contentTypeValue);
     // #region agent log
     const actualByteLength = Buffer.byteLength(finalHtml, 'utf8');
     console.log('[DEBUG] HTML string length:', finalHtml.length);
@@ -187,10 +189,13 @@ router.get('/', (req, res) => {
     // Set headers BEFORE sending to ensure proper content type
     // CRITICAL: Set headers in correct order to prevent browser from treating HTML as JavaScript
     // Remove any existing Content-Type header first
-    res.removeHeader('Content-Type');
+    const contentTypeHeader3 = 'Content-Type';
+    res.removeHeader(contentTypeHeader3);
     
     // Set headers BEFORE sending to ensure proper content type
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const contentTypeHeader2 = 'Content-Type';
+    const contentTypeValue2 = 'text/html; charset=utf-8';
+    res.setHeader(contentTypeHeader2, contentTypeValue2);
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
