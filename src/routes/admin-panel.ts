@@ -204,8 +204,10 @@ router.get('/', (req, res) => {
     
     // CRITICAL: Ensure we're sending HTML, not JavaScript
     if (res.headersSent) {
-        console.error('[ERROR] Headers already sent!');
-        return res.status(500).send('Headers already sent');
+        const errorMsg1 = '[ERROR] Headers already sent!';
+        console.error(errorMsg1);
+        const errorMsg2 = 'Headers already sent';
+        return res.status(500).send(errorMsg2);
     }
     
     // Use res.contentType() to set Content-Type - this is the Express way
