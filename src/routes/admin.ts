@@ -163,6 +163,43 @@ router.get('/stats', async (req, res) => {
 });
 
 // ==================== 資料備份（PostgreSQL） ====================
+// GET /api/admin/backup - 資料備份頁面（HTML）
+router.get('/backup', (req, res) => {
+  const html = '<!DOCTYPE html>' +
+    '<html lang="zh-TW">' +
+    '<head>' +
+    '<meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>茶王 - 資料備份</title>' +
+    '<style>' +
+    'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;margin:0;padding:0;}' +
+    '.container{max-width:800px;margin:2rem auto;padding:2rem;background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08);}' +
+    'h1{font-size:1.5rem;margin-bottom:1rem;}' +
+    'p{color:#4b5563;font-size:0.95rem;line-height:1.6;}' +
+    '.btn{display:inline-block;margin-top:1.5rem;padding:0.75rem 1.5rem;background:#10b981;color:#ffffff;border-radius:6px;text-decoration:none;font-size:0.95rem;font-weight:500;}' +
+    '.btn:hover{background:#059669;}' +
+    '.back-link{display:inline-block;margin-top:1rem;font-size:0.85rem;color:#6b7280;text-decoration:none;}' +
+    '.back-link:hover{text-decoration:underline;}' +
+    '.note{margin-top:1rem;padding:0.75rem 1rem;background:#fef3c7;border-radius:8px;border-left:3px solid #f59e0b;color:#78350f;font-size:0.85rem;}' +
+    '</style>' +
+    '</head>' +
+    '<body>' +
+    '<div class="container">' +
+    '<h1>💾 資料備份（PostgreSQL）</h1>' +
+    '<p>點擊下方按鈕，即可從伺服器即時匯出 <strong>PostgreSQL 資料庫</strong> 的 SQL 備份檔案（.sql）。</p>' +
+    '<p>建議下載後保存到安全位置（例如加密硬碟或雲端備份），避免遺失。</p>' +
+    '<a class="btn" href="/api/admin/backup/db" target="_blank">💾 下載資料庫 SQL 備份</a>' +
+    '<div class="note">' +
+    '⚠️ 如果按下按鈕沒有開始下載，請檢查瀏覽器是否擋下了下載或彈出視窗，或稍後再試一次。' +
+    '</div>' +
+    '<a class="back-link" href="/admin">← 回到後台儀表板</a>' +
+    '</div>' +
+    '</body>' +
+    '</html>';
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(html);
+});
+
 // GET /api/admin/backup/db - 下載資料庫 SQL 備份（僅管理員在前端可見）
 router.get('/backup/db', async (req, res) => {
   try {
