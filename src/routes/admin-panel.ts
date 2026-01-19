@@ -54,7 +54,8 @@ router.get('/', (req, res) => {
     const finalHtml = cleanHtml.trimEnd();
     // #region agent log
     console.log('[DEBUG] After trimEnd - finalHtml length:', finalHtml.length);
-    console.log('[DEBUG] finalHtml ends with </html>:', finalHtml.endsWith('</html>'));
+    const htmlEndCheck2 = '</html>';
+    console.log('[DEBUG] finalHtml ends with </html>:', finalHtml.endsWith(htmlEndCheck2));
     console.log('[DEBUG] finalHtml last 30 chars:', JSON.stringify(finalHtml.substring(Math.max(0, finalHtml.length - 30))));
     console.log('[DEBUG] finalHtml last 20 bytes hex:', Buffer.from(finalHtml.substring(Math.max(0, finalHtml.length - 20)), 'utf8').toString('hex'));
     // #endregion
@@ -102,15 +103,18 @@ router.get('/', (req, res) => {
     const actualByteLength = Buffer.byteLength(finalHtml, 'utf8');
     console.log('[DEBUG] HTML string length:', finalHtml.length);
     console.log('[DEBUG] HTML UTF-8 byte length:', actualByteLength);
-    console.log('[DEBUG] HTML ends with </html>:', finalHtml.endsWith('</html>'));
+    const htmlEndCheck3 = '</html>';
+    console.log('[DEBUG] HTML ends with </html>:', finalHtml.endsWith(htmlEndCheck3));
     const scriptTagRegex = /<script>/g;
     const closeScriptTagRegex = /<\/script>/g;
     const scriptTags = (finalHtml.match(scriptTagRegex) || []).length;
     const closeScriptTags = (finalHtml.match(closeScriptTagRegex) || []).length;
     console.log('[DEBUG] Script tags - open:', scriptTags, 'close:', closeScriptTags);
     // Check for any unclosed strings in the script content
-    const scriptStart = finalHtml.indexOf('<script>');
-    const scriptEnd = finalHtml.indexOf('</script>');
+    const scriptStartTag = '<script>';
+    const scriptEndTag = '</script>';
+    const scriptStart = finalHtml.indexOf(scriptStartTag);
+    const scriptEnd = finalHtml.indexOf(scriptEndTag);
     if (scriptStart >= 0 && scriptEnd >= 0) {
       const scriptContent = finalHtml.substring(scriptStart + 8, scriptEnd);
       const singleQuoteRegex2 = /'/g;
@@ -143,11 +147,13 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] First line (first 50 chars):', JSON.stringify(htmlLines[0].substring(0, 50)));
     console.log('[DEBUG] Last line (last 50 chars):', JSON.stringify(htmlLines[htmlLines.length - 1].substring(Math.max(0, htmlLines[htmlLines.length - 1].length - 50))));
     // Check if HTML starts correctly
-    if (!finalHtml.startsWith('<!DOCTYPE')) {
+    const doctypeCheck = '<!DOCTYPE';
+    if (!finalHtml.startsWith(doctypeCheck)) {
       console.error('[DEBUG] ERROR: HTML does not start with <!DOCTYPE');
     }
     // Check if HTML ends correctly
-    if (!finalHtml.endsWith('</html>')) {
+    const htmlEndCheck = '</html>';
+    if (!finalHtml.endsWith(htmlEndCheck)) {
       console.error('[DEBUG] ERROR: HTML does not end with </html>');
     }
     // Send HTML using res.send - Express will automatically set Content-Length correctly
@@ -211,7 +217,8 @@ router.get('/', (req, res) => {
     }
     
     // Use res.contentType() to set Content-Type - this is the Express way
-    res.contentType('text/html; charset=utf-8');
+    const contentType = 'text/html; charset=utf-8';
+    res.contentType(contentType);
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
