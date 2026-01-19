@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { spawn } from 'child_process';
 import { profileModel } from '../models/Profile.js';
 import { articleModel } from '../models/Article.js';
 import { userModel } from '../models/User.js';
@@ -158,6 +159,79 @@ router.get('/stats', async (req, res) => {
   } catch (error: any) {
     console.error('GET /api/admin/stats error:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// ==================== 資料備份（PostgreSQL） ====================
+// GET /api/admin/backup/db - 下載資料庫 SQL 備份（僅管理員在前端可見）
+router.get('/backup/db', async (req, res) => {
+  try {
+    const connectionString = process.env.DATABASE_URL;
+
+    if (!connectionString) {
+      return res.status(500).json({
+        error: 'DATABASE_URL 未設定，無法執行備份',
+      });
+    }
+
+    // 產生備份檔名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `db-backup-${timestamp}.sql`;
+
+    // 設定回應為檔案下載（SQL 純文字）
+    res.setHeader('Content-Type', 'application/sql; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    // 呼叫 pg_dump 將資料庫輸出為 SQL（plain 格式）
+    // 要求：容器內需已安裝 postgresql-client（pg_dump）
+    const pgDump = spawn('pg_dump', [connectionString, '-F', 'p'], {
+      env: {
+        ...process.env,
+      },
+    });
+
+    let stderr = '';
+
+    pgDump.stderr.on('data', (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      console.error('[pg_dump]', text.trim());
+    });
+
+    pgDump.on('error', (error) => {
+      console.error('啟動 pg_dump 失敗:', error);
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .send('啟動 pg_dump 失敗，請確認容器已安裝 PostgreSQL 客戶端 (pg_dump)。');
+      } else {
+        res.end();
+      }
+    });
+
+    // 將 pg_dump 的輸出直接串流給瀏覽器
+    pgDump.stdout.pipe(res);
+
+    pgDump.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`pg_dump 結束代碼 ${code}`, stderr);
+        if (!res.headersSent) {
+          res
+            .status(500)
+            .send('資料庫備份失敗，請查看伺服器日誌 (pg_dump exit code ' + code + ')。');
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('資料庫備份發生錯誤:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: error.message || '資料庫備份發生未知錯誤',
+      });
+    }
   }
 });
 
