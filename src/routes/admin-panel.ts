@@ -64,8 +64,11 @@ router.get('/', (req, res) => {
     const cleanHtmlLast100 = finalHtml.substring(Math.max(0, finalHtml.length - 100));
     const cleanHtmlFirst13 = finalHtml.substring(0, 13);
     const cleanHtmlFirst13Hex = Buffer.from(cleanHtmlFirst13).toString('hex');
-    const hasUnclosedString = (finalHtml.match(/"/g) || []).length % 2 !== 0 || (finalHtml.match(/'/g) || []).length % 2 !== 0;
-    const hasUnclosedTemplate = (finalHtml.match(/`/g) || []).length % 2 !== 0;
+    const doubleQuoteRegex = /"/g;
+    const singleQuoteRegex = /'/g;
+    const hasUnclosedString = (finalHtml.match(doubleQuoteRegex) || []).length % 2 !== 0 || (finalHtml.match(singleQuoteRegex) || []).length % 2 !== 0;
+    const backtickRegex = /`/g;
+    const hasUnclosedTemplate = (finalHtml.match(backtickRegex) || []).length % 2 !== 0;
     console.log('[DEBUG] Clean HTML prepared - Length:', cleanHtmlLength);
     console.log('[DEBUG] Clean first 13 chars:', JSON.stringify(cleanHtmlFirst13));
     console.log('[DEBUG] Clean first 13 hex:', cleanHtmlFirst13Hex);
