@@ -4,6 +4,9 @@ LABEL "framework"="express"
 
 WORKDIR /app
 
+# 安裝 PostgreSQL 客戶端，用於在後台執行 pg_dump 備份
+RUN apk add --no-cache postgresql15-client
+
 COPY package*.json ./
 
 RUN npm ci --include=dev
