@@ -37,16 +37,19 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] Raw HTML generated - Length:', rawHtmlLength);
     console.log('[DEBUG] First 13 chars:', JSON.stringify(rawHtmlFirst13));
     console.log('[DEBUG] First 13 hex:', rawHtmlFirst13Hex);
-    console.log('[DEBUG] Has backtick:', rawHtmlFirst13.includes('`'));
+    const backtickCheck = '`';
+    console.log('[DEBUG] Has backtick:', rawHtmlFirst13.includes(backtickCheck));
     try {
       const http = require('http');
-      const logData = JSON.stringify({location:'admin-panel.ts:2571',message:'Raw HTML generated',data:{length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes('`')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'});
+      const backtickChar = '`';
+      const logData = JSON.stringify({location:'admin-panel.ts:2571',message:'Raw HTML generated',data:{length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes(backtickChar)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'});
       const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
     // #endregion
     // Remove leading backtick and newline if present, and trailing whitespace
-    const cleanHtml = html.trimStart().startsWith('`') ? html.trimStart().substring(1).trimStart() : html.trimStart();
+    const backtickChar3 = '`';
+    const cleanHtml = html.trimStart().startsWith(backtickChar3) ? html.trimStart().substring(1).trimStart() : html.trimStart();
     // Ensure cleanHtml ends with </html> without trailing whitespace
     const finalHtml = cleanHtml.trimEnd();
     // #region agent log
@@ -66,12 +69,14 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] Clean HTML prepared - Length:', cleanHtmlLength);
     console.log('[DEBUG] Clean first 13 chars:', JSON.stringify(cleanHtmlFirst13));
     console.log('[DEBUG] Clean first 13 hex:', cleanHtmlFirst13Hex);
-    console.log('[DEBUG] Has backtick:', cleanHtmlFirst13.includes('`'));
+    const backtickCheck2 = '`';
+    console.log('[DEBUG] Has backtick:', cleanHtmlFirst13.includes(backtickCheck2));
     console.log('[DEBUG] Has unclosed string:', hasUnclosedString);
     console.log('[DEBUG] Has unclosed template:', hasUnclosedTemplate);
     try {
       const http = require('http');
-      const logData = JSON.stringify({location:'admin-panel.ts:2573',message:'Clean HTML prepared',data:{length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes('`'),hasUnclosedString,hasUnclosedTemplate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'});
+      const backtickChar2 = '`';
+      const logData = JSON.stringify({location:'admin-panel.ts:2573',message:'Clean HTML prepared',data:{length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes(backtickChar2),hasUnclosedString,hasUnclosedTemplate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'});
       const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
       const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
     } catch(e) {}
