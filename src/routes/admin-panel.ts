@@ -882,22 +882,6 @@ router.get('/', (req, res) => {
                     </div>
                     <div id="telegramTestResult" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; display: none;"></div>
                 </div>
-                <!-- 資料備份區域 -->
-                <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 2rem; border-left: 4px solid #10b981;">
-                    <h3 style="color: #1a5f3f; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span>💾</span>
-                        <span>資料備份（PostgreSQL）</span>
-                    </h3>
-                    <p style="color: #666; font-size: 0.875rem; margin-bottom: 1rem;">
-                        點擊下方按鈕即可從伺服器即時匯出 <strong>PostgreSQL 資料庫</strong> 的 SQL 備份檔案（.sql），請妥善保存。
-                    </p>
-                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                        <button class="btn" onclick="backupDatabase()" style="background: #10b981; color: white;">
-                            💾 下載資料庫 SQL 備份
-                        </button>
-                        <span id="backupStatus" style="font-size: 0.8rem; color: #6b7280;"></span>
-                    </div>
-                </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
                     <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s;" onclick="showTab(null, 'profiles')" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
                         <h3 style="color: #1a5f3f; margin-bottom: 0.5rem;">🍵 高級茶管理</h3>
@@ -2035,27 +2019,6 @@ router.get('/', (req, res) => {
                 }
             } catch (error) {
                 resultDiv.innerHTML = '<div style="background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 1rem; border-radius: 8px;"><div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;"><span>❌</span><strong>測試失敗</strong></div><p style="margin: 0; font-size: 0.875rem;">' + (error.message || '網絡錯誤，請檢查連接') + '</p></div>';
-            }
-        }
-
-        // 後端資料庫備份（下載 SQL 檔）
-        function backupDatabase() {
-            const statusSpan = document.getElementById('backupStatus');
-            if (statusSpan) {
-                statusSpan.textContent = '已發送備份請求，瀏覽器應該會開始下載 SQL 檔案。如未看到下載，請檢查瀏覽器是否擋下彈出視窗或下載。';
-                statusSpan.style.color = '#16a34a';
-            }
-            try {
-                // 直接開啟備份端點，讓瀏覽器處理檔案下載
-                window.open(API_BASE + '/api/admin/backup/db', '_blank');
-            } catch (error) {
-                console.error('觸發備份失敗:', error);
-                if (statusSpan) {
-                    statusSpan.textContent = '觸發備份失敗：' + (error.message || '未知錯誤');
-                    statusSpan.style.color = '#ef4444';
-                } else {
-                    alert('觸發備份失敗：' + (error.message || '未知錯誤'));
-                }
             }
         }
 
