@@ -196,10 +196,18 @@ router.get('/', (req, res) => {
     const contentTypeHeader2 = 'Content-Type';
     const contentTypeValue2 = 'text/html; charset=utf-8';
     res.setHeader(contentTypeHeader2, contentTypeValue2);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const cacheControlHeader2 = 'Cache-Control';
+    const cacheControlValue2 = 'no-cache, no-store, must-revalidate, max-age=0';
+    res.setHeader(cacheControlHeader2, cacheControlValue2);
+    const pragmaHeader2 = 'Pragma';
+    const pragmaValue2 = 'no-cache';
+    res.setHeader(pragmaHeader2, pragmaValue2);
+    const expiresHeader2 = 'Expires';
+    const expiresValue2 = '0';
+    res.setHeader(expiresHeader2, expiresValue2);
+    const xContentTypeHeader2 = 'X-Content-Type-Options';
+    const xContentTypeValue2 = 'nosniff';
+    res.setHeader(xContentTypeHeader2, xContentTypeValue2);
     
     // Validate and send HTML
     const trimmedHtml = finalHtml.trim();
@@ -224,10 +232,18 @@ router.get('/', (req, res) => {
     // Use res.contentType() to set Content-Type - this is the Express way
     const contentType = 'text/html; charset=utf-8';
     res.contentType(contentType);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
+    const cacheControlHeader = 'Cache-Control';
+    const cacheControlValue = 'no-cache, no-store, must-revalidate, max-age=0';
+    res.setHeader(cacheControlHeader, cacheControlValue);
+    const pragmaHeader = 'Pragma';
+    const pragmaValue = 'no-cache';
+    res.setHeader(pragmaHeader, pragmaValue);
+    const expiresHeader = 'Expires';
+    const expiresValue = '0';
+    res.setHeader(expiresHeader, expiresValue);
+    const xContentTypeHeader = 'X-Content-Type-Options';
+    const xContentTypeValue = 'nosniff';
+    res.setHeader(xContentTypeHeader, xContentTypeValue);
     
     // Use res.send() to let Express handle encoding and Content-Length
     res.send(trimmedHtml);
