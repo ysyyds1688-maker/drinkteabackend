@@ -246,18 +246,21 @@ router.get('/backup/db', async (req, res) => {
     let stderr = '';
     let hasError = false;
 
-    pgDump.stderr.on('data', (chunk) => {
-      const text = chunk.toString();
-      stderr += text;
-      // pg_dump 會將進度信息輸出到 stderr，這不是錯誤
-      // 只有當包含 "ERROR" 或 "FATAL" 時才是真正的錯誤
-      if (text.includes('ERROR') || text.includes('FATAL')) {
-        hasError = true;
-        console.error('[pg_dump ERROR]', text.trim());
-      } else {
-        console.log('[pg_dump]', text.trim());
-      }
-    });
+    // 檢查 stderr 是否存在
+    if (pgDump.stderr) {
+      pgDump.stderr.on('data', (chunk) => {
+        const text = chunk.toString();
+        stderr += text;
+        // pg_dump 會將進度信息輸出到 stderr，這不是錯誤
+        // 只有當包含 "ERROR" 或 "FATAL" 時才是真正的錯誤
+        if (text.includes('ERROR') || text.includes('FATAL')) {
+          hasError = true;
+          console.error('[pg_dump ERROR]', text.trim());
+        } else {
+          console.log('[pg_dump]', text.trim());
+        }
+      });
+    }
 
     pgDump.on('error', (error) => {
       console.error('啟動 pg_dump 失敗:', error);
@@ -274,21 +277,31 @@ router.get('/backup/db', async (req, res) => {
     });
 
     // 處理 stdout 數據
-    pgDump.stdout.on('data', (chunk) => {
-      if (!res.headersSent) {
-        // 確保在第一次數據到達時才設置 headers
-        // 但我們已經在上面設置了，所以這裡只是確保
-      }
-      if (!res.destroyed) {
-        res.write(chunk);
-      }
-    });
+    if (pgDump.stdout) {
+      pgDump.stdout.on('data', (chunk) => {
+        if (!res.headersSent) {
+          // 確保在第一次數據到達時才設置 headers
+          // 但我們已經在上面設置了，所以這裡只是確保
+        }
+        if (!res.destroyed) {
+          res.write(chunk);
+        }
+      });
 
-    pgDump.stdout.on('end', () => {
-      if (!res.destroyed) {
-        res.end();
+      pgDump.stdout.on('end', () => {
+        if (!res.destroyed) {
+          res.end();
+        }
+      });
+    } else {
+      // 如果 stdout 為 null，返回錯誤
+      console.error('pg_dump stdout 為 null');
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: '無法啟動 pg_dump 進程的標準輸出流',
+        });
       }
-    });
+    }
 
     pgDump.on('close', (code) => {
       if (code !== 0 || hasError) {
