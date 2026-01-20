@@ -22,10 +22,13 @@ if (!OLD_DATABASE_URL) {
   process.exit(1);
 }
 
+// TypeScript 类型守卫：确保 OLD_DATABASE_URL 不为 undefined
+const oldDbUrl: string = OLD_DATABASE_URL;
+
 async function backupPostgres() {
   try {
     console.log('📥 开始备份 PostgreSQL 数据库...');
-    console.log('连接:', OLD_DATABASE_URL.replace(/:[^:@]+@/, ':****@')); // 隐藏密码
+    console.log('连接:', oldDbUrl.replace(/:[^:@]+@/, ':****@')); // 隐藏密码
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupDir = path.join(process.cwd(), 'backups');
@@ -38,7 +41,7 @@ async function backupPostgres() {
 
     // 使用 pg_dump 备份（自定义格式）
     console.log('正在导出数据库...');
-    await execAsync(`pg_dump "${OLD_DATABASE_URL}" -F c -f "${backupFile}"`);
+    await execAsync(`pg_dump "${oldDbUrl}" -F c -f "${backupFile}"`);
 
     // 检查文件大小
     const stats = fs.statSync(backupFile);
@@ -51,7 +54,7 @@ async function backupPostgres() {
     // 同时创建一个 SQL 格式的备份（作为备用）
     const sqlBackupFile = path.join(backupDir, `postgres-backup-${timestamp}.sql`);
     console.log('正在创建 SQL 格式备份...');
-    await execAsync(`pg_dump "${OLD_DATABASE_URL}" -F p -f "${sqlBackupFile}"`);
+    await execAsync(`pg_dump "${oldDbUrl}" -F p -f "${sqlBackupFile}"`);
     
     const sqlStats = fs.statSync(sqlBackupFile);
     const sqlFileSizeMB = (sqlStats.size / (1024 * 1024)).toFixed(2);

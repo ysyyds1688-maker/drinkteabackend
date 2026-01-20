@@ -33,16 +33,19 @@ if (!fs.existsSync(BACKUP_FILE)) {
   process.exit(1);
 }
 
+// TypeScript 类型守卫：确保 BACKUP_FILE 不为 undefined
+const backupFile: string = BACKUP_FILE;
+
 async function restoreRedis() {
   let client: ReturnType<typeof createClient> | null = null;
 
   try {
     console.log('📤 开始恢复 Redis 数据...');
     console.log('目标 Redis:', NEW_REDIS_URL?.replace(/:[^:@]+@/, ':****@') || '使用环境变量');
-    console.log('备份文件:', BACKUP_FILE);
+    console.log('备份文件:', backupFile);
 
     // 读取备份文件
-    const backupContent = fs.readFileSync(BACKUP_FILE, 'utf8');
+    const backupContent = fs.readFileSync(backupFile, 'utf8');
     const backup: Record<string, { type: string; value: any; ttl: number | null }> = JSON.parse(backupContent);
 
     const keyCount = Object.keys(backup).length;

@@ -33,19 +33,23 @@ if (!fs.existsSync(BACKUP_FILE)) {
   process.exit(1);
 }
 
+// TypeScript 类型守卫：确保这些变量不为 undefined
+const newDbUrl: string = NEW_DATABASE_URL;
+const backupFile: string = BACKUP_FILE;
+
 async function restorePostgres() {
   try {
     console.log('📤 开始恢复 PostgreSQL 数据库...');
-    console.log('目标数据库:', NEW_DATABASE_URL.replace(/:[^:@]+@/, ':****@')); // 隐藏密码
-    console.log('备份文件:', BACKUP_FILE);
+    console.log('目标数据库:', newDbUrl.replace(/:[^:@]+@/, ':****@')); // 隐藏密码
+    console.log('备份文件:', backupFile);
 
-    const stats = fs.statSync(BACKUP_FILE);
+    const stats = fs.statSync(backupFile);
     const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
     console.log(`📊 备份文件大小: ${fileSizeMB} MB`);
 
     // 检查文件格式
-    const isDumpFormat = BACKUP_FILE.endsWith('.dump');
-    const isSqlFormat = BACKUP_FILE.endsWith('.sql');
+    const isDumpFormat = backupFile.endsWith('.dump');
+    const isSqlFormat = backupFile.endsWith('.sql');
 
     if (!isDumpFormat && !isSqlFormat) {
       console.error('❌ 错误: 不支持的备份文件格式（需要 .dump 或 .sql）');
@@ -56,12 +60,12 @@ async function restorePostgres() {
       // 使用 pg_restore 恢复自定义格式
       console.log('正在恢复数据库（自定义格式）...');
       await execAsync(
-        `pg_restore -d "${NEW_DATABASE_URL}" --clean --if-exists --verbose "${BACKUP_FILE}"`
+        `pg_restore -d "${newDbUrl}" --clean --if-exists --verbose "${backupFile}"`
       );
     } else {
       // 使用 psql 恢复 SQL 格式
       console.log('正在恢复数据库（SQL 格式）...');
-      await execAsync(`psql "${NEW_DATABASE_URL}" < "${BACKUP_FILE}"`);
+      await execAsync(`psql "${newDbUrl}" < "${backupFile}"`);
     }
 
     console.log('✅ 恢复完成!');
@@ -69,7 +73,7 @@ async function restorePostgres() {
     // 验证恢复结果
     console.log('\n🔍 验证数据...');
     const { stdout } = await execAsync(
-      `psql "${NEW_DATABASE_URL}" -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"`
+      `psql "${newDbUrl}" -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"`
     );
     console.log(stdout);
 

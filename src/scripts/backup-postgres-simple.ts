@@ -17,14 +17,17 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+// TypeScript 类型守卫：确保 DATABASE_URL 不为 undefined
+const dbUrl: string = DATABASE_URL;
+
 async function backupPostgres() {
   let pool: Pool | null = null;
 
   try {
     console.log('📥 开始备份 PostgreSQL 数据库...');
-    console.log('连接:', DATABASE_URL.replace(/:[^:@]+@/, ':****@'));
+    console.log('连接:', dbUrl.replace(/:[^:@]+@/, ':****@'));
 
-    pool = new Pool({ connectionString: DATABASE_URL });
+    pool = new Pool({ connectionString: dbUrl });
 
     // 测试连接
     await pool.query('SELECT 1');
@@ -84,7 +87,7 @@ async function backupPostgres() {
     // 添加注释
     sqlStatements.push(`-- PostgreSQL 备份`);
     sqlStatements.push(`-- 备份时间: ${new Date().toISOString()}`);
-    sqlStatements.push(`-- 数据库: ${DATABASE_URL.split('@')[1]?.split('/')[1] || 'unknown'}`);
+    sqlStatements.push(`-- 数据库: ${dbUrl.split('@')[1]?.split('/')[1] || 'unknown'}`);
     sqlStatements.push('');
 
     for (let i = 0; i < tables.length; i++) {
