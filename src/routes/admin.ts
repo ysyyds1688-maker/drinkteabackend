@@ -224,23 +224,39 @@ router.get('/backup/db', async (req, res) => {
     res.setHeader('Expires', '0');
 
     // 解析連接字符串
-    // 格式：postgresql://user:password@host:port/database
-    const urlMatch = connectionString.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+    // 格式：postgresql://user:password@host:port/database?query
+    const url = new URL(connectionString);
+    const host = url.hostname;
+    const port = url.port || '5432';
+    const database = url.pathname.slice(1); // 移除開頭的 '/'
+    const user = url.username;
+    const password = url.password;
     
-    if (!urlMatch) {
-      // 如果無法解析，嘗試直接使用連接字符串（pg_dump 可能支持）
-      console.log('[backup] 使用連接字符串格式:', connectionString.substring(0, 20) + '...');
-    }
+    console.log('[backup] 解析連接信息:', { host, port, database, user: user ? '***' : 'none' });
 
     // 呼叫 pg_dump 將資料庫輸出為 SQL（plain 格式）
     // 要求：容器內需已安裝 postgresql-client（pg_dump）
-    // pg_dump 可以直接接受連接字符串作為最後一個參數
-    const pgDumpArgs = ['-F', 'p', '--no-owner', '--no-acl', connectionString];
+    // 使用環境變數傳遞密碼，避免在命令行中暴露
+    const pgDumpArgs = [
+      '-F', 'p',           // plain 格式
+      '--no-owner',        // 不包含 owner 信息
+      '--no-acl',          // 不包含 ACL 信息
+      '-h', host,          // 主機
+      '-p', port,          // 端口
+      '-U', user,          // 用戶名
+      '-d', database,      // 數據庫名
+    ];
+    
+    // 設置環境變數（pg_dump 會自動讀取 PGPASSWORD）
+    const pgDumpEnv = {
+      ...process.env,
+      PGPASSWORD: password,
+    };
+    
+    console.log('[backup] 執行命令: pg_dump', pgDumpArgs.join(' '));
     
     pgDump = spawn('pg_dump', pgDumpArgs, {
-      env: {
-        ...process.env,
-      },
+      env: pgDumpEnv,
     });
 
     let stderr = '';
@@ -262,17 +278,26 @@ router.get('/backup/db', async (req, res) => {
       });
     }
 
-    pgDump.on('error', (error) => {
-      console.error('啟動 pg_dump 失敗:', error);
+    pgDump.on('error', (error: any) => {
+      console.error('[backup] 啟動 pg_dump 失敗:', error);
+      console.error('[backup] 錯誤詳情:', {
+        message: error.message,
+        code: error.code,
+        errno: error.errno,
+        syscall: error.syscall,
+      });
       hasError = true;
       if (!res.headersSent) {
         res.status(500).json({
-          error: '啟動 pg_dump 失敗，請確認容器已安裝 PostgreSQL 客戶端 (pg_dump)。',
-          details: error.message,
+          error: '啟動 pg_dump 失敗',
+          details: error.message || '請確認容器已安裝 PostgreSQL 客戶端 (pg_dump)',
+          code: error.code,
         });
       } else {
         // 如果已經開始發送響應，只能結束連接
-        res.end();
+        if (!res.destroyed) {
+          res.end();
+        }
       }
     });
 
@@ -304,8 +329,10 @@ router.get('/backup/db', async (req, res) => {
     }
 
     pgDump.on('close', (code) => {
+      console.log(`[backup] pg_dump 進程結束，退出代碼: ${code}`);
       if (code !== 0 || hasError) {
-        console.error(`pg_dump 結束代碼 ${code}`, stderr);
+        console.error(`[backup] pg_dump 失敗 - 退出代碼: ${code}`);
+        console.error(`[backup] stderr 輸出:`, stderr.substring(0, 1000));
         if (!res.headersSent) {
           res.status(500).json({
             error: '資料庫備份失敗',
@@ -314,10 +341,11 @@ router.get('/backup/db', async (req, res) => {
           });
         } else if (!res.destroyed) {
           // 如果已經開始發送響應，嘗試結束連接
+          console.error('[backup] 響應已發送，無法返回錯誤信息');
           res.end();
         }
       } else {
-        console.log('資料庫備份成功完成');
+        console.log('[backup] 資料庫備份成功完成');
       }
     });
 
