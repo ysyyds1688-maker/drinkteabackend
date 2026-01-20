@@ -45,7 +45,10 @@ router.get('/', (req, res) => {
   // #endregion
   try {
     // 從外部檔案讀取 HTML 模板，避免 TypeScript 解析超長模板字串的問題
-    const htmlTemplatePath = join(__dirname, '..', 'templates', 'admin-panel.html');
+    // 在生產環境中，TypeScript 編譯後的檔案在 dist/ 目錄，但模板檔案不會被複製
+    // 由於 Dockerfile 中有 COPY . .，所以 src/ 目錄存在於容器中
+    // 我們直接從 src/templates/ 讀取，因為它在容器中始終存在
+    const htmlTemplatePath = join(process.cwd(), 'src', 'templates', 'admin-panel.html');
     const html = readFileSync(htmlTemplatePath, 'utf-8');
     // #region agent log
     const rawHtmlLength = html.length;
