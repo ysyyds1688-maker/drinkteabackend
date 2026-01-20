@@ -19,9 +19,28 @@ router.get('/', (req, res) => {
   console.log('[DEBUG] Admin panel route handler called');
   try {
     const http = require('http');
-    const logData = JSON.stringify({location:'admin-panel.ts:6',message:'Admin panel route handler called',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C,D,E'});
-    const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
-    const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+    const location = 'admin-panel.ts:6';
+    const message = 'Admin panel route handler called';
+    const timestamp = Date.now();
+    const data = {timestamp};
+    const sessionId = 'debug-session';
+    const runId = 'run1';
+    const hypothesisId = 'A,B,C,D,E';
+    const logData = JSON.stringify({location, message, data, timestamp, sessionId, runId, hypothesisId});
+    const hostname = '127.0.0.1';
+    const port = 7247;
+    const path = '/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84';
+    const method = 'POST';
+    const contentTypeHeader = 'Content-Type';
+    const contentTypeValue = 'application/json';
+    const contentLengthHeader = 'Content-Length';
+    const contentLengthValue = Buffer.byteLength(logData);
+    const headers = {[contentTypeHeader]: contentTypeValue, [contentLengthHeader]: contentLengthValue};
+    const options = {hostname, port, path, method, headers};
+    const reqLog = http.request(options, () => {});
+    reqLog.on('error', () => {});
+    reqLog.write(logData);
+    reqLog.end();
   } catch(e) {}
   // #endregion
   try {
@@ -42,9 +61,28 @@ router.get('/', (req, res) => {
     try {
       const http = require('http');
       const backtickChar = '`';
-      const logData = JSON.stringify({location:'admin-panel.ts:2571',message:'Raw HTML generated',data:{length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes(backtickChar)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'});
-      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
-      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+      const location = 'admin-panel.ts:2571';
+      const message = 'Raw HTML generated';
+      const timestamp = Date.now();
+      const sessionId = 'debug-session';
+      const runId = 'run1';
+      const hypothesisId = 'A,D';
+      const data = {length:rawHtmlLength,first100:rawHtmlFirst100,last100:rawHtmlLast100,first13:rawHtmlFirst13,first13Hex:rawHtmlFirst13Hex,hasBacktick:rawHtmlFirst13.includes(backtickChar)};
+      const logData = JSON.stringify({location, message, data, timestamp, sessionId, runId, hypothesisId});
+      const hostname = '127.0.0.1';
+      const port = 7247;
+      const path = '/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84';
+      const method = 'POST';
+      const contentTypeHeader = 'Content-Type';
+      const contentTypeValue = 'application/json';
+      const contentLengthHeader = 'Content-Length';
+      const contentLengthValue = Buffer.byteLength(logData);
+      const headers = {[contentTypeHeader]: contentTypeValue, [contentLengthHeader]: contentLengthValue};
+      const options = {hostname, port, path, method, headers};
+      const reqLog = http.request(options, () => {});
+      reqLog.on('error', () => {});
+      reqLog.write(logData);
+      reqLog.end();
     } catch(e) {}
     // #endregion
     // Remove leading backtick and newline if present, and trailing whitespace
@@ -80,9 +118,28 @@ router.get('/', (req, res) => {
     try {
       const http = require('http');
       const backtickChar2 = '`';
-      const logData = JSON.stringify({location:'admin-panel.ts:2573',message:'Clean HTML prepared',data:{length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes(backtickChar2),hasUnclosedString,hasUnclosedTemplate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,E'});
-      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
-      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+      const location = 'admin-panel.ts:2573';
+      const message = 'Clean HTML prepared';
+      const timestamp = Date.now();
+      const sessionId = 'debug-session';
+      const runId = 'run1';
+      const hypothesisId = 'A,C,E';
+      const data = {length:cleanHtmlLength,first100:cleanHtmlFirst100,last100:cleanHtmlLast100,first13:cleanHtmlFirst13,first13Hex:cleanHtmlFirst13Hex,hasBacktick:cleanHtmlFirst13.includes(backtickChar2),hasUnclosedString,hasUnclosedTemplate};
+      const logData = JSON.stringify({location, message, data, timestamp, sessionId, runId, hypothesisId});
+      const hostname = '127.0.0.1';
+      const port = 7247;
+      const path = '/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84';
+      const method = 'POST';
+      const contentTypeHeader = 'Content-Type';
+      const contentTypeValue = 'application/json';
+      const contentLengthHeader = 'Content-Length';
+      const contentLengthValue = Buffer.byteLength(logData);
+      const headers = {[contentTypeHeader]: contentTypeValue, [contentLengthHeader]: contentLengthValue};
+      const options = {hostname, port, path, method, headers};
+      const reqLog = http.request(options, () => {});
+      reqLog.on('error', () => {});
+      reqLog.write(logData);
+      reqLog.end();
     } catch(e) {}
     // #endregion
     console.log('HTML length:', finalHtml.length);
@@ -92,9 +149,28 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] About to send HTML response - Length:', cleanHtmlLength);
     try {
       const http = require('http');
-      const logData = JSON.stringify({location:'admin-panel.ts:2580',message:'About to send HTML response',data:{htmlLength:cleanHtmlLength,contentType:'text/html'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'});
-      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
-      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+      const location = 'admin-panel.ts:2580';
+      const message = 'About to send HTML response';
+      const timestamp = Date.now();
+      const sessionId = 'debug-session';
+      const runId = 'run1';
+      const hypothesisId = 'B';
+      const data = {htmlLength:cleanHtmlLength,contentType:'text/html'};
+      const logData = JSON.stringify({location, message, data, timestamp, sessionId, runId, hypothesisId});
+      const hostname = '127.0.0.1';
+      const port = 7247;
+      const path = '/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84';
+      const method = 'POST';
+      const contentTypeHeader = 'Content-Type';
+      const contentTypeValue = 'application/json';
+      const contentLengthHeader = 'Content-Length';
+      const contentLengthValue = Buffer.byteLength(logData);
+      const headers = {[contentTypeHeader]: contentTypeValue, [contentLengthHeader]: contentLengthValue};
+      const options = {hostname, port, path, method, headers};
+      const reqLog = http.request(options, () => {});
+      reqLog.on('error', () => {});
+      reqLog.write(logData);
+      reqLog.end();
     } catch(e) {}
     // #endregion
     // Set proper content type - DO NOT set Content-Length manually, let Express handle it
@@ -251,9 +327,28 @@ router.get('/', (req, res) => {
     console.log('[DEBUG] HTML response sent');
     try {
       const http = require('http');
-      const logData = JSON.stringify({location:'admin-panel.ts:2726',message:'HTML response sent',data:{htmlLength:finalHtml.length,contentLength:contentLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'});
-      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
-      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+      const location = 'admin-panel.ts:2726';
+      const message = 'HTML response sent';
+      const timestamp = Date.now();
+      const sessionId = 'debug-session';
+      const runId = 'run1';
+      const hypothesisId = 'B';
+      const data = {htmlLength:finalHtml.length,contentLength:contentLength};
+      const logData = JSON.stringify({location, message, data, timestamp, sessionId, runId, hypothesisId});
+      const hostname = '127.0.0.1';
+      const port = 7247;
+      const path = '/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84';
+      const method = 'POST';
+      const contentTypeHeader = 'Content-Type';
+      const contentTypeValue = 'application/json';
+      const contentLengthHeader = 'Content-Length';
+      const contentLengthValue = Buffer.byteLength(logData);
+      const headers = {[contentTypeHeader]: contentTypeValue, [contentLengthHeader]: contentLengthValue};
+      const options = {hostname, port, path, method, headers};
+      const reqLog = http.request(options, () => {});
+      reqLog.on('error', () => {});
+      reqLog.write(logData);
+      reqLog.end();
     } catch(e) {}
     // #endregion
   } catch (error) {
@@ -262,9 +357,28 @@ router.get('/', (req, res) => {
     console.error('[DEBUG] Error generating HTML:', errorDetails);
     try {
       const http = require('http');
-      const logData = JSON.stringify({location:'admin-panel.ts:2584',message:'Error generating HTML',data:errorDetails,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'});
-      const options = {hostname:'127.0.0.1',port:7247,path:'/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(logData)}};
-      const reqLog = http.request(options,()=>{});reqLog.on('error',()=>{});reqLog.write(logData);reqLog.end();
+      const location = 'admin-panel.ts:2584';
+      const message = 'Error generating HTML';
+      const timestamp = Date.now();
+      const sessionId = 'debug-session';
+      const runId = 'run1';
+      const hypothesisId = 'E';
+      const data = errorDetails;
+      const logData = JSON.stringify({location, message, data, timestamp, sessionId, runId, hypothesisId});
+      const hostname = '127.0.0.1';
+      const port = 7247;
+      const path = '/ingest/df99b3ce-2254-49ab-bc06-36ea663efb84';
+      const method = 'POST';
+      const contentTypeHeader = 'Content-Type';
+      const contentTypeValue = 'application/json';
+      const contentLengthHeader = 'Content-Length';
+      const contentLengthValue = Buffer.byteLength(logData);
+      const headers = {[contentTypeHeader]: contentTypeValue, [contentLengthHeader]: contentLengthValue};
+      const options = {hostname, port, path, method, headers};
+      const reqLog = http.request(options, () => {});
+      reqLog.on('error', () => {});
+      reqLog.write(logData);
+      reqLog.end();
     } catch(e) {}
     // #endregion
     console.error('Error generating HTML:', error);
