@@ -48,8 +48,27 @@ router.get('/', (req, res) => {
     // 在生產環境中，TypeScript 編譯後的檔案在 dist/ 目錄，但模板檔案不會被複製
     // 由於 Dockerfile 中有 COPY . .，所以 src/ 目錄存在於容器中
     // 我們直接從 src/templates/ 讀取，因為它在容器中始終存在
-    const htmlTemplatePath = join(process.cwd(), 'src', 'templates', 'admin-panel.html');
-    const html = readFileSync(htmlTemplatePath, 'utf-8');
+    let htmlTemplatePath = join(process.cwd(), 'src', 'templates', 'admin-panel.html');
+    let html: string;
+    
+    try {
+      html = readFileSync(htmlTemplatePath, 'utf-8');
+    } catch (error) {
+      // 如果從 src/ 讀取失敗，嘗試從 dist/ 讀取（開發環境）
+      console.error(`[ERROR] 無法從 ${htmlTemplatePath} 讀取模板檔案，嘗試其他路徑...`);
+      htmlTemplatePath = join(__dirname, '..', 'templates', 'admin-panel.html');
+      try {
+        html = readFileSync(htmlTemplatePath, 'utf-8');
+      } catch (error2) {
+        // 如果還是失敗，返回錯誤信息
+        console.error(`[ERROR] 無法讀取模板檔案，嘗試的路徑：`);
+        console.error(`  1. ${join(process.cwd(), 'src', 'templates', 'admin-panel.html')}`);
+        console.error(`  2. ${htmlTemplatePath}`);
+        console.error(`[ERROR] 當前工作目錄: ${process.cwd()}`);
+        console.error(`[ERROR] __dirname: ${__dirname}`);
+        throw new Error(`無法讀取管理面板模板檔案。請確認檔案存在於 src/templates/admin-panel.html`);
+      }
+    }
     // #region agent log
     const rawHtmlLength = html.length;
     const rawHtmlFirst100 = html.substring(0, 100);
@@ -386,7 +405,46 @@ router.get('/', (req, res) => {
     // #endregion
     console.error('Error generating HTML:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    res.status(500).send('Error generating admin panel: ' + errorMessage);
+    
+    // 返回友好的錯誤頁面，而不是純文本
+    const errorHtml = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>後台管理系統 - 錯誤</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 2rem; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h1 { color: #dc2626; margin-bottom: 1rem; }
+    p { color: #4b5563; line-height: 1.6; }
+    .error-details { background: #fef2f2; border-left: 4px solid #dc2626; padding: 1rem; margin-top: 1rem; border-radius: 4px; }
+    code { background: #f3f4f6; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
+    .btn { display: inline-block; margin-top: 1rem; padding: 0.75rem 1.5rem; background: #3b82f6; color: white; border-radius: 6px; text-decoration: none; }
+    .btn:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>❌ 載入後台管理系統時發生錯誤</h1>
+    <p>無法載入後台管理系統的模板檔案。請檢查以下項目：</p>
+    <div class="error-details">
+      <strong>錯誤訊息：</strong><br>
+      <code>${errorMessage}</code>
+    </div>
+    <p><strong>可能的原因：</strong></p>
+    <ul>
+      <li>模板檔案 <code>src/templates/admin-panel.html</code> 不存在</li>
+      <li>檔案權限問題</li>
+      <li>服務器配置問題</li>
+    </ul>
+    <a href="/" class="btn">返回首頁</a>
+    <a href="/health" class="btn" style="margin-left: 0.5rem; background: #10b981;">檢查服務狀態</a>
+  </div>
+</body>
+</html>`;
+    
+    res.status(500).setHeader('Content-Type', 'text/html; charset=utf-8').send(errorHtml);
   }
 });
 

@@ -201,6 +201,8 @@ router.get('/backup', (req, res) => {
 
 // GET /api/admin/backup/db - 下載資料庫 SQL 備份（僅管理員在前端可見）
 router.get('/backup/db', async (req, res) => {
+  let pgDump: ReturnType<typeof spawn> | null = null;
+  
   try {
     const connectionString = process.env.DATABASE_URL;
 
@@ -221,48 +223,104 @@ router.get('/backup/db', async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
 
+    // 解析連接字符串
+    // 格式：postgresql://user:password@host:port/database
+    const urlMatch = connectionString.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+    
+    if (!urlMatch) {
+      // 如果無法解析，嘗試直接使用連接字符串（pg_dump 可能支持）
+      console.log('[backup] 使用連接字符串格式:', connectionString.substring(0, 20) + '...');
+    }
+
     // 呼叫 pg_dump 將資料庫輸出為 SQL（plain 格式）
     // 要求：容器內需已安裝 postgresql-client（pg_dump）
-    const pgDump = spawn('pg_dump', [connectionString, '-F', 'p'], {
+    // pg_dump 可以直接接受連接字符串作為最後一個參數
+    const pgDumpArgs = ['-F', 'p', '--no-owner', '--no-acl', connectionString];
+    
+    pgDump = spawn('pg_dump', pgDumpArgs, {
       env: {
         ...process.env,
       },
     });
 
     let stderr = '';
+    let hasError = false;
 
     pgDump.stderr.on('data', (chunk) => {
       const text = chunk.toString();
       stderr += text;
-      console.error('[pg_dump]', text.trim());
+      // pg_dump 會將進度信息輸出到 stderr，這不是錯誤
+      // 只有當包含 "ERROR" 或 "FATAL" 時才是真正的錯誤
+      if (text.includes('ERROR') || text.includes('FATAL')) {
+        hasError = true;
+        console.error('[pg_dump ERROR]', text.trim());
+      } else {
+        console.log('[pg_dump]', text.trim());
+      }
     });
 
     pgDump.on('error', (error) => {
       console.error('啟動 pg_dump 失敗:', error);
+      hasError = true;
       if (!res.headersSent) {
-        res
-          .status(500)
-          .send('啟動 pg_dump 失敗，請確認容器已安裝 PostgreSQL 客戶端 (pg_dump)。');
+        res.status(500).json({
+          error: '啟動 pg_dump 失敗，請確認容器已安裝 PostgreSQL 客戶端 (pg_dump)。',
+          details: error.message,
+        });
       } else {
+        // 如果已經開始發送響應，只能結束連接
         res.end();
       }
     });
 
-    // 將 pg_dump 的輸出直接串流給瀏覽器
-    pgDump.stdout.pipe(res);
-
-    pgDump.on('close', (code) => {
-      if (code !== 0) {
-        console.error(`pg_dump 結束代碼 ${code}`, stderr);
-        if (!res.headersSent) {
-          res
-            .status(500)
-            .send('資料庫備份失敗，請查看伺服器日誌 (pg_dump exit code ' + code + ')。');
-        }
+    // 處理 stdout 數據
+    pgDump.stdout.on('data', (chunk) => {
+      if (!res.headersSent) {
+        // 確保在第一次數據到達時才設置 headers
+        // 但我們已經在上面設置了，所以這裡只是確保
+      }
+      if (!res.destroyed) {
+        res.write(chunk);
       }
     });
+
+    pgDump.stdout.on('end', () => {
+      if (!res.destroyed) {
+        res.end();
+      }
+    });
+
+    pgDump.on('close', (code) => {
+      if (code !== 0 || hasError) {
+        console.error(`pg_dump 結束代碼 ${code}`, stderr);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: '資料庫備份失敗',
+            details: `pg_dump exit code: ${code}`,
+            stderr: stderr.substring(0, 500), // 限制錯誤信息長度
+          });
+        } else if (!res.destroyed) {
+          // 如果已經開始發送響應，嘗試結束連接
+          res.end();
+        }
+      } else {
+        console.log('資料庫備份成功完成');
+      }
+    });
+
+    // 處理請求中斷
+    req.on('close', () => {
+      if (pgDump && !pgDump.killed) {
+        console.log('[backup] 客戶端中斷連接，終止 pg_dump 進程');
+        pgDump.kill('SIGTERM');
+      }
+    });
+
   } catch (error: any) {
     console.error('資料庫備份發生錯誤:', error);
+    if (pgDump && !pgDump.killed) {
+      pgDump.kill('SIGTERM');
+    }
     if (!res.headersSent) {
       res.status(500).json({
         error: error.message || '資料庫備份發生未知錯誤',
